@@ -1478,6 +1478,38 @@ async function main() {
     }
     process.stdout.write(reportFixture.stdout);
 
+    process.stdout.write("[pack smoke] packed saved-suite release fixture through installed binary\n");
+    const savedSuiteFixture = spawnSync(
+      process.execPath,
+      [join(projectRoot, "scripts", "packed-saved-suite-release.mjs")],
+      {
+        cwd: projectRoot,
+        env: {
+          ...process.env,
+          AUGMENTWORKS_PACKED_BIN: packedCli,
+          NO_COLOR: "1"
+        },
+        encoding: "utf8",
+        timeout: 180_000,
+        windowsHide: true
+      }
+    );
+    if (savedSuiteFixture.error !== undefined) {
+      throw new SmokeFailure(`packed saved-suite fixture failed to start: ${savedSuiteFixture.error.message}`);
+    }
+    if (savedSuiteFixture.status !== 0) {
+      throw new SmokeFailure(
+        [
+          "packed saved-suite release fixture failed",
+          savedSuiteFixture.stdout.trim(),
+          savedSuiteFixture.stderr.trim()
+        ]
+          .filter(Boolean)
+          .join("\n")
+      );
+    }
+    process.stdout.write(savedSuiteFixture.stdout);
+
     process.stdout.write("[pack smoke] packed real-data privacy canaries through installed binary\n");
     const privacyFixture = spawnSync(process.execPath, [join(projectRoot, "scripts", "packed-real-data-privacy.mjs")], {
       cwd: projectRoot,
