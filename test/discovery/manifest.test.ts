@@ -31,23 +31,23 @@ describe("discovery manifest", () => {
     }
   });
 
-  it("keeps the last independently inspected published 0.3.6 snapshot with demo", () => {
+  it("keeps the last independently inspected published 0.3.7 snapshot with demo", () => {
     const parsed = parseDiscoveryManifest(LAST_VERIFIED_PUBLISHED_DISCOVERY);
     expect(parsed.ok).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.3.6");
+    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.3.7");
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.releaseStatus).toBe("published");
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.capabilities.localDemo).toBe(true);
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.commands.localDemo).toEqual([
       "npx",
       "--yes",
-      "@augmentworks/cli@0.3.6",
+      "@augmentworks/cli@0.3.7",
       "demo"
     ]);
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.provenance.verifiedAt).toBe(
-      "2026-09-10T16:26:29.450Z"
+      "2026-09-27T21:06:12.276Z"
     );
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.provenance.sourceCommit).toBe(
-      "a9b927a2413305003f817c20e9c5df277512f83e"
+      "876454878a31a897aec1d722fa838c9c0ecea2aa"
     );
   });
 
@@ -101,7 +101,7 @@ describe("discovery manifest", () => {
     expect(source.package.releaseStatus).toBe("development");
     expect(source.provenance.verifiedAt).toBeNull();
     expect(source.provenance.sourceCommit).toBeNull();
-    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.3.6");
+    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.3.7");
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.capabilities.localDemo).toBe(true);
     expect(source.capabilities.localDemo).toBe(true);
   });

@@ -136,9 +136,12 @@ All notable changes to this project are documented here. The format follows
 Published-line package for native customer-suite upload translation, saved-suite
 v2 binding, authoritative v2 whole-suite gate receipts, durable execution IDs,
 cross-shard quote uniqueness, and non-destructive generated `.env` guidance.
-Executable npx pins match this tarball after the protected `v0.3.7` publish.
-Do not overwrite or relabel `@augmentworks/cli@0.3.6`. Independent inspection
-of 0.3.6 is recorded in `docs/feature-readiness/published-registry-evidence.json`.
+Protected publish completed 2026-09-27. Independently inspected npm
+`@augmentworks/cli@0.3.7` `gitHead`
+`876454878a31a897aec1d722fa838c9c0ecea2aa` is recorded in
+`docs/feature-readiness/published-registry-evidence.json`. The published
+tarball predates that inspection commit, so its embedded `LAST_VERIFIED_*`
+still names 0.3.6. Do not republish 0.3.7 or relabel `@augmentworks/cli@0.3.6`.
 `published_package_verified` is published-line identity, not a live registry
 probe of this exact tarball.
 
