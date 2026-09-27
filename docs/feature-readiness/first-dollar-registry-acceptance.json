@@ -103,6 +103,6 @@
     "No live purchases, production provider calls, customer-target contact, or extra trial grants were used.",
     "AUG-47/48 broader baseline/regression/CI acceptance is not claimed.",
     "AUG-58 remains authoritative for hosted positive/fault/browser QA.",
-    "0.3.7 thisPackageIdentity stays pending-protected-publish until the protected v0.3.7 publish. Independently inspected 0.3.6 is lastIndependentlyInspected. This file still records independently inspected 0.3.4."
+    "Independently inspected 0.3.7 is lastIndependentlyInspected. This file still records independently inspected 0.3.4 and must not be relabeled as 0.3.7 or 0.3.6."
   ]
 }

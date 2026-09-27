@@ -40,7 +40,7 @@ audit, or hosted evidence record.
 | Hosted packet | `support-refunds@0.1.0` |
 | Local starter packet | `support-refunds-starter@0.1.0` |
 
-Executable `npx` examples pin **0.3.7**, the identity of this package. This published-line package includes packaged `demo`, hosted `--assessment` / `--profile`, `usage`, `billing`, `preview-mapping`, `probe`, `catalog list` / `show`, `selection compile` with connector capabilities, `suite validate` / `preview`, `test --suite`, `investigation inspect` / `fetch` / `export-regression`, `test --investigation`, `--estimate` / `--max-credits`, `run status` / `run wait` / `run report`, `compare` / `gate` / `baseline`, `AUGMENTWORKS_API_KEY` mode, empty-directory own-target starters, native customer-suite upload translation, saved-suite v2, v2 gate receipts, durable execution IDs, cross-shard quote uniqueness, and non-destructive generated `.env` guidance. `examples/` is still omitted from the npm tarball; starters ship under `assets/`. `published_package_verified` is published-line identity, not a live registry probe of this exact tarball. Independent inspection of 0.3.6 is recorded in `docs/feature-readiness/published-registry-evidence.json`. The immutable 0.3.5 tarball omits suite-selection `capabilities` (AUG-82); independently inspected 0.3.6 includes that fix. Website discovery may remain on independently inspected 0.3.6 until the protected `v0.3.7` publish and a later website adoption. Do not overwrite or relabel npm 0.3.6, 0.3.5, 0.3.4, or 0.3.3. `npx --yes` only skips the npm prompt; it is not a hosted spending ceiling. Do not run `npx @augmentworks/cli@latest`.
+Executable `npx` examples pin **0.3.7**, the identity of this package. This published-line package includes packaged `demo`, hosted `--assessment` / `--profile`, `usage`, `billing`, `preview-mapping`, `probe`, `catalog list` / `show`, `selection compile` with connector capabilities, `suite validate` / `preview`, `test --suite`, `investigation inspect` / `fetch` / `export-regression`, `test --investigation`, `--estimate` / `--max-credits`, `run status` / `run wait` / `run report`, `compare` / `gate` / `baseline`, `AUGMENTWORKS_API_KEY` mode, empty-directory own-target starters, native customer-suite upload translation, saved-suite v2, v2 gate receipts, durable execution IDs, cross-shard quote uniqueness, and non-destructive generated `.env` guidance. `examples/` is still omitted from the npm tarball; starters ship under `assets/`. `published_package_verified` is published-line identity, not a live registry probe of this exact tarball. Independent inspection of `@augmentworks/cli@0.3.7` (`gitHead` `876454878a31a897aec1d722fa838c9c0ecea2aa`, published 2026-09-27T21:06:12.276Z, tarball SHA-256 `37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313`) is recorded in `docs/feature-readiness/published-registry-evidence.json`. The immutable 0.3.5 tarball omits suite-selection `capabilities` (AUG-82); independently inspected 0.3.6 includes that fix and does not include saved-suite `/2`. Website adoption of this exact 0.3.7 artifact is AUG-250. Do not overwrite or relabel npm 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3. `npx --yes` only skips the npm prompt; it is not a hosted spending ceiling. Do not run `npx @augmentworks/cli@latest`.
 
 ## Packaged demo (this 0.3.7 package)
 
@@ -84,10 +84,10 @@ opens HTML only if you pass it; default is no browser. After a hard kill,
 cleanup may not run; the in-memory demo target vanishes with the process, but
 a real application still needs a server-side fixture TTL.
 
-Website discovery may remain on independently inspected `@augmentworks/cli@0.3.6`
-until maintainers adopt a later independently inspected tarball. Do not treat
-this pin as a live registry probe of 0.3.7, and do not use `@latest` or
-`@0.3.5` for catalog/selection compile.
+Website adoption of independently inspected `@augmentworks/cli@0.3.7` is
+AUG-250. Do not use `@latest`, `@0.3.6`, or `@0.3.5` for the saved-suite
+catalog/selection path. The published tarball's embedded `LAST_VERIFIED_*`
+still names 0.3.6; the inspection receipt is the later evidence file.
 
 ## Hosted quickstart
 
@@ -151,7 +151,7 @@ npx --yes @augmentworks/cli@0.3.7 login --device
 
 Interactive login can replace the one stored credential for this API origin
 after it displays the selected workspace name and UUID. To pin a company
-workspace (source `0.3.7`; not independently inspected npm `0.3.6`):
+workspace (independently inspected `@augmentworks/cli@0.3.7`):
 
 ```bash
 node dist/index.js login --workspace "$AUGMENTWORKS_WORKSPACE_ID"
@@ -450,9 +450,9 @@ exit "$code"
 ```
 
 Do not use `@latest` or immutable npm `0.3.6` for this package. Website
-examples may remain on independently inspected 0.3.6 until they adopt this
-patch after the protected `v0.3.7` publish. Independent registry evidence lives
-in `docs/feature-readiness/published-registry-evidence.json`.
+examples adopt independently inspected `@augmentworks/cli@0.3.7` (AUG-250).
+Independent registry evidence lives in
+`docs/feature-readiness/published-registry-evidence.json`.
 
 ## Local assessment
 
