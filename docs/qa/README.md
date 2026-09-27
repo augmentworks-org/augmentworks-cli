@@ -22,13 +22,13 @@ coordinator) should link here. This file does not replace
 | **Hosted** (`login`, `test` without `--local`, `run report`, billing) | Relayed assessment against the live control plane | Local packet oracle or an unpublished source SHA |
 | **Browser** | Portal / session-door / consent UI owned by the main application | CLI stdout. This repo has no first-party web UI |
 
-Package identity of a checkout is `package.json` (currently `0.3.7`). That is
-not registry proof. The last independently inspected npm tarball recorded
-in-tree is `@augmentworks/cli@0.3.6` in
-`docs/feature-readiness/published-registry-evidence.json`. Confirm with
-`npm view` before treating a pin as installed. Never run
-`npx @augmentworks/cli@latest`. `npx --yes` only skips the npm prompt; it is
-not a spending ceiling.
+Package identity of a checkout is `package.json` (currently `0.3.7`). That
+version string alone is not registry proof. The last independently inspected
+npm tarball recorded in-tree is `@augmentworks/cli@0.3.7` in
+`docs/feature-readiness/published-registry-evidence.json` (`gitHead`
+`876454878a31a897aec1d722fa838c9c0ecea2aa`). Confirm with `npm view` before
+treating a pin as installed. Never run `npx @augmentworks/cli@latest`.
+`npx --yes` only skips the npm prompt; it is not a spending ceiling.
 
 Local reports use schema `AW-LOCAL-RESULT-1`. They are unsigned,
 customer-executed evidence. AugmentWorks did not receive or independently

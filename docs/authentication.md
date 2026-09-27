@@ -64,8 +64,8 @@ on `test --local`; unknown-option on `demo`, `doctor`, `suite validate`, and
 other offline commands). `AUGMENTWORKS_WORKSPACE_ID` is ignored in local mode
 and does not turn local execution into a cloud call.
 
-Source `0.3.7` examples (this package; independently inspected npm latest
-remains `0.3.6` until the protected publish):
+Independently inspected `@augmentworks/cli@0.3.7` examples (do not pin
+immutable npm `0.3.6`):
 
 ```bash
 # Developer invited to company B

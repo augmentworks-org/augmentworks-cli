@@ -28,10 +28,12 @@ accurate extra term.
 
 ## npm
 
-Do not run `npm publish` here. After CI is green on a `v0.3.7` tag, the
-existing trusted-publishing release workflow publishes. Then verify the
-downloaded tarball; do not treat `package.json` version as publication. Do not
-overwrite or relabel `@augmentworks/cli@0.3.6`.
+Do not run `npm publish` ad hoc. `@augmentworks/cli@0.3.7` is already published
+from GitHub release `v0.3.7` (target
+`876454878a31a897aec1d722fa838c9c0ecea2aa`) by the trusted-publishing workflow
+and independently inspected. Do not republish 0.3.7. A later version needs a
+new tag and the same workflow, then a fresh tarball inspection. Do not
+overwrite or relabel `@augmentworks/cli@0.3.6`, `0.3.5`, `0.3.4`, or `0.3.3`.
 
 ## Website
 

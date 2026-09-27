@@ -27,21 +27,22 @@ export const PUBLISHED_PACKAGE_VERSION: string = CLI_VERSION;
  */
 export const PUBLISHED_PACKAGE_VERIFIED = true;
 /**
- * Last independently inspected npm tarball. This is prior-version evidence,
- * not a recommendation to prefer that pin over this package identity.
- * Do not relabel 0.3.6, 0.3.5, 0.3.4, 0.3.3, or 0.3.2 provenance.
+ * Last independently inspected npm tarball. This records a downloaded
+ * registry artifact, not a live probe baked into that same tarball.
+ * Do not relabel 0.3.7, 0.3.6, 0.3.5, 0.3.4, 0.3.3, or 0.3.2 provenance.
  */
-export const LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION = "0.3.6";
-export const LAST_VERIFIED_PUBLISHED_GIT_HEAD = "a9b927a2413305003f817c20e9c5df277512f83e";
-export const LAST_VERIFIED_PUBLISHED_AT = "2026-09-10T16:26:29.450Z";
+export const LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION = "0.3.7";
+export const LAST_VERIFIED_PUBLISHED_GIT_HEAD = "876454878a31a897aec1d722fa838c9c0ecea2aa";
+export const LAST_VERIFIED_PUBLISHED_AT = "2026-09-27T21:06:12.276Z";
 export const LAST_VERIFIED_PUBLISHED_INTEGRITY =
-  "sha512-idDM/kYfDCzDu+iaSqzZjEchyui9I8r1krUFdZ8BmVtZIye2D5WbHFpbYaNzuwjPvV7gCk1XixLwu1kuROXfwA==";
+  "sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA==";
 /** Immutable npm 0.3.3 (not this release). Do not overwrite or relabel. */
 export const REGISTRY_0_3_3_GIT_HEAD = "4a08ea0d352f2515e725cb9ca946807112422436";
 /** Immutable npm 0.3.4 (not this release). Do not overwrite or relabel. */
 export const REGISTRY_0_3_4_GIT_HEAD = "c3da8d92bdd3daa21e9e230ffc5d110b43adaa5f";
 export const REGISTRY_0_3_5_GIT_HEAD = "11570f6cf883ec6e6743e010c35134bb485234dd";
-export const REGISTRY_0_3_6_GIT_HEAD = LAST_VERIFIED_PUBLISHED_GIT_HEAD;
+/** Immutable npm 0.3.6. Kept as a literal so later inspections do not relabel it. */
+export const REGISTRY_0_3_6_GIT_HEAD = "a9b927a2413305003f817c20e9c5df277512f83e";
 export const HOSTED_COMMAND_PIN: string = SOURCE_PACKAGE_VERSION;
 export const LOCAL_DISTRIBUTION: "npm" | "git" =
   SOURCE_PACKAGE_VERSION === PUBLISHED_PACKAGE_VERSION ? "npm" : "git";
@@ -89,7 +90,7 @@ export const CLI_RELEASE: CliReleaseFixture = {
   target_protocol_version: TARGET_PROTOCOL_VERSION,
   config_version: CONFIG_VERSION,
   notes:
-    "Published-line 0.3.7 includes the AUG-82 suite-selection capability fix plus source work after 0.3.6: native aw-customer-suite/1 upload translation, saved-suite v2 binding, authoritative v2 whole-suite gate receipts, durable execution IDs, cross-shard quote/run uniqueness, and non-destructive generated .env guidance. Generated and documented npx commands pin this package version (0.3.7). published_package_verified is published-line identity (not a candidate), not a live registry probe of this exact tarball. Independent inspection of npm @augmentworks/cli@0.3.6 (gitHead a9b927a2413305003f817c20e9c5df277512f83e, integrity sha512-idDM/kYfDCzDu+iaSqzZjEchyui9I8r1krUFdZ8BmVtZIye2D5WbHFpbYaNzuwjPvV7gCk1XixLwu1kuROXfwA==, published 2026-09-10T16:26:29.450Z) is recorded in docs/feature-readiness/published-registry-evidence.json. Do not overwrite or relabel immutable npm 0.3.6, 0.3.5, 0.3.4, or 0.3.3. Website discovery may remain on an earlier independently inspected pin until it adopts this package after protected publication. Vendors aw-billing/1 from main 650472d91442a6866a7b6ef18e6dacc23a2a9260 including subscriptions_v1. The CLI does not subscribe, cancel, or collect payment methods. Live subscription sales stay gated on the server. Catalog list/show and selection compile consume aw-coverage-catalog/1 and aw-suite-selection/1 without a local compiler or pricing engine. Do not run @latest."
+    "Published-line 0.3.7 includes the AUG-82 suite-selection capability fix plus source work after 0.3.6: native aw-customer-suite/1 upload translation, saved-suite v2 binding, authoritative v2 whole-suite gate receipts, durable execution IDs, cross-shard quote/run uniqueness, and non-destructive generated .env guidance. Generated and documented npx commands pin this package version (0.3.7). published_package_verified is published-line identity (not a candidate), not a live registry probe of this exact tarball. Independent inspection of npm @augmentworks/cli@0.3.7 (gitHead 876454878a31a897aec1d722fa838c9c0ecea2aa, integrity sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA==, published 2026-09-27T21:06:12.276Z, tarball SHA-256 37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313) is recorded in docs/feature-readiness/published-registry-evidence.json. The published 0.3.7 tarball itself still embeds the prior LAST_VERIFIED 0.3.6 snapshot; this inspection commit is not inside that immutable artifact. Do not overwrite or relabel immutable npm 0.3.7, 0.3.6 (gitHead a9b927a2413305003f817c20e9c5df277512f83e), 0.3.5, 0.3.4, or 0.3.3. Website adoption of this exact pin is AUG-250. Do not fetch latest. Vendors aw-billing/1 from main 650472d91442a6866a7b6ef18e6dacc23a2a9260 including subscriptions_v1. The CLI does not subscribe, cancel, or collect payment methods. Live subscription sales stay gated on the server. Catalog list/show and selection compile consume aw-coverage-catalog/1 and aw-suite-selection/1 without a local compiler or pricing engine. Saved-suite compiles request aw-suite-selection/2. Do not run @latest."
 };
 
 export function formatNpx(pin: string, argv: readonly string[]): string {

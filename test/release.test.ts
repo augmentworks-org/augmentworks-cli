@@ -16,6 +16,7 @@ import {
   PUBLISHED_PACKAGE_VERIFIED,
   PUBLISHED_PACKAGE_VERSION,
   REGISTRY_0_3_3_GIT_HEAD,
+  REGISTRY_0_3_6_GIT_HEAD,
   SOURCE_PACKAGE_VERSION,
   allowedDocumentedNpxPins,
   CUSTOMER_CLI_PLACEHOLDER,
@@ -62,17 +63,19 @@ describe("CLI release metadata", () => {
   it("exposes published-line identity without baking a stale last-verified 0.3.2 result", () => {
     expect(PUBLISHED_PACKAGE_VERIFIED).toBe(true);
     expect(CLI_RELEASE.published_package_verified).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.3.6");
-    expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe("a9b927a2413305003f817c20e9c5df277512f83e");
-    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-09-10T16:26:29.450Z");
+    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.3.7");
+    expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe("876454878a31a897aec1d722fa838c9c0ecea2aa");
+    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-09-27T21:06:12.276Z");
     expect(LAST_VERIFIED_PUBLISHED_INTEGRITY).toBe(
-      "sha512-idDM/kYfDCzDu+iaSqzZjEchyui9I8r1krUFdZ8BmVtZIye2D5WbHFpbYaNzuwjPvV7gCk1XixLwu1kuROXfwA=="
+      "sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA=="
     );
     expect(REGISTRY_0_3_3_GIT_HEAD).toBe("4a08ea0d352f2515e725cb9ca946807112422436");
+    expect(REGISTRY_0_3_6_GIT_HEAD).toBe("a9b927a2413305003f817c20e9c5df277512f83e");
     expect(CLI_RELEASE.notes).toContain("Published-line 0.3.7");
     expect(CLI_RELEASE.notes).not.toMatch(/Candidate 0\.3\.4/u);
     expect(CLI_RELEASE.notes).not.toMatch(/Last independently verified published tarball remains @augmentworks\/cli@0\.3\.2/u);
     expect(CLI_RELEASE.notes).toContain("published-registry-evidence.json");
+    expect(CLI_RELEASE.notes).toContain("876454878a31a897aec1d722fa838c9c0ecea2aa");
     expect(CLI_RELEASE.notes).toContain("a9b927a2413305003f817c20e9c5df277512f83e");
   });
 
