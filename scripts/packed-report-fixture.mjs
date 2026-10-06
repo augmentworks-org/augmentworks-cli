@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Packed-binary HTTP fixture for hosted report export completeness (AUG-54 / AUG-59)
- * and producer-shaped criterion index/detail bodies (AUG-64).
+ * Packed-binary HTTP fixture for hosted report export completeness (AUG-54 / AUG-59),
+ * producer-shaped criterion index/detail bodies (AUG-64), and consumer consistency
+ * for internally contradictory exports (AUG-272).
  *
  * Invokes the installed CLI in an isolated HOME/state directory against a
  * loopback report API. This is not proof that the hosted report endpoint is
@@ -122,17 +123,93 @@ function startFixtureServer(fixtures, producer) {
         send(response, fixture.status, fixture.body);
         return;
       }
+      if (state.scenario === "contradiction") {
+        const fixture = cloneMutate(fixtures, "report_required_fail", origin, (body) => {
+          body.outcome = "passed";
+        });
+        send(response, fixture.status, fixture.body);
+        return;
+      }
+      if (state.scenario === "coverage") {
+        const fixture = cloneMutate(fixtures, "report_all_pass_one_page", origin, (body) => {
+          body.attempts = [];
+          body.page.totalAttempts = 0;
+        });
+        send(response, fixture.status, fixture.body);
+        return;
+      }
+      if (state.scenario === "required-count") {
+        const fixture = cloneMutate(fixtures, "report_all_pass_one_page", origin, (body) => {
+          body.coverage.requiredJudgmentsPlanned = 2;
+          body.coverage.requiredJudgmentsComplete = 2;
+        });
+        send(response, fixture.status, fixture.body);
+        return;
+      }
+      if (state.scenario === "aggregate") {
+        const fixture = cloneMutate(fixtures, "report_all_pass_one_page", origin, (body) => {
+          body.aggregate = { passed: 1, failed: 1, error: 0 };
+        });
+        send(response, fixture.status, fixture.body);
+        return;
+      }
+      if (state.scenario === "attempt-outcome") {
+        const fixture = cloneMutate(fixtures, "report_all_pass_one_page", origin, (body) => {
+          body.attempts[0].outcome = "fail";
+          body.attempts[0].cleanupState = "failed";
+        });
+        send(response, fixture.status, fixture.body);
+        return;
+      }
+      if (state.scenario === "pass" || state.scenario === "advisory") {
+        const fixture = fixtureNamed(fixtures, "report_all_pass_one_page", origin);
+        send(response, fixture.status, fixture.body);
+        return;
+      }
       const fixture = fixtureNamed(fixtures, "report_required_fail", origin);
       send(response, fixture.status, fixture.body);
       return;
     }
+    const passCriteria =
+      state.scenario === "pass" ||
+      state.scenario === "required-count" ||
+      state.scenario === "aggregate" ||
+      state.scenario === "advisory" ||
+      state.scenario === "attempt-outcome";
     if (/\/criteria\/[^/]+$/u.test(url.pathname)) {
-      const fixture = fixtureNamed(producer, "producer_detail_fail", origin);
+      const fixture = fixtureNamed(
+        producer,
+        passCriteria ? "producer_detail_pass" : "producer_detail_fail",
+        origin
+      );
       send(response, fixture.status, fixture.body);
       return;
     }
     if (url.pathname.includes("/criteria")) {
-      const fixture = fixtureNamed(producer, "producer_index_one_page_fail", origin);
+      if (state.scenario === "advisory") {
+        const fixture = cloneMutate(producer, "producer_index_one_page_pass", origin, (body) => {
+          body.totalInAttempt = 2;
+          body.items.push({
+            criterionId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+            criterionKey: "response-quality/0.1.0/R01/clarity",
+            requirement: "advisory",
+            verdict: "fail",
+            evidence: {
+              availability: "available",
+              text: "Unused items in the synthetic catalog can be returned within 30 days.",
+              sha256: "bd7d016faddf1a2ac2ff94925651800c0d7a790c8577b0d5756a8c893a286be7",
+              truncated: false
+            }
+          });
+        });
+        send(response, fixture.status, fixture.body);
+        return;
+      }
+      const fixture = fixtureNamed(
+        producer,
+        passCriteria ? "producer_index_one_page_pass" : "producer_index_one_page_fail",
+        origin
+      );
       send(response, fixture.status, fixture.body);
       return;
     }
@@ -220,6 +297,37 @@ function parseJsonStdout(stdout, label) {
       `${label} stdout was not JSON: ${error instanceof Error ? error.message : String(error)}\n${stdout}`
     );
   }
+}
+
+function assertInconsistency(payload, code) {
+  assert(Array.isArray(payload.diagnostics), `${code} diagnostics missing`);
+  const diagnostic = payload.diagnostics.find((item) => item.code === code);
+  assert(diagnostic !== undefined, `missing ${code}`);
+  const message = String(diagnostic.message ?? "");
+  assert(!message.includes("365 days"), `${code} leaked evidence text`);
+  assert(!message.includes("30 days"), `${code} leaked evidence text`);
+  assert(!message.includes(API_KEY), `${code} leaked the API key`);
+  assert(!/https?:\/\//u.test(message), `${code} leaked a URL`);
+  assert(
+    message.toLowerCase().includes("cannot be used as a passing release check"),
+    `${code} omitted release-check recovery`
+  );
+  assert(
+    message.toLowerCase().includes("do not start another billed assessment"),
+    `${code} omitted same-read recovery`
+  );
+}
+
+function assertReadOnly(label, result, requests) {
+  assert(result.stdout.trim().startsWith("{"), `${label} stdout was not JSON-only`);
+  assert(!result.stdout.includes(API_KEY), `${label} leaked the API key on stdout`);
+  assert(!result.stderr.includes(API_KEY), `${label} leaked the API key on stderr`);
+  assert(
+    requests.every((item) => item.startsWith("GET ")),
+    `${label} issued a non-GET: ${requests.join(" | ")}`
+  );
+  assert(!requests.some((item) => item.includes("quote")), `${label} quoted billing`);
+  assert(!requests.some((item) => item.includes("retry-evaluation")), `${label} retried grading`);
 }
 
 async function main() {
@@ -344,6 +452,153 @@ async function main() {
     assert(!fixture.requests.some((item) => item.includes("quote")), "packed report quoted billing");
     assert(!fixture.requests.some((item) => item.includes("retry-evaluation")), "packed report retried grading");
 
+    fixture.state.scenario = "pass";
+    const passed = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      0,
+      fixture.requests
+    );
+    const passedPayload = parseJsonStdout(passed.stdout, "coherent pass");
+    assert(passedPayload.retrieved === true, "coherent pass was not retrieved");
+    assert(passedPayload.complete === true, "coherent pass was incomplete");
+    assert(passedPayload.report?.outcome === "passed", "coherent pass outcome changed");
+    assert(passedPayload.criteria?.[0]?.verdict === "pass", "coherent pass verdict changed");
+    assert(passedPayload.diagnostics.length === 0, "coherent pass gained diagnostics");
+    assertReadOnly("coherent pass", passed, fixture.requests);
+
+    fixture.state.scenario = "contradiction";
+    const contradicted = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      11,
+      fixture.requests
+    );
+    const contradictedPayload = parseJsonStdout(contradicted.stdout, "claimed pass contradiction");
+    assert(contradictedPayload.retrieved === true, "contradiction was not retrieved");
+    assert(contradictedPayload.complete === false, "contradiction export was complete");
+    assert(contradictedPayload.report?.outcome === "passed", "contradiction outcome was rewritten");
+    assert(contradictedPayload.criteria?.[0]?.verdict === "fail", "required fail verdict was dropped");
+    assert(
+      contradictedPayload.criteria?.[0]?.evidence?.text?.includes("365 days"),
+      "required fail evidence was rewritten"
+    );
+    assertInconsistency(contradictedPayload, "REPORT_EVIDENCE_CONTRADICTION");
+    assert(
+      !contradictedPayload.diagnostics.some((item) => item.code === "REPORT_COVERAGE_MISMATCH"),
+      "contradiction was mislabeled as coverage mismatch"
+    );
+    assert(
+      contradicted.stderr.toLowerCase().includes("cannot be used as a passing release check"),
+      "contradiction stderr omitted the release-check explanation"
+    );
+    assert(
+      contradicted.stderr.toLowerCase().includes("do not start another billed assessment"),
+      "contradiction stderr omitted recovery guidance"
+    );
+    assertReadOnly("contradiction", contradicted, fixture.requests);
+
+    fixture.state.scenario = "coverage";
+    const coverage = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      11,
+      fixture.requests
+    );
+    const coveragePayload = parseJsonStdout(coverage.stdout, "coverage mismatch");
+    assert(coveragePayload.retrieved === true, "coverage mismatch was not retrieved");
+    assert(coveragePayload.complete === false, "coverage mismatch export was complete");
+    assert(Array.isArray(coveragePayload.report?.attempts) && coveragePayload.report.attempts.length === 0, "empty attempts were invented");
+    assert(coveragePayload.report?.coverage?.completedAttempts === 1, "coverage counters were rewritten");
+    assert(coveragePayload.report?.page?.totalAttempts === 0, "agreeing page total was rewritten");
+    assertInconsistency(coveragePayload, "REPORT_COVERAGE_MISMATCH");
+    assert(
+      !coveragePayload.diagnostics.some((item) => item.code === "REPORT_TOTAL_BOUNDS"),
+      "zero page total was treated as a page-bounds failure"
+    );
+    assert(
+      coverage.stderr.toLowerCase().includes("cannot be used as a passing release check"),
+      "coverage stderr omitted the release-check explanation"
+    );
+    assertReadOnly("coverage mismatch", coverage, fixture.requests);
+
+    fixture.state.scenario = "required-count";
+    const requiredCount = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      11,
+      fixture.requests
+    );
+    const requiredCountPayload = parseJsonStdout(requiredCount.stdout, "required-count mismatch");
+    assert(requiredCountPayload.complete === false, "required-count mismatch was complete");
+    assert(requiredCountPayload.criteria?.length === 1, "required-count fixture did not keep the retrieved judgment");
+    assertInconsistency(requiredCountPayload, "REPORT_COVERAGE_MISMATCH");
+    assertReadOnly("required-count mismatch", requiredCount, fixture.requests);
+
+    fixture.state.scenario = "aggregate";
+    const aggregate = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      11,
+      fixture.requests
+    );
+    const aggregatePayload = parseJsonStdout(aggregate.stdout, "aggregate contradiction");
+    assert(aggregatePayload.complete === false, "aggregate contradiction was complete");
+    assert(aggregatePayload.report?.outcome === "passed", "aggregate contradiction rewrote outcome");
+    assert(aggregatePayload.criteria?.[0]?.verdict === "pass", "aggregate contradiction rewrote the required pass");
+    assertInconsistency(aggregatePayload, "REPORT_EVIDENCE_CONTRADICTION");
+    assertReadOnly("aggregate contradiction", aggregate, fixture.requests);
+
+    fixture.state.scenario = "advisory";
+    const advisory = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      0,
+      fixture.requests
+    );
+    const advisoryPayload = parseJsonStdout(advisory.stdout, "advisory fail");
+    assert(advisoryPayload.complete === true, "advisory fail became incomplete");
+    assert(advisoryPayload.report?.outcome === "passed", "advisory fail changed the claimed pass");
+    assert(
+      advisoryPayload.criteria?.some((item) => item.required === true && item.verdict === "pass"),
+      "advisory fixture lost the required pass"
+    );
+    assert(
+      advisoryPayload.criteria?.some((item) => item.required === false && item.verdict === "fail"),
+      "advisory fail was promoted to a required failure"
+    );
+    assert(advisoryPayload.diagnostics.length === 0, "advisory fail gained diagnostics");
+    assertReadOnly("advisory fail", advisory, fixture.requests);
+
+    fixture.state.scenario = "attempt-outcome";
+    const attemptOutcome = await runPacked(
+      packedBin,
+      ["run", "report", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "--json"],
+      env,
+      cwd,
+      0,
+      fixture.requests
+    );
+    const attemptOutcomePayload = parseJsonStdout(attemptOutcome.stdout, "attempt outcome");
+    assert(attemptOutcomePayload.complete === true, "attempt execution outcome became incomplete");
+    assert(attemptOutcomePayload.report?.outcome === "passed", "attempt execution outcome changed the report pass");
+    assert(attemptOutcomePayload.report?.attempts?.[0]?.outcome === "fail", "attempt outcome was rewritten");
+    assert(attemptOutcomePayload.criteria?.[0]?.verdict === "pass", "attempt outcome was treated as a semantic fail");
+    assert(attemptOutcomePayload.diagnostics.length === 0, "attempt execution outcome gained diagnostics");
+    assertReadOnly("attempt outcome", attemptOutcome, fixture.requests);
+
     fixture.state.scenario = "omitted";
     const omitted = await runPacked(
       packedBin,
@@ -389,6 +644,7 @@ async function main() {
       mismatched.stderr.toLowerCase().includes("do not start another billed assessment"),
       "mismatch stderr omitted recovery guidance"
     );
+    assertReadOnly("packed report matrix", mismatched, fixture.requests);
 
     process.stdout.write(
       `[packed report fixture] passed (requests=${fixture.requests.length}, source=producer aw-criterion-detail-read/1 @ 8068a90 + AW-QA-1 report)\n`

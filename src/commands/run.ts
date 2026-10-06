@@ -22,6 +22,7 @@ import {
   authorizedFailureExport,
   type RunReportClientOptions
 } from "../report/client.js";
+import { reportConsistencyRecoveryText } from "../report/consistency.js";
 import {
   AUTHORIZED_REPORT_SCOPE,
   LIVE_INFORMATIONAL_REPORT_SCOPE,
@@ -331,6 +332,10 @@ function writeReportRecoveryGuidance(
       `Hosted report export did not prove complete evidence for ${runId}. Retry: augmentworks run report ${runId} --json. Inspect this original run; do not start another billed assessment.`
     )}\n`
   );
+  const inconsistency = reportConsistencyRecoveryText(document.diagnostics);
+  if (inconsistency !== undefined) {
+    stderr.write(`${sanitizeTerminal(inconsistency)}\n`);
+  }
 }
 
 async function assertStatusAvailable(session: HostedAuthSession, signal?: AbortSignal): Promise<void> {

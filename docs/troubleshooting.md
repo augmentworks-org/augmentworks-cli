@@ -383,8 +383,14 @@ Do not fall back to a caller-authoritative v1 pass.
 `criteria`, and `diagnostics`. Retrieval success is not grading success. An
 expected failing assessment still exports mapped responses and criterion
 details and exits `10`. Incomplete or truncated required evidence exits `11`.
-The command never quotes, creates, purchases, or regrades. It works with a
-report-only API key at zero available credits.
+A claimed pass whose completed required judgment is `fail`, a known aggregate
+`failed` count above zero on that pass (`REPORT_EVIDENCE_CONTRADICTION`), or
+coverage that claims completed attempts or finished required judgments the
+export did not retrieve (`REPORT_COVERAGE_MISMATCH`) is also exit `11` and
+cannot be used as a passing release check. Retry that same report read or
+contact support. Do not start another billed assessment. The command never
+quotes, creates, purchases, or regrades. It works with a report-only API key
+at zero available credits.
 
 `billing` prints or opens the first-party
 `/portal/billing?workspace=` page. It does not create a Stripe Customer,

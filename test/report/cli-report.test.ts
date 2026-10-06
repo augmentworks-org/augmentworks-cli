@@ -333,4 +333,107 @@ describe("packed augmentworks run report", () => {
     expect(exitCode).not.toBe(EXIT.OK);
     expect(stdout.join("").trim().startsWith("{")).toBe(true);
   });
+
+  it("rejects a claimed pass with a required fail before exit 0", async () => {
+    const { cwd, home, state } = await emptyHome();
+    const { server, paths } = await startMock((request, response, url) => {
+      if (url.pathname === "/api/v1/cli/auth/me") {
+        send(response, 200, fixtureIdentity("machine_report_only"));
+        return true;
+      }
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        const fixture = mutatedFixtureResponse("report_required_fail", server.baseUrl, (body) => {
+          body["outcome"] = "passed";
+        });
+        send(response, fixture.status, fixture.body);
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        const fixture = fixtureResponse("criterion_index_r01_fail", server.baseUrl);
+        send(response, fixture.status, fixture.body);
+        return true;
+      }
+      return false;
+    });
+    const result = await runPackedCli(["run", "report", REPORT_RUN_ID, "--json"], {
+      cwd,
+      env: {
+        HOME: home,
+        AUGMENTWORKS_STATE_DIR: state,
+        AUGMENTWORKS_API_URL: server.baseUrl,
+        AUGMENTWORKS_API_KEY: API_KEY,
+        AUGMENTWORKS_TOKEN: "",
+        AUGMENTWORKS_REFRESH_TOKEN: ""
+      }
+    });
+    expect(result.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(result.stdout.trim().startsWith("{")).toBe(true);
+    const payload = JSON.parse(result.stdout) as {
+      retrieved: boolean;
+      complete: boolean;
+      report?: { outcome: string };
+      criteria?: Array<{ verdict?: string; evidence?: { text?: string } }>;
+      diagnostics: Array<{ code: string; message: string }>;
+    };
+    expect(payload.retrieved).toBe(true);
+    expect(payload.complete).toBe(false);
+    expect(payload.report?.outcome).toBe("passed");
+    expect(payload.criteria?.[0]?.verdict).toBe("fail");
+    expect(payload.criteria?.[0]?.evidence?.text).toContain("365 days");
+    const diagnostic = payload.diagnostics.find((item) => item.code === "REPORT_EVIDENCE_CONTRADICTION");
+    expect(diagnostic?.message.toLowerCase()).toContain("cannot be used as a passing release check");
+    expect(diagnostic?.message).not.toContain("365 days");
+    expect(result.stderr.toLowerCase()).toContain("cannot be used as a passing release check");
+    expect(result.stderr.toLowerCase()).toContain("do not start another billed assessment");
+    expect(result.stdout).not.toContain(API_KEY);
+    expect(result.stderr).not.toContain(API_KEY);
+    expect(paths.filter((path) => path.startsWith("POST "))).toEqual([]);
+    expect(paths.some((path) => path.includes("quote") || path.includes("retry-evaluation"))).toBe(
+      false
+    );
+  });
+
+  it("rejects finished coverage hidden by an empty attempt page", async () => {
+    const { cwd, home, state } = await emptyHome();
+    const { server, paths } = await startMock((request, response, url) => {
+      if (url.pathname === "/api/v1/cli/auth/me") {
+        send(response, 200, fixtureIdentity("machine_report_only"));
+        return true;
+      }
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        const fixture = mutatedFixtureResponse("report_all_pass_one_page", server.baseUrl, (body) => {
+          body["attempts"] = [];
+          asRecord(body["page"])["totalAttempts"] = 0;
+        });
+        send(response, fixture.status, fixture.body);
+        return true;
+      }
+      return false;
+    });
+    const result = await runPackedCli(["run", "report", REPORT_RUN_ID, "--json"], {
+      cwd,
+      env: {
+        HOME: home,
+        AUGMENTWORKS_STATE_DIR: state,
+        AUGMENTWORKS_API_URL: server.baseUrl,
+        AUGMENTWORKS_API_KEY: API_KEY,
+        AUGMENTWORKS_TOKEN: "",
+        AUGMENTWORKS_REFRESH_TOKEN: ""
+      }
+    });
+    expect(result.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    const payload = JSON.parse(result.stdout) as {
+      complete: boolean;
+      report?: { attempts: unknown[]; coverage: { completedAttempts: number } };
+      diagnostics: Array<{ code: string; message: string }>;
+    };
+    expect(payload.complete).toBe(false);
+    expect(payload.report?.attempts).toEqual([]);
+    expect(payload.report?.coverage.completedAttempts).toBe(1);
+    expect(payload.diagnostics.some((item) => item.code === "REPORT_COVERAGE_MISMATCH")).toBe(true);
+    expect(result.stderr.toLowerCase()).toContain("cannot be used as a passing release check");
+    expect(result.stderr.toLowerCase()).toContain("do not start another billed assessment");
+    expect(result.stdout).not.toContain(API_KEY);
+    expect(paths.filter((path) => path.startsWith("POST "))).toEqual([]);
+  });
 });

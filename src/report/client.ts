@@ -17,6 +17,7 @@ import {
   type CriterionWireContext,
   type CriterionWireFailure
 } from "./criterion-wire.js";
+import { reportConsistencyDiagnostics } from "./consistency.js";
 import {
   CRITERION_DETAIL_SCHEMA_VERSION,
   CRITERION_MAX_PAGES,
@@ -516,6 +517,13 @@ class RunReportClient {
       diagnostics
     );
     const evidenceComplete = this.#evidenceComplete(assembled, criteria, diagnostics);
+    diagnostics.push(
+      ...reportConsistencyDiagnostics({
+        report: assembled,
+        criteria,
+        judgmentsComparable: assembled.evaluationBinding !== null && criteriaComplete
+      })
+    );
     const complete = criteriaComplete && evidenceComplete && diagnostics.length === 0;
     return this.#assemble([assembled], criteria, diagnostics, complete);
   }
