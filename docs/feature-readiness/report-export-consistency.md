@@ -47,4 +47,16 @@ Advisory failures stay advisory. A missing or non-numeric aggregate is not itsel
 
 ## Verification
 
-Commands were run in this checkout after implementation. Results are recorded in the pull request once this file's verification table is updated from the actual command output.
+Commands below were run in this checkout against implementation `4012f69f903fa63f4ce39a77d34c3b7b9a5a4072`. This documentation commit does not change runtime behavior. The agent environment injects `AUGMENTWORKS_API_KEY`; the full suite and pack commands were run with that variable, `AUGMENTWORKS_API_URL`, and `AUGMENTWORKS_TOKEN` unset so fixture bearer tokens were not treated as an auth-env conflict. No hosted quote, admission, or billable run was issued.
+
+| Command | Result |
+| --- | --- |
+| `npm run check:run-report-contract` | Pass. `aw-run-report/1` schema `7726ec277d33e435d2832e8be0898baf9337631d779f073a10c7795fc7de38ff`, fixtures `febd2626c96672d0e79afc4706b3a5136598b61bbebbdeb0f8ec1bdbc44cd806`, source `AW-QA-1` |
+| `npm test -- test/report/export.test.ts test/report/cli-report.test.ts test/outcome/classify.test.ts` | Pass. 3 files, 54 tests |
+| `npm run check` | Pass. typecheck, vitest 107 files / 1063 passed / 1 skipped, tsup, discovery `@augmentworks/cli@0.3.7` (development), billing contract, run-report contract, real-data contract |
+| `npm run smoke:pack` | Pass. Packed tarball 74 files, 595455 compressed bytes. Installed-binary report fixture: `requests=34`, GET-only. Local core release acceptance `releaseReady=false` because `registry-identity` was not run; that is not a registry publish |
+| `AUGMENTWORKS_PACKED_BIN=$PWD/dist/index.js npm run test:packed-report-fixture` | Pass. `requests=34`, producer `aw-criterion-detail-read/1` @ `8068a90` plus AW-QA-1 report |
+
+Packed matrix on the built CLI: coherent pass exit 0, coherent required failure exit 10, claimed pass plus required fail exit 11 `REPORT_EVIDENCE_CONTRADICTION`, empty attempts hidden by `totalAttempts: 0` exit 11 `REPORT_COVERAGE_MISMATCH`, required-count mismatch exit 11, contradictory aggregate `failed` exit 11, advisory fail with a required pass exit 0, attempt execution `fail` with a required pass exit 0, omitted attempt `REPORT_TOTAL_BOUNDS` exit 11, mixed workspace exit 4. No POST, quote, or retry-evaluation.
+
+Not done here: merge, npm publish, replacement of the 0.3.7 tarball, and deployed acceptance for [AUG-268](https://linear.app/augmentworks/issue/AUG-268/qaux-second-pass-verify-the-integrated-deployed-first-result-and-rerun).
