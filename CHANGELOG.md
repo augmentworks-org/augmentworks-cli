@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `run report` no longer exits 0 for an internally contradictory hosted export
+  ([AUG-272](https://linear.app/augmentworks/issue/AUG-272/cli-reject-internally-contradictory-hosted-report-exports-before)).
+  A claimed pass with a completed required verdict of `fail`, or a known aggregate
+  `failed` count above zero, is `REPORT_EVIDENCE_CONTRADICTION`. Coverage that
+  claims more completed attempts or finished required judgments than the export
+  retrieved is `REPORT_COVERAGE_MISMATCH`. Both stay retrieved with
+  `complete: false` and exit 11. Original evidence is not rewritten. Coherent
+  passes stay exit 0 and coherent assessed failures stay exit 10. Advisory
+  failures and attempt execution outcomes are not required semantic failures.
+  This source fix does not publish a new npm package.
+
 ### Changed
 
 - Customer-facing CLI copy no longer states a blanket synthetic-only product

@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { EXIT } from "../../src/errors.js";
 import { exportHostedRunReport, classifyRunReportExport } from "../../src/report/client.js";
+import {
+  REPORT_COVERAGE_MISMATCH,
+  REPORT_EVIDENCE_CONTRADICTION
+} from "../../src/report/consistency.js";
 import { listenLoopback, type ListeningServer } from "../util/http-server.js";
 import {
   CANONICAL_ORIGIN,
@@ -530,6 +534,11 @@ describe("hosted report retrieval completeness", () => {
     });
     const document = await exportFrom(server);
     expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(true);
+    expect(document.diagnostics.some((item) => item.code === "REPORT_COVERAGE_MISMATCH")).toBe(false);
+    expect(document.diagnostics.some((item) => item.code === "REPORT_EVIDENCE_CONTRADICTION")).toBe(
+      false
+    );
     expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
     expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
   });
@@ -551,6 +560,7 @@ describe("hosted report retrieval completeness", () => {
     });
     const document = await exportFrom(server);
     expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(true);
     expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_ERROR);
     expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
   });
@@ -693,6 +703,239 @@ describe("hosted report workspace pinning", () => {
     const document = await exportFrom(server);
     expect(document.retrieved).toBe(true);
     expect(document.complete).toBe(true);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.OK);
+  });
+});
+
+function expectSafeInconsistency(
+  document: Awaited<ReturnType<typeof exportHostedRunReport>>,
+  code: string
+): void {
+  const diagnostic = document.diagnostics.find((item) => item.code === code);
+  expect(diagnostic).toBeDefined();
+  expect(diagnostic?.message.toLowerCase()).toContain("cannot be used as a passing release check");
+  expect(diagnostic?.message.toLowerCase()).toContain("do not start another billed assessment");
+  expect(diagnostic?.message).not.toMatch(/365 days|30 days|https?:\/\//i);
+  expect(diagnostic?.message).not.toContain(TOKEN);
+}
+
+describe("hosted report consistency aw-report-consistency/1", () => {
+  it("keeps a coherent required failure at exit 10 when aggregate detail is absent", async () => {
+    const { server, paths } = await startMock((request, response, url) => {
+      if (request.method !== "GET") return false;
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_required_fail", server.baseUrl, (body) => {
+          body["aggregate"] = null;
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_fail", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(true);
+    expect(document.report?.outcome).toBe("failed");
+    expect(document.criteria?.[0]?.["verdict"]).toBe("fail");
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+    expect(paths.some((path) => path.startsWith("POST "))).toBe(false);
+  });
+
+  it("rejects a claimed pass that still has a completed required fail", async () => {
+    const { server, paths } = await startMock((request, response, url) => {
+      if (request.method !== "GET") return false;
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_required_fail", server.baseUrl, (body) => {
+          body["outcome"] = "passed";
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_fail", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(false);
+    expect(document.report?.outcome).toBe("passed");
+    expect(document.report?.attempts[0]?.mappedResponse.text).toContain("365 days");
+    expect(document.criteria?.[0]?.["verdict"]).toBe("fail");
+    expect(document.criteria?.[0]?.["required"]).toBe(true);
+    expectSafeInconsistency(document, REPORT_EVIDENCE_CONTRADICTION);
+    expect(document.diagnostics.some((item) => item.code === REPORT_COVERAGE_MISMATCH)).toBe(false);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(classifyRunReportExport(document).assessment).toBe("incomplete");
+    expect(paths.every((path) => path.startsWith("GET "))).toBe(true);
+    expect(paths.some((path) => path.includes("quote") || path.includes("retry-evaluation"))).toBe(
+      false
+    );
+  });
+
+  it("rejects a claimed pass when only the known aggregate failed count contradicts it", async () => {
+    const { server } = await startMock((request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
+          body["aggregate"] = { passed: 1, failed: 1, error: 0 };
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_pass", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(false);
+    expect(document.report?.outcome).toBe("passed");
+    expect(document.criteria?.[0]?.["verdict"]).toBe("pass");
+    expectSafeInconsistency(document, REPORT_EVIDENCE_CONTRADICTION);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+  });
+
+  it("still rejects a claimed pass when aggregate detail is absent and a required verdict fails", async () => {
+    const { server } = await startMock((request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_required_fail", server.baseUrl, (body) => {
+          body["outcome"] = "passed";
+          body["aggregate"] = null;
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_fail", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.complete).toBe(false);
+    expectSafeInconsistency(document, REPORT_EVIDENCE_CONTRADICTION);
+    expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
+  });
+
+  it("rejects coverage that claims finished attempts hidden by a zero page total", async () => {
+    const { server, paths } = await startMock((request, response, url) => {
+      if (request.method !== "GET") return false;
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
+          body["attempts"] = [];
+          pageRecord(body)["totalAttempts"] = 0;
+        });
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(false);
+    expect(document.report?.attempts).toEqual([]);
+    expect(document.report?.coverage.completedAttempts).toBe(1);
+    expect(document.report?.coverage.plannedAttempts).toBe(1);
+    expect(document.report?.page.totalAttempts).toBe(0);
+    expect(document.criteria).toEqual([]);
+    expectSafeInconsistency(document, REPORT_COVERAGE_MISMATCH);
+    expect(document.diagnostics.some((item) => item.code === REPORT_EVIDENCE_CONTRADICTION)).toBe(
+      false
+    );
+    expect(document.diagnostics.some((item) => item.code === "REPORT_TOTAL_BOUNDS")).toBe(false);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(paths.every((path) => path.startsWith("GET "))).toBe(true);
+    expect(paths.some((path) => path.includes("/criteria"))).toBe(false);
+  });
+
+  it("rejects a finished required-judgment count that exceeds retrieved required judgments", async () => {
+    const { server } = await startMock((request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
+          coverageRecord(body)["requiredJudgmentsPlanned"] = 2;
+          coverageRecord(body)["requiredJudgmentsComplete"] = 2;
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_pass", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(false);
+    expect(document.criteria).toHaveLength(1);
+    expectSafeInconsistency(document, REPORT_COVERAGE_MISMATCH);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+  });
+
+  it("keeps an advisory fail with a required pass as a coherent pass", async () => {
+    const { server, paths } = await startMock((request, response, url) => {
+      if (request.method !== "GET") return false;
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
+          const attempts = body["attempts"] as Array<Record<string, unknown>>;
+          attempts[0]!["outcome"] = "fail";
+          attempts[0]!["cleanupState"] = "failed";
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveMutated(response, "criterion_index_r01_pass", server.baseUrl, (body) => {
+          const criteria = body["criteria"] as Array<Record<string, unknown>>;
+          const evidence = asRecord(criteria[0]!["evidence"]);
+          criteria.push({
+            criterionId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+            criterionKey: "response-quality/0.1.0/R01/clarity",
+            required: false,
+            verdict: "fail",
+            detailUrl: null,
+            evidence
+          });
+          pageRecord(body)["totalCriteria"] = 2;
+        });
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(true);
+    expect(document.report?.outcome).toBe("passed");
+    expect(document.report?.attempts[0]?.outcome).toBe("fail");
+    expect(document.criteria?.some((item) => item["required"] === false && item["verdict"] === "fail")).toBe(
+      true
+    );
+    expect(document.diagnostics.some((item) => item.code === REPORT_EVIDENCE_CONTRADICTION)).toBe(
+      false
+    );
+    expect(document.diagnostics.some((item) => item.code === REPORT_COVERAGE_MISMATCH)).toBe(false);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.OK);
+    expect(paths.every((path) => path.startsWith("GET "))).toBe(true);
+  });
+
+  it("does not treat an absent aggregate as a contradiction of a coherent pass", async () => {
+    const { server } = await startMock((request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
+          body["aggregate"] = null;
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_pass", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(true);
+    expect(document.report?.aggregate).toBeNull();
     expect(classifyRunReportExport(document).exitCode).toBe(EXIT.OK);
   });
 });
