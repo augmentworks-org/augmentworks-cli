@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://augmentworks.ai/contracts/aw-billing-v1.schema.json",
   "title": "AugmentWorks billing contract",
-  "description": "Canonical aw-billing/1 wire contract owned by jeffskafi/augmentworks. Stage 5 advertises usage_v1, quote_v1, status_v1, billing_portal_link_v1, and subscriptions_v1. Request validation is strict. Response consumers must tolerate documented additive optional fields and ignore unknown capability strings. Unknown financial/access states must never be guessed active or safe. A pending pack purchase is optional additive metadata and is never spendable credit. Live subscription sales remain an operational gate, not a wire-capability gate.",
+  "description": "Canonical aw-billing/1 wire contract owned by augmentworks-org/augmentworks. Stage 5 advertises usage_v1, quote_v1, status_v1, billing_portal_link_v1, and subscriptions_v1. Request validation is strict. Response consumers must tolerate documented additive optional fields and ignore unknown capability strings. Unknown financial/access states must never be guessed active or safe. A pending pack purchase is optional additive metadata and is never spendable credit. Live subscription sales remain an operational gate, not a wire-capability gate.",
   "type": "object",
   "$defs": {
     "schemaVersion": {

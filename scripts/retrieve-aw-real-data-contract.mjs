@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Attempt to vendor frozen R01 schema/fixture bytes from jeffskafi/augmentworks
+ * Attempt to vendor frozen R01 schema/fixture bytes from augmentworks-org/augmentworks
  * at the pinned commit. Never fabricates files or sets imported:true on failure.
  * When exact bytes are already imported from the verified Linear attachment,
  * preserve that provenance instead of overwriting it with a GitHub 404.
@@ -25,7 +25,7 @@ import {
 const RETRIEVAL_PATH = resolve(root, "contracts/aw-real-data-1.retrieval.json");
 const SCHEMA_PATH = resolve(root, "contracts/aw-real-data-1.schema.json");
 const FIXTURES_PATH = resolve(root, "contracts/aw-real-data-1.fixtures.json");
-const REPO = "jeffskafi/augmentworks";
+const REPO = "augmentworks-org/augmentworks";
 const SOURCE_FILES = [
   "docs/contracts/aw-real-data-1.schema.json",
   "docs/contracts/aw-real-data-1.fixtures.json",
@@ -172,7 +172,7 @@ async function main() {
       ? latest.verified
         ? "Exact frozen R01 schema/fixture bytes were retrieved and checksum-verified."
         : "Files were present but did not match the frozen R01 SHA-256 values; imported remains false."
-      : "Exact R01 schema/fixture JSON were not vendored. The CLI GitHub token cannot read private jeffskafi/augmentworks (gh api 404 Not Found / user 403 Resource not accessible by integration; git ls-remote: Repository not found). Files were not fabricated. lock.imported remains false."
+      : "Exact R01 schema/fixture JSON were not vendored. The CLI GitHub token cannot read private augmentworks-org/augmentworks (gh api 404 Not Found / user 403 Resource not accessible by integration; git ls-remote: Repository not found). Files were not fabricated. lock.imported remains false."
   };
 
   await writeFile(RETRIEVAL_PATH, `${JSON.stringify(retrieval, null, 2)}\n`, "utf8");

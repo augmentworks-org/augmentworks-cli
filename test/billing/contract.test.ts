@@ -41,7 +41,7 @@ describe("vendored aw-billing/1 contract", () => {
     expect(sha256(schema)).toBe(AW_BILLING_CONTRACT.files["contracts/aw-billing-v1.schema.json"]);
     expect(sha256(fixtures)).toBe(AW_BILLING_CONTRACT.files["contracts/aw-billing-v1.fixtures.json"]);
     expect(AW_BILLING_CONTRACT.files["contracts/aw-billing-v1.schema.json"]).toBe(
-      "3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645"
+      "1c0929d4f15b6b3b2017d7416e1eff50c9116b0b50fe7b82b5d96d732d807941"
     );
     expect(AW_BILLING_CONTRACT.files["contracts/aw-billing-v1.fixtures.json"]).toBe(
       "a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84"
@@ -54,7 +54,7 @@ describe("vendored aw-billing/1 contract", () => {
     const lf = schema.toString("utf8").replace(/\r\n/gu, "\n").replace(/\r/gu, "\n");
     const crlf = Buffer.from(lf.replace(/\n/gu, "\r\n"), "utf8");
     expect(crlf.includes(0x0d)).toBe(true);
-    expect(sha256(crlf)).toBe("3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645");
+    expect(sha256(crlf)).toBe("1c0929d4f15b6b3b2017d7416e1eff50c9116b0b50fe7b82b5d96d732d807941");
     expect(sha256(crlf)).toBe(sha256(schema));
   });
 

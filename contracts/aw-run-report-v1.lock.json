@@ -5,7 +5,7 @@
     "repository": "compatibility-local",
     "producerIssue": "AUG-55",
     "contract": "AW-QA-1",
-    "note": "Producer artifacts from jeffskafi/augmentworks are not yet published. CLI vendors these exact AW-QA-1 compatibility fixtures. Final integration compares canonical copies."
+    "note": "Producer artifacts from augmentworks-org/augmentworks are not yet published. CLI vendors these exact AW-QA-1 compatibility fixtures. Final integration compares canonical copies."
   },
   "files": {
     "contracts/aw-run-report-v1.schema.json": "7726ec277d33e435d2832e8be0898baf9337631d779f073a10c7795fc7de38ff",

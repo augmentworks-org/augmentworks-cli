@@ -3,16 +3,16 @@
   "packageVersion": "aw-feature/1",
   "algorithm": "sha256",
   "source": {
-    "repository": "https://github.com/jeffskafi/augmentworks.git",
+    "repository": "https://github.com/augmentworks-org/augmentworks.git",
     "consumedCommitCited": "a8e5ad17ce60f9b199d6a45f34188546d075e4bf",
     "consumedBranch": "cursor/investigation-export-0a0c",
     "linearIssue": "AUG-33",
     "handoff": "docs/feature-readiness/e11-completion.md",
-    "mainPullRequest": "https://github.com/jeffskafi/augmentworks/pull/73",
+    "mainPullRequest": "https://github.com/augmentworks-org/augmentworks/pull/73",
     "featurePackage": "aw-feature/1",
     "schemaChecksum": "4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870",
     "fixturesChecksumAug13": "8f481f4c30fd4db165c738c3333c529a72904c8cf8b00780b40b64e391495f23",
-    "note": "jeffskafi/augmentworks is not readable from this environment (GitHub 404). Main schema files were not byte-vendored. Identity is Linear-published AUG-13/AUG-33 contract only; checksums are not invented beyond those published values. CLI consumer fixtures live in this repository."
+    "note": "augmentworks-org/augmentworks is not readable from this environment (GitHub 404). Main schema files were not byte-vendored. Identity is Linear-published AUG-13/AUG-33 contract only; checksums are not invented beyond those published values. CLI consumer fixtures live in this repository."
   },
   "discoveredPaths": {
     "export": "POST /v1/runs/{runId}/evaluations/{evaluationId}/attempts/{attemptId}/criteria/{criterionId}/investigation",

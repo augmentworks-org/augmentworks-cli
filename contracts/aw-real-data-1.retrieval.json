@@ -2,7 +2,7 @@
   "schemaVersion": "aw-real-data-1-retrieval/1",
   "attemptedAt": "2026-09-22T21:31:12.000Z",
   "source": {
-    "repository": "https://github.com/jeffskafi/augmentworks.git",
+    "repository": "https://github.com/augmentworks-org/augmentworks.git",
     "commit": "b198906188bab2dac9ae2a1ad539405807e46e1e",
     "files": [
       "docs/contracts/aw-real-data-1.schema.json",
@@ -56,7 +56,7 @@
       "message": "Resource not accessible by integration"
     },
     {
-      "command": "gh api repos/jeffskafi/augmentworks",
+      "command": "gh api repos/augmentworks-org/augmentworks",
       "status": 1,
       "signal": null,
       "error": null,
@@ -80,5 +80,5 @@
       "message": "copyFile import; lock.imported=true; releaseEnabled=false; runtimeEnforced=false"
     }
   ],
-  "conclusion": "Exact frozen R01 schema, fixtures, and checksums were imported from Linear attachment f95225e8-badf-42fa-9a39-2373b851a584 (aug188-r01-b198906-contracts.zip) on AUG-188 and checksum-verified against jeffskafi/augmentworks@b198906188bab2dac9ae2a1ad539405807e46e1e. Private GitHub fetch remains unavailable to this CLI token. Files were not reserialized. lock.imported is true. releaseEnabled and runtimeEnforced remain false."
+  "conclusion": "Exact frozen R01 schema, fixtures, and checksums were imported from Linear attachment f95225e8-badf-42fa-9a39-2373b851a584 (aug188-r01-b198906-contracts.zip) on AUG-188 and checksum-verified against augmentworks-org/augmentworks@b198906188bab2dac9ae2a1ad539405807e46e1e. Private GitHub fetch remains unavailable to this CLI token. Files were not reserialized. lock.imported is true. releaseEnabled and runtimeEnforced remain false."
 }

@@ -3,14 +3,14 @@
   "packageVersion": "aw-feature/1",
   "algorithm": "sha256",
   "source": {
-    "repository": "https://github.com/jeffskafi/augmentworks.git",
+    "repository": "https://github.com/augmentworks-org/augmentworks.git",
     "consumedCommit": "2ac0e80b13277414c61d04f8899e0ba78a46325c",
     "linearIssue": "AUG-31",
     "handoff": "docs/feature-readiness/c11-completion.md",
     "schemaChecksum": "73520f60369feaa74799aacd3da4473a2bf0006cac6d54bc69c3f019f26f83d0",
     "fixturesChecksum": "45231e40cf88f040b49d4bb72ac1d3b3a3ed350c81b7bfa547962a81de71c26b",
     "consumerFixturesChecksum": "d7cb44cb8a776fcd60b816b391525c61721a95561be29ab70e1f37dd6fb481c5",
-    "note": "jeffskafi/augmentworks is not readable from this environment (GitHub 404). Main schema files were not byte-vendored. Identity is Linear-published AUG-31 plus live POST /v1/suite-selections/compile and POST /v1/release-gates/evaluate-manifest (createsBillableRun: false). Workspace IDs in consumer fixtures are synthetic."
+    "note": "augmentworks-org/augmentworks is not readable from this environment (GitHub 404). Main schema files were not byte-vendored. Identity is Linear-published AUG-31 plus live POST /v1/suite-selections/compile and POST /v1/release-gates/evaluate-manifest (createsBillableRun: false). Workspace IDs in consumer fixtures are synthetic."
   },
   "discoveredPaths": {
     "compile": "POST /v1/suite-selections/compile",

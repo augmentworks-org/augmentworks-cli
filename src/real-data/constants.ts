@@ -3,7 +3,7 @@
 export const REAL_DATA_CONTRACT_REVISION = 1 as const;
 export const REAL_DATA_LOCK_SCHEMA_VERSION = "aw-real-data/1" as const;
 
-export const SOURCE_REPOSITORY = "https://github.com/jeffskafi/augmentworks.git" as const;
+export const SOURCE_REPOSITORY = "https://github.com/augmentworks-org/augmentworks.git" as const;
 export const SOURCE_COMMIT = "b198906188bab2dac9ae2a1ad539405807e46e1e" as const;
 export const SOURCE_SCHEMA_PATH = "docs/contracts/aw-real-data-1.schema.json" as const;
 export const SOURCE_FIXTURES_PATH = "docs/contracts/aw-real-data-1.fixtures.json" as const;

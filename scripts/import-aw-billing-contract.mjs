@@ -20,7 +20,7 @@ function argValue(flag) {
 const from = argValue("--from") ?? process.env.AUGMENTWORKS_MAIN_REPO;
 if (from === undefined || from === "") {
   throw new Error(
-    "Usage: node scripts/import-aw-billing-contract.mjs --from <path-to-jeffskafi/augmentworks>\n" +
+    "Usage: node scripts/import-aw-billing-contract.mjs --from <path-to-augmentworks-org/augmentworks>\n" +
       "Or set AUGMENTWORKS_MAIN_REPO. Main owns the aw-billing/1 schema and fixtures."
   );
 }
@@ -76,7 +76,7 @@ const lock = {
   schemaVersion: "aw-billing/1",
   algorithm: "sha256",
   source: {
-    repository: "https://github.com/jeffskafi/augmentworks.git",
+    repository: "https://github.com/augmentworks-org/augmentworks.git",
     commit,
     handoff: "docs/billing-cursor-handoff.md",
     schema: "docs/contracts/aw-billing-v1.schema.json",

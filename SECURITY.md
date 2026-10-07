@@ -33,6 +33,6 @@ be released before public disclosure.
 
 The CLI's intended boundary, non-goals, telemetry controls, and truth limitation
 are described in
-[docs/security-model.md](https://github.com/jeffskafi/augmentworks-cli/blob/main/docs/security-model.md).
+[docs/security-model.md](https://github.com/augmentworks-org/augmentworks-cli/blob/main/docs/security-model.md).
 The relay wire contract is described in
-[docs/protocol.md](https://github.com/jeffskafi/augmentworks-cli/blob/main/docs/protocol.md).
+[docs/protocol.md](https://github.com/augmentworks-org/augmentworks-cli/blob/main/docs/protocol.md).

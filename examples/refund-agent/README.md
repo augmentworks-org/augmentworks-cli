@@ -19,7 +19,7 @@ example directory is still not in the npm tarball.
 ## Obtain the example
 
 ```bash
-git clone https://github.com/jeffskafi/augmentworks-cli.git
+git clone https://github.com/augmentworks-org/augmentworks-cli.git
 cd augmentworks-cli/examples/refund-agent
 ```
 
