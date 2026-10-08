@@ -1,7 +1,7 @@
 {
   "name": "@augmentworks/cli",
   "version": "0.3.8",
-  "description": "Deterministic hosted and customer-executed local testing for AI agents",
+  "description": "Deterministic local and hosted regression checks for support and FAQ chatbots",
   "type": "module",
   "bin": {
     "augmentworks": "dist/index.js"

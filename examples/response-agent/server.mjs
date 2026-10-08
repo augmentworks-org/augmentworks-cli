@@ -2,7 +2,19 @@ import { createServer } from "node:http";
 
 const baseUrl = new URL(process.env.CHATBOT_BASE_URL ?? "http://127.0.0.1:8000");
 const expectedToken = process.env.CHATBOT_API_KEY ?? "demo-local-key";
+const policyMode = process.env.AW_FAQ_POLICY ?? "current";
 const maximumBodyBytes = 64 * 1024;
+if (policyMode !== "current" && policyMode !== "stale") {
+  console.error("AW_FAQ_POLICY must be current or stale.");
+  process.exit(2);
+}
+
+function unusedReturnWindow() {
+  if (policyMode === "stale") {
+    return "Orders placed in the synthetic catalog may be returned within 14 days when the item is unused.";
+  }
+  return "Orders placed in the synthetic catalog may be returned within 30 days when the item is unused.";
+}
 const colors = ["red", "blue", "green", "yellow", "purple", "orange", "teal"];
 const sessions = new Map();
 
@@ -50,10 +62,11 @@ function faqAnswer(message) {
     return "Synthetic shipments use ground service.";
   }
   if (/14\s*days/i.test(message) && /return/i.test(message)) {
+    if (policyMode === "stale") return unusedReturnWindow();
     return "The 14-day unused-return page is stale. The current unused-item return window is 30 days.";
   }
   if (/return window|how long.*return|unused-item return|returned within/i.test(message)) {
-    return "Orders placed in the synthetic catalog may be returned within 30 days when the item is unused.";
+    return unusedReturnWindow();
   }
   return undefined;
 }
