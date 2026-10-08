@@ -1,11 +1,11 @@
 {
   "schema_version": "aw-cli-release/0.1",
   "npm_package": "@augmentworks/cli",
-  "source_package_version": "0.3.7",
-  "published_package_version": "0.3.7",
+  "source_package_version": "0.3.8",
+  "published_package_version": "0.3.8",
   "published_package_verified": true,
-  "recommended_cli_version": "0.3.7",
-  "hosted_command_pin": "0.3.7",
+  "recommended_cli_version": "0.3.8",
+  "hosted_command_pin": "0.3.8",
   "local_distribution": "npm",
   "local_source_repository": "https://github.com/augmentworks-org/augmentworks-cli.git",
   "local_source_ref": "main",
@@ -15,5 +15,5 @@
   "protocol_version": "aw-relay/0.1",
   "target_protocol_version": "aw-target/0.1",
   "config_version": 1,
-  "notes": "Published-line 0.3.7 includes the AUG-82 suite-selection capability fix plus source work after 0.3.6: native aw-customer-suite/1 upload translation, saved-suite v2 binding, authoritative v2 whole-suite gate receipts, durable execution IDs, cross-shard quote/run uniqueness, and non-destructive generated .env guidance. Generated and documented npx commands pin this package version (0.3.7). published_package_verified is published-line identity (not a candidate), not a live registry probe of this exact tarball. Independent inspection of npm @augmentworks/cli@0.3.7 (gitHead 876454878a31a897aec1d722fa838c9c0ecea2aa, integrity sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA==, published 2026-09-27T21:06:12.276Z, tarball SHA-256 37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313) is recorded in docs/feature-readiness/published-registry-evidence.json. The published 0.3.7 tarball itself still embeds the prior LAST_VERIFIED 0.3.6 snapshot; this inspection commit is not inside that immutable artifact. Do not overwrite or relabel immutable npm 0.3.7, 0.3.6 (gitHead a9b927a2413305003f817c20e9c5df277512f83e), 0.3.5, 0.3.4, or 0.3.3. Website adoption of this exact pin is AUG-250. Do not fetch latest. Vendors aw-billing/1 from main 650472d91442a6866a7b6ef18e6dacc23a2a9260 including subscriptions_v1. The CLI does not subscribe, cancel, or collect payment methods. Live subscription sales stay gated on the server. Catalog list/show and selection compile consume aw-coverage-catalog/1 and aw-suite-selection/1 without a local compiler or pricing engine. Saved-suite compiles request aw-suite-selection/2. Do not run @latest."
+  "notes": "Published-line 0.3.8 rejects internally contradictory hosted report exports before exit 0 (AUG-272) and refreshes the dev-only source-map-js lock so the release audit passes (AUG-273). It keeps the 0.3.7 saved-suite customer path: native aw-customer-suite/1 upload translation, saved-suite v2 binding, authoritative v2 whole-suite gate receipts, durable execution IDs, cross-shard quote/run uniqueness, and non-destructive generated .env guidance. Generated and documented npx commands pin this package version (0.3.8). published_package_verified is published-line identity (not a candidate), not a live registry probe of this exact tarball. Independent inspection of npm @augmentworks/cli@0.3.7 (gitHead 876454878a31a897aec1d722fa838c9c0ecea2aa, integrity sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA==, published 2026-09-27T21:06:12.276Z, tarball SHA-256 37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313) is recorded in docs/feature-readiness/published-registry-evidence.json. The published 0.3.7 tarball itself still embeds the prior LAST_VERIFIED 0.3.6 snapshot; this 0.3.8 artifact does not overwrite it. Do not overwrite or relabel immutable npm 0.3.7, 0.3.6 (gitHead a9b927a2413305003f817c20e9c5df277512f83e), 0.3.5, 0.3.4, or 0.3.3. Website adoption of the inspected 0.3.7 pin remains AUG-250 until a later inspection of this patch. Do not fetch latest. Vendors aw-billing/1 from main 650472d91442a6866a7b6ef18e6dacc23a2a9260 including subscriptions_v1. The CLI does not subscribe, cancel, or collect payment methods. Live subscription sales stay gated on the server. Catalog list/show and selection compile consume aw-coverage-catalog/1 and aw-suite-selection/1 without a local compiler or pricing engine. Saved-suite compiles request aw-suite-selection/2. Do not run @latest."
 }

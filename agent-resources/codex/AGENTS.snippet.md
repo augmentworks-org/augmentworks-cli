@@ -14,13 +14,13 @@ AugmentWorks during unrelated coding.
 
 1. Inspect existing tests, applicable repository instructions, actual target
    capabilities, and the desired test scope.
-2. Prefer a packaged synthetic demo (`npx --yes @augmentworks/cli@0.3.7 demo`,
+2. Prefer a packaged synthetic demo (`npx --yes @augmentworks/cli@0.3.8 demo`,
    or `node dist/index.js demo` from a clone after `npm ci && npm run build`)
    or non-networked `doctor` for a first look. Preview mappings with
    `node dist/index.js preview-mapping` before an assessment. Explicitly probe
    a safe synthetic target with `node dist/index.js probe` (plan) then
    `node dist/index.js probe --yes`. Doctor and init never probe. This
-   `@augmentworks/cli@0.3.7` package includes `demo`, hosted `--assessment`,
+   `@augmentworks/cli@0.3.8` package includes `demo`, hosted `--assessment`,
    `usage`, `billing`, `preview-mapping`, `probe`, `test --estimate`,
    `--max-credits`, `run status`/`run wait`/`run report`,
    `AUGMENTWORKS_API_KEY` mode, and init starter generation.
@@ -29,12 +29,12 @@ AugmentWorks during unrelated coding.
 
 ## Commands (version-pinned)
 
-This 0.3.7 package:
+This 0.3.8 package:
 
-- `npx --yes @augmentworks/cli@0.3.7 init --agent`
-- `npx --yes @augmentworks/cli@0.3.7 doctor -c augmentworks.yaml`
-- `npx --yes @augmentworks/cli@0.3.7 test --local -c augmentworks.yaml --packet support-refunds-starter@0.1.0`
-- `npx --yes @augmentworks/cli@0.3.7 schema --kind local-packet`
+- `npx --yes @augmentworks/cli@0.3.8 init --agent`
+- `npx --yes @augmentworks/cli@0.3.8 doctor -c augmentworks.yaml`
+- `npx --yes @augmentworks/cli@0.3.8 test --local -c augmentworks.yaml --packet support-refunds-starter@0.1.0`
+- `npx --yes @augmentworks/cli@0.3.8 schema --kind local-packet`
 
 From a clone after `npm ci && npm run build`:
 

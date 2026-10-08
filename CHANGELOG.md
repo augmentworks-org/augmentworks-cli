@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.8] - 2026-10-08
+
+Immutable patch. Customers can install the AUG-272 report consistency check
+without replacing npm `0.3.7`. The dev-only `source-map-js` lock is `1.2.2`,
+so `npm audit --audit-level=high` can pass `prepublishOnly`.
 
 ### Fixed
 
@@ -17,7 +21,12 @@ All notable changes to this project are documented here. The format follows
   `complete: false` and exit 11. Original evidence is not rewritten. Coherent
   passes stay exit 0 and coherent assessed failures stay exit 10. Advisory
   failures and attempt execution outcomes are not required semantic failures.
-  This source fix does not publish a new npm package.
+  This ships in `@augmentworks/cli@0.3.8` and does not overwrite npm `0.3.7`.
+
+- The release audit resolves `tsup -> postcss -> source-map-js@1.2.2`, outside
+  [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)
+  ([AUG-273](https://linear.app/augmentworks/issue/AUG-273/qa-bugcli-update-source-map-js-so-the-release-audit-passes)).
+  The package stays a dev dependency and is not added to the packed CLI.
 
 ### Changed
 
@@ -513,6 +522,7 @@ This repository does not overwrite or relabel 0.3.3.
 - Refund-agent mock target, public documentation, schema, tests, packed-package
   smoke test, CI, and npm trusted-publishing workflow.
 
+[0.3.8]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.8
 [0.3.7]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.7
 [0.3.6]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.6
 [0.3.5]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.5

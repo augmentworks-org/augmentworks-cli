@@ -29,7 +29,7 @@ command journals, or generated credential-store files.
   generic HTTP YAML connector; do not add framework adapters the CLI does not
   provide.
 - **Documentation correction:** keep version pins accurate. Distinguish this
-  package `0.3.7` from immutable prior npm artifacts `0.3.6`, `0.3.5`, `0.3.4`, and `0.3.3`.
+  package `0.3.8` from immutable prior npm artifacts `0.3.7`, `0.3.6`, `0.3.5`, `0.3.4`, and `0.3.3`.
   Historical changelog entries are not current executable quickstarts.
 - **Reported setup failure:** file an issue with CLI version, Node.js version,
   OS, redacted config, and the safe error code. Never attach `.env`,

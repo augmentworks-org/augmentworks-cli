@@ -6,7 +6,7 @@ the target, spawn copied shell fragments, call an evaluator, or create a
 run. Reproducing the case is a **new** quoted hosted run. The original run
 and credits stay unchanged.
 
-This command is in the `0.3.7` package. From a clone after `npm ci` and
+This command is in the `0.3.8` package. From a clone after `npm ci` and
 `npm run build`, use `node dist/index.js`. Installed npx pins match this
 package version. Do not pin immutable npm `0.3.6`. Packed installs include
 the same samples under `assets/investigations/`.
