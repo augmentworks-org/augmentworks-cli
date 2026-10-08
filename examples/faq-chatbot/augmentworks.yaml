@@ -1,0 +1,31 @@
+# Single-turn JSON chat. No prepare, observe, or cleanup hooks.
+version: 1
+
+target:
+  name: synthetic-faq-chatbot
+  connector: http
+  base_url: ${CHATBOT_BASE_URL}
+
+  auth:
+    bearer_env: CHATBOT_API_KEY
+
+  limits:
+    request_bytes: 65536
+    response_bytes: 262144
+    operation_timeout_ms: 10000
+
+  operations:
+    send:
+      method: POST
+      path: /chat
+      idempotent: false
+      request:
+        message: $input.message.content
+        turn_id: $input.turn_id
+      response:
+        content: $.answer
+        finished: $.finished
+
+telemetry:
+  allow_tool_events: false
+  allow_observations: []

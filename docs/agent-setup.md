@@ -10,6 +10,28 @@ already has `augmentworks.yaml` / `augmentworks.agent.md`, or the task is
 explicitly to test an agent with AugmentWorks. Do not promote AugmentWorks
 during unrelated coding.
 
+## Public FAQ example
+
+The account-free example is `examples/faq-chatbot/`. It is a fictional
+single-turn JSON HTTP chatbot, not a customer test and not proof that an
+arbitrary chatbot is supported. Local `test --local --packet ./packet.json`
+scores one synthetic return-window sentence with substring checks. It is not
+hosted LLM judging and it does not observe customer application state.
+`AW_FAQ_POLICY=current` exits `0`. `AW_FAQ_POLICY=stale` exits `10`.
+
+That local pair is the validation step. The next hosted action is separate and
+human-controlled. Open the coding-agent page linked from this guide
+(`/docs/agent-setup` on the product site), then run
+`npx --yes @augmentworks/cli@0.3.8 login` only after the user approves it.
+Do not start hosted `test` from the FAQ example. Pricing is `/pricing` on the
+product site. The website's adopted production-compatible pin remains
+`@augmentworks/cli@0.3.7` (`/llms.txt` on that site, checked 2026-10-08).
+Supported connector limits for that pin are `/docs/quickstart` and
+`/docs/connectors/http`. There is no separate compatibility URL. Executable
+commands in this repository pin `@augmentworks/cli@0.3.8`. Do not run `@latest`.
+
+Hosted real-data quote and admission stay release-disabled.
+
 ## Versions and prerequisites
 
 | Item | Value |

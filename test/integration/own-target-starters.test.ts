@@ -148,6 +148,9 @@ describe("packaged own-target starters", () => {
     expect(await readFile(resolve(projectRoot, "examples/basic-chat/server.mjs"), "utf8")).toBe(
       await readFile(resolve(projectRoot, "assets/starters/response-quality/server.mjs"), "utf8")
     );
+    expect(await readFile(resolve(projectRoot, "examples/faq-chatbot/server.mjs"), "utf8")).toBe(
+      await readFile(resolve(projectRoot, "assets/starters/response-quality/server.mjs"), "utf8")
+    );
   });
 
   it("probes the packaged response-only server and validates the five-question suite", async () => {

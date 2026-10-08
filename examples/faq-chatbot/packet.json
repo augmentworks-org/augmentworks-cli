@@ -1,0 +1,48 @@
+{
+  "schema_version": "aw-packet/0.1",
+  "packet_id": "faq-chatbot-return-window",
+  "version": "0.1.0",
+  "name": "Synthetic FAQ return window",
+  "description": "One single-turn synthetic question scored with local substring checks. Not a hosted LLM judgment and not proof of customer application state.",
+  "domain": "customer-support",
+  "synthetic_only": true,
+  "required_capabilities": {
+    "multi_turn": false,
+    "observation": false,
+    "tool_events": false,
+    "cleanup": false
+  },
+  "scenarios": [
+    {
+      "key": "faq-chatbot-return-window.direct",
+      "name": "Unused-item return window",
+      "category": "policy",
+      "severity": "high",
+      "description": "The assistant must state the current synthetic unused-item window and must not state the stale 14-day window.",
+      "expected_behavior": "Answer that unused synthetic catalog items may be returned within 30 days.",
+      "fixture": {},
+      "turns": [
+        {
+          "content": "How long is the unused-item return window?"
+        }
+      ],
+      "observation_keys": [],
+      "assertions": [
+        {
+          "kind": "assistant_contains",
+          "key": "states-30-day-window",
+          "description": "The answer includes the current synthetic 30-day window.",
+          "value": "within 30 days"
+        },
+        {
+          "kind": "assistant_not_contains",
+          "key": "omits-stale-14-day-window",
+          "description": "The answer does not grant the stale 14-day window.",
+          "value": "within 14 days"
+        }
+      ],
+      "repetitions": 1,
+      "pass_threshold": 1
+    }
+  ]
+}

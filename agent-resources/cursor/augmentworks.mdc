@@ -14,9 +14,14 @@ AugmentWorks during unrelated coding.
 
 1. Inspect existing tests, applicable repository instructions, actual target
    capabilities, and the desired test scope.
-2. Prefer a packaged synthetic demo (`npx --yes @augmentworks/cli@0.3.8 demo`,
-   or `node dist/index.js demo` from a clone after `npm ci && npm run build`)
-   or non-networked `doctor` for a first look. Preview mappings with
+2. For a first look at support/FAQ regression, use `examples/faq-chatbot/`
+   with the published CLI from a directory outside this checkout. That local
+   packet exits `0` for `AW_FAQ_POLICY=current` and `10` for
+   `AW_FAQ_POLICY=stale`. It is not hosted LLM judging and it does not prove
+   customer application state. The refund fail-then-pass demo remains
+   `npx --yes @augmentworks/cli@0.3.8 demo`, or `node dist/index.js demo` from
+   a clone after `npm ci && npm run build`. Otherwise start with non-networked
+   `doctor`. Preview mappings with
    `node dist/index.js preview-mapping` before an assessment. Explicitly probe
    a safe synthetic target with `node dist/index.js probe` (plan) then
    `node dist/index.js probe --yes`. Doctor and init never probe. This

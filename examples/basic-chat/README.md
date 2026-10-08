@@ -21,7 +21,10 @@ node dist/index.js probe -c augmentworks.yaml --yes
 
 This directory is a **source-only fixture**. It is **not** copied into the
 published npm tarball. `npx @augmentworks/cli@0.3.8` cannot start this
-server from a clean directory.
+server from a clean directory. The reproducible pass and stale-policy
+failure for this server are in
+[`examples/faq-chatbot/`](../faq-chatbot/README.md). Hosted real-data quote
+and admission stay release-disabled.
 
 A packaged copy of `server.mjs` ships inside `@augmentworks/cli` under
 `dist/assets/starters/response-quality/` and is written by

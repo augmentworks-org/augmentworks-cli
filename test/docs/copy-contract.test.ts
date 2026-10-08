@@ -69,6 +69,7 @@ const documentedSurfaces = [
   "examples/refund-agent/README.md",
   "examples/response-agent/README.md",
   "examples/basic-chat/README.md",
+  "examples/faq-chatbot/README.md",
   "agent-resources/guidance.md"
 ] as const;
 
@@ -201,7 +202,8 @@ describe("customer-facing CLI copy", () => {
     "docs/qa/README.md",
     "agent-resources/guidance.md",
     "assets/starters/response-quality/OWN-TARGET.md",
-    "assets/starters/workflow/OWN-TARGET.md"
+    "assets/starters/workflow/OWN-TARGET.md",
+    "examples/faq-chatbot/README.md"
   ] as const)("%s does not keep a blanket synthetic-only product ban", async (path) => {
     const content = (await readSurface(path)).replace(/\s+/gu, " ");
     const obsolete = [

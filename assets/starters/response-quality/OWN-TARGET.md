@@ -53,6 +53,15 @@ node --env-file=.env server.mjs
 does not contact AugmentWorks or consume credits. Hosted `test` still needs
 `--max-credits N --yes`. npm `--yes` is not a spending ceiling.
 
+`server.mjs` in this source tree accepts `AW_FAQ_POLICY=current` (the default
+30-day unused-return sentence) or `AW_FAQ_POLICY=stale` (the same question
+answered with the 14-day sentence). That switch is a fictional fixture
+control for `examples/faq-chatbot/`. It is not in the published
+`@augmentworks/cli@0.3.8` or `@augmentworks/cli@0.3.7` tarballs. `init` from
+those registry packages writes the older server, which always returns the
+30-day sentence. Do not describe a local answer check as hosted LLM judging
+or as proof of customer application state.
+
 Session mapping:
 
 ```bash

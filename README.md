@@ -2,11 +2,20 @@
 
 [![CI](https://github.com/augmentworks-org/augmentworks-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/augmentworks-org/augmentworks-cli/actions/workflows/ci.yml)
 
-AugmentWorks is regression testing for AI agents: it checks conversational
-responses, reported tool calls, and configured application state.
-It is for engineers and coding assistants who need a deterministic first
-assessment without treating a chatbot saying “done” as proof that state
-changed.
+AugmentWorks is regression testing for support and FAQ chatbots. You supply
+a fixed question and a deterministic check, then compare the chatbot's answer.
+The same CLI can also check reported tool calls and configured application
+state when those hooks exist. It is for engineers and coding assistants who
+need a reproducible first example without treating a chatbot saying “done” as
+proof that state changed, and without treating the example as proof that an
+arbitrary chatbot is supported.
+
+Local scoring does not contact AugmentWorks and does not spend credits. Hosted
+`test` is the paid service: a person logs in, and an explicit `--max-credits`
+ceiling is required before a run. Browser approval does not start a run.
+`npx --yes` only skips the npm prompt. Pending hosted judging is never a pass.
+The public FAQ example below is local and deterministic. It is not hosted LLM
+judging and it does not verify customer application state.
 
 The CLI maps fixed assessment operations to an application on localhost, a
 private network, or another customer-configured endpoint using versioned YAML.
@@ -28,6 +37,79 @@ Docs: [quickstart](https://augmentworks.ai/docs/quickstart),
 Do not invent popularity, certifications, endorsements, or AI search ranking.
 Local reports are unsigned, customer-executed evidence, not a certification,
 audit, or hosted evidence record.
+
+
+Pricing is the `/pricing` page on the product site. The public website's
+adopted production-compatible pin is still `@augmentworks/cli@0.3.7`, stated
+in `/llms.txt` on that site. Supported limits for that pin are the quickstart
+and `/docs/connectors/http`. There is no separate compatibility URL.
+Executable examples in this README pin `@augmentworks/cli@0.3.8`, the current
+published package. Do not run `@latest`.
+
+
+## Support and FAQ example
+
+Prerequisites: Node.js 20 or newer. No AugmentWorks account. Run the published
+CLI from a directory that is not this checkout; inside the checkout, `npx` can
+exit `127` with `augmentworks: not found`.
+
+The fixture is `examples/faq-chatbot/`. It is one fictional single-turn JSON
+HTTP chatbot. `packet.json` asks `How long is the unused-item return window?`
+and checks the mapped answer for `within 30 days` and not `within 14 days`.
+`AW_FAQ_POLICY=current` passes with exit `0`. `AW_FAQ_POLICY=stale` answers
+with the 14-day sentence on purpose and the same packet exits `10`. Exit `10`
+is a failed check. Hosted real-data quote and admission stay release-disabled.
+This example is not a customer test.
+
+Those files are in this git repository under Apache-2.0. They are not in the
+published `@augmentworks/cli@0.3.8` or `@augmentworks/cli@0.3.7` tarballs.
+`init` from those packages does not write `AW_FAQ_POLICY`. Pin the commit in
+`docs/feature-readiness/aug-282-faq-example.md`. Full commands, expected
+output, cleanup, and common errors (missing Node, malformed YAML, a `$.reply`
+mapping, and preserving `.env`) are in
+[examples/faq-chatbot/README.md](examples/faq-chatbot/README.md).
+
+```bash
+git clone https://github.com/augmentworks-org/augmentworks-cli.git
+cd augmentworks-cli
+git checkout COMMIT
+cd ..
+rm -rf faq-clean
+mkdir faq-clean
+cp -a augmentworks-cli/examples/faq-chatbot/. faq-clean/
+cd faq-clean
+[ -f .env ] || cp .env.example .env
+chmod 600 .env
+# Windows Command Prompt, not executed in the Linux clean-room run:
+# if not exist .env copy .env.example .env
+```
+
+`COMMIT` is `example_commit` in `docs/feature-readiness/aug-282-faq-example.md`.
+Edit `.env` locally. Do not paste it into a model conversation, and do not copy
+`.env.example` over an existing `.env`.
+
+Terminal A:
+
+```bash
+AW_FAQ_POLICY=current node --env-file=.env server.mjs
+```
+
+Terminal B, still outside the CLI checkout:
+
+```bash
+npx --yes @augmentworks/cli@0.3.8 doctor -c augmentworks.yaml
+npx --yes @augmentworks/cli@0.3.8 preview-mapping -c augmentworks.yaml --operation send --fixture ./fixtures/send-response.json
+npx --yes @augmentworks/cli@0.3.8 test --local -c augmentworks.yaml --packet ./packet.json
+```
+
+Restart terminal A with `AW_FAQ_POLICY=stale` and repeat the `test --local`
+command. Expect `Local assessment failed.` and exit `10`. Stop the server with
+Ctrl+C and remove `faq-clean`. Do not run `logout`.
+
+After both local results, the next hosted action is separate: a person opens
+the agent setup page linked above and authorizes
+`npx --yes @augmentworks/cli@0.3.8 login` only if they want a hosted run.
+This example does not start hosted `test`.
 
 ## Versions
 
@@ -854,6 +936,12 @@ owned by the publication gate; this package does not guess that version.
 
 ## Next step: your own target
 
+The account-free FAQ example above is the local validation. It is not hosted
+authorization. The coding-agent page is the agent setup link above
+(`/docs/agent-setup` on the product site). A person runs `login` there before
+any hosted `test`. Pricing is the `/pricing` page on the product site. This
+package does not start that hosted run for you.
+
 After the packaged demo, configure the generic HTTP connector. While hosted
 real-data is release-disabled, use an authorized, isolated synthetic or staging
 target:
@@ -869,7 +957,7 @@ target:
 Do not fabricate an OpenAI, LangServe, MCP, or framework adapter the CLI does
 not provide. Hosted access remains an invited workspace at
 [https://augmentworks.ai](https://augmentworks.ai); this package does not
-define pricing or public signup.
+define pricing or public signup. The website price page is `/pricing` on the product site.
 
 ## Current limitations
 

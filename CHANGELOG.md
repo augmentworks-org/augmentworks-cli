@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Documented a reproducible support/FAQ example at `examples/faq-chatbot/`
+  ([AUG-282](https://linear.app/augmentworks/issue/AUG-282/cli-ai-discovery-make-the-public-readme-and-chatbot-example)).
+  The same response-quality server accepts `AW_FAQ_POLICY=stale` so one local
+  `aw-packet/0.1` check exits `0` or `10`. No CLI command was added. Published
+  npm `0.3.8` and `0.3.7` do not contain the example directory or that switch.
+
 ### Changed
 
 - Recorded the independent inspection of npm `@augmentworks/cli@0.3.8`.
