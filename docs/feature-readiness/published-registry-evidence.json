@@ -1,36 +1,37 @@
 {
   "schemaVersion": "aw-cli-registry-evidence/1",
-  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.3.7 tarball embeds the prior LAST_VERIFIED 0.3.6 snapshot; this file records the later inspection and is not inside that tarball. thisPackageIdentity for 0.3.8 stays pending-protected-publish until the trusted publish is inspected.",
+  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.3.8 tarball embeds the prior LAST_VERIFIED 0.3.7 snapshot; this file records the later inspection and is not inside that tarball.",
   "lastIndependentlyInspected": {
     "packageName": "@augmentworks/cli",
-    "version": "0.3.7",
-    "gitHead": "876454878a31a897aec1d722fa838c9c0ecea2aa",
-    "integrity": "sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA==",
-    "verifiedAt": "2026-09-27T21:06:12.276Z",
-    "githubRelease": "v0.3.7",
-    "githubReleasePublishedAt": "2026-09-27T20:58:35Z",
-    "githubReleaseUrl": "https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.3.7",
-    "workflowRun": "https://github.com/jeffskafi/augmentworks-cli/actions/runs/36349981048",
-    "provenanceLogIndex": 2979747594,
-    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.3.7",
-    "tarballUrl": "https://registry.npmjs.org/@augmentworks/cli/-/cli-0.3.7.tgz",
-    "shasum": "4b53d91272e51d9b27af3a00f407e3943ae1fa6e",
-    "tarballSha256": "37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313",
+    "version": "0.3.8",
+    "gitHead": "f36d9086bad1ac109a7670e8acc9bf14a5d15047",
+    "integrity": "sha512-T+e1VWQ8plx0jJMdkOHxocpH8SjCr9BSeRLMsCnCHAO0Z3z9bhgIf0um9x6eyWJfwPz01YOL7CZvM6sLTiSLIA==",
+    "verifiedAt": "2026-10-08T01:42:45.969Z",
+    "githubRelease": "v0.3.8",
+    "githubReleasePublishedAt": "2026-10-08T01:28:38Z",
+    "githubReleaseUrl": "https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.3.8",
+    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.3.8",
+    "tarballUrl": "https://registry.npmjs.org/@augmentworks/cli/-/cli-0.3.8.tgz",
+    "shasum": "009bc1739654c704b75967214ef9604374bd9a92",
+    "tarballSha256": "2849ceb6c3c9b18d02a4cb2aa7f0ad470ec74cb7846a8eadf91d83147965f36e",
     "fileCount": 74,
-    "notes": "Published by the trusted release workflow from main 876454878a31a897aec1d722fa838c9c0ecea2aa and independently inspected. Includes saved-suite aw-suite-selection/2 revision and content-hash forwarding, connector capabilities, estimate-only quote, bounded create at max-credits 30, and original-run status/report. Do not republish 0.3.7. Website pin adoption is AUG-250; do not use @latest."
+    "notes": "Downloaded registry tarball. GitHub tag v0.3.8 is f36d9086bad1ac109a7670e8acc9bf14a5d15047. The npm version document omitted gitHead. The tarball shasum matches the pack of that tag. No SLSA provenance attestation: trusted publishing from augmentworks-org returned 404 because the publisher was still bound to jeffskafi/augmentworks-cli. The same bytes were published by the package owner. Installed binary passed the AUG-272 packed report fixture, including exit 11 for a claimed pass with a required fail. Do not republish 0.3.8 or 0.3.7. Do not use @latest."
   },
   "thisPackageIdentity": {
     "packageName": "@augmentworks/cli",
     "version": "0.3.8",
     "publishedPackageVerifiedMeaning": "published-line identity, not inspection of this tarball",
-    "gitHead": null,
-    "integrity": null,
-    "verifiedAt": null,
-    "status": "pending-protected-publish",
-    "githubRelease": null,
-    "githubReleasePublishedAt": null,
+    "gitHead": "f36d9086bad1ac109a7670e8acc9bf14a5d15047",
+    "integrity": "sha512-T+e1VWQ8plx0jJMdkOHxocpH8SjCr9BSeRLMsCnCHAO0Z3z9bhgIf0um9x6eyWJfwPz01YOL7CZvM6sLTiSLIA==",
+    "verifiedAt": "2026-10-08T01:42:45.969Z",
+    "status": "independently-inspected",
+    "githubRelease": "v0.3.8",
+    "githubReleasePublishedAt": "2026-10-08T01:28:38Z",
     "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.3.8",
-    "notes": "Source 0.3.8 ships the AUG-272 hosted report consistency check and the AUG-273 source-map-js audit refresh. Fill gitHead, integrity, and verifiedAt after the protected v0.3.8 GitHub release and npm trusted publish. Do not overwrite 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
+    "shasum": "009bc1739654c704b75967214ef9604374bd9a92",
+    "tarballSha256": "2849ceb6c3c9b18d02a4cb2aa7f0ad470ec74cb7846a8eadf91d83147965f36e",
+    "fileCount": 74,
+    "notes": "Same immutable artifact as lastIndependentlyInspected. The inspection commit is later than the tag and is not inside the tarball. The registry document omitted gitHead. Do not overwrite 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
   },
   "immutableArtifacts": [
     {
@@ -76,6 +77,16 @@
       "tarballSha256": "37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313",
       "fileCount": 74,
       "notes": "Independently inspected saved-suite customer release. Do not republish or relabel."
+    },
+    {
+      "version": "0.3.8",
+      "gitHead": "f36d9086bad1ac109a7670e8acc9bf14a5d15047",
+      "integrity": "sha512-T+e1VWQ8plx0jJMdkOHxocpH8SjCr9BSeRLMsCnCHAO0Z3z9bhgIf0um9x6eyWJfwPz01YOL7CZvM6sLTiSLIA==",
+      "verifiedAt": "2026-10-08T01:42:45.969Z",
+      "shasum": "009bc1739654c704b75967214ef9604374bd9a92",
+      "tarballSha256": "2849ceb6c3c9b18d02a4cb2aa7f0ad470ec74cb7846a8eadf91d83147965f36e",
+      "fileCount": 74,
+      "notes": "Independently inspected report-consistency patch. Registry metadata omitted gitHead. No SLSA provenance attestation. Do not republish or relabel."
     }
   ]
 }
