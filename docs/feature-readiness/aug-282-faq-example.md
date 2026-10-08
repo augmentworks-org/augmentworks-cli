@@ -22,9 +22,10 @@ License: Apache-2.0, `LICENSE` at the repository root. Download path: clone
 `example_commit` below. `examples/` is omitted from the npm tarball. Do not
 create another public repository for these files.
 
-`example_commit` is filled in the follow-up commit that records this file's
-parent. Until that line is a 40-character SHA, do not pin a website guide to
-this document.
+`example_commit` is the commit that added these fixture bytes. The handoff
+line below was recorded in the following commit, so that SHA is not inside
+`example_commit` itself. Pin `example_commit` for the files. Do not use
+`@latest`.
 
 ## Question, answers, exits
 
@@ -60,7 +61,7 @@ customer application state. There is no `observe` hook.
 | Published npm description | Still `Deterministic hosted and customer-executed local testing for AI agents` on both 0.3.8 and 0.3.7. The source `package.json` description change is not in those tarballs. |
 | Hosted `test` | Not run. No login, quote, credit reservation, or provider call. |
 
-`example_commit: pending-first-commit`
+`example_commit: 66c23e9ed97e9d52bebd52abecb159528852efbe`
 
 ## Publication prerequisite
 
@@ -71,7 +72,7 @@ This change adds no CLI command and does not publish a package.
 
 ## Operator checks still open
 
-- Merge and record `example_commit` before a website guide pins the files.
+- `example_commit` is recorded above. Pin that SHA after this branch is on the default branch. Checking out only that SHA omits this later handoff sentence and still contains the fixture bytes.
 - Website adoption of `@augmentworks/cli@0.3.8`, and of any later package that
   contains `AW_FAQ_POLICY`, is a website change. This repository does not
   update the product website.
