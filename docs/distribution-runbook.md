@@ -28,14 +28,15 @@ accurate extra term.
 
 ## npm
 
-Do not run `npm publish` ad hoc. `@augmentworks/cli@0.3.7` is already published
-from GitHub release `v0.3.7` (target
-`876454878a31a897aec1d722fa838c9c0ecea2aa`) by the trusted-publishing workflow
-and independently inspected. Do not republish 0.3.7. `@augmentworks/cli@0.3.8`
-is the next immutable artifact: publish it only from GitHub release `v0.3.8`
-through `.github/workflows/release.yml`, then inspect that new tarball. Do not
-overwrite or relabel `@augmentworks/cli@0.3.7`, `0.3.6`, `0.3.5`, `0.3.4`, or
-`0.3.3`.
+Do not run `npm publish` ad hoc. `@augmentworks/cli@0.3.8` is published from
+GitHub tag `v0.3.8` (`f36d9086bad1ac109a7670e8acc9bf14a5d15047`) and
+independently inspected. The trusted workflow's OIDC publish returned 404
+after the repository moved to `augmentworks-org`; the same tag bytes were
+published by the package owner and have no SLSA provenance attestation. Do not
+republish 0.3.8. Do not overwrite or relabel `@augmentworks/cli@0.3.7`,
+`0.3.6`, `0.3.5`, `0.3.4`, or `0.3.3`. The next release still needs a new tag
+and `.github/workflows/release.yml`, after the npm trusted publisher allows
+`augmentworks-org/augmentworks-cli`.
 
 ## Website
 
