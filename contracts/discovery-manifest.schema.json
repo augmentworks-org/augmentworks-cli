@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jeffskafi/augmentworks-cli/blob/main/contracts/discovery-manifest.schema.json",
+  "$id": "https://github.com/augmentworks-org/augmentworks-cli/blob/main/contracts/discovery-manifest.schema.json",
   "title": "AugmentWorks CLI discovery manifest",
   "type": "object",
   "additionalProperties": false,

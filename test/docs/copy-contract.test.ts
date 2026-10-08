@@ -325,7 +325,7 @@ describe("customer-facing CLI copy", () => {
       );
     }
     expect(troubleshooting).toContain("Re-run the exact same `test` command");
-    expect(example).toContain("git clone https://github.com/jeffskafi/augmentworks-cli.git");
+    expect(example).toContain("git clone https://github.com/augmentworks-org/augmentworks-cli.git");
     expect(example).toContain("copy .env.example .env");
     expect(example).toContain(PUBLISHED_LOCAL_COMMANDS.test);
     expect(example).toContain(HOSTED_PACKET_REFERENCE);

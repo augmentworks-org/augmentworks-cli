@@ -4,14 +4,14 @@ export const AW_BILLING_CONTRACT = {
   "schemaVersion": "aw-billing/1",
   "algorithm": "sha256",
   "source": {
-    "repository": "https://github.com/jeffskafi/augmentworks.git",
+    "repository": "https://github.com/augmentworks-org/augmentworks.git",
     "commit": "650472d91442a6866a7b6ef18e6dacc23a2a9260",
     "handoff": "docs/billing-cursor-handoff.md",
     "schema": "docs/contracts/aw-billing-v1.schema.json",
     "fixtures": "docs/contracts/aw-billing-v1.fixtures.json"
   },
   "files": {
-    "contracts/aw-billing-v1.schema.json": "3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645",
+    "contracts/aw-billing-v1.schema.json": "1c0929d4f15b6b3b2017d7416e1eff50c9116b0b50fe7b82b5d96d732d807941",
     "contracts/aw-billing-v1.fixtures.json": "a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84"
   },
   "contract": {

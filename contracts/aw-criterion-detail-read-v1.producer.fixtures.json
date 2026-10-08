@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aw-criterion-detail-read/1",
   "source": {
-    "repository": "jeffskafi/augmentworks",
+    "repository": "augmentworks-org/augmentworks",
     "producerCommit": "8068a90f557f7b88e3355212f2b5459cfc03fe3e",
     "producerIssue": "AUG-16",
     "httpAdapter": "src/lib/evaluation/criterion-detail-http.ts",

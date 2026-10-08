@@ -45,7 +45,7 @@ function fetchGithubFile(repo, path, ref) {
 
 const from = argValue("--from") ?? process.env.AUGMENTWORKS_MAIN_REPO;
 const githubRepo =
-  argValue("--github") ?? process.env.AUGMENTWORKS_MAIN_GITHUB_REPO ?? "jeffskafi/augmentworks";
+  argValue("--github") ?? process.env.AUGMENTWORKS_MAIN_GITHUB_REPO ?? "augmentworks-org/augmentworks";
 
 await mkdir(resolve(root, "contracts"), { recursive: true });
 await mkdir(resolve(root, "src/real-data/generated"), { recursive: true });
@@ -133,7 +133,7 @@ const lock = {
   releaseEnabled: false,
   runtimeEnforced: false,
   source: {
-    repository: "https://github.com/jeffskafi/augmentworks.git",
+    repository: "https://github.com/augmentworks-org/augmentworks.git",
     commit: SOURCE_COMMIT,
     schema: "docs/contracts/aw-real-data-1.schema.json",
     fixtures: "docs/contracts/aw-real-data-1.fixtures.json",

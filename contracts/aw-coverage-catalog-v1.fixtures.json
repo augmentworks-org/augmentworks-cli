@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aw-coverage-catalog/1",
   "packageVersion": "aw-feature/1",
-  "note": "Compact consumer fixtures. jeffskafi/augmentworks is GitHub 404 from this environment; main schema files were not byte-vendored. Live public GET /v1/catalog/coverage was probed 2026-09-08.",
+  "note": "Compact consumer fixtures. augmentworks-org/augmentworks is GitHub 404 from this environment; main schema files were not byte-vendored. Live public GET /v1/catalog/coverage was probed 2026-09-08.",
   "liveCatalogChecksum": "75fe8b5d745bed9da4459875b1b40a8c87f56f3e8740765df6de28653b40a566",
   "fixtures": {
     "coverage_current": {

@@ -3,7 +3,7 @@
   "packageVersion": "aw-feature/1",
   "algorithm": "sha256",
   "source": {
-    "repository": "https://github.com/jeffskafi/augmentworks.git",
+    "repository": "https://github.com/augmentworks-org/augmentworks.git",
     "consumedCommit": "7ee82d2f97536b0a68876c2791c6c2f4be3be46a",
     "schemaPath": "docs/contracts/aw-feature-v1.schema.json",
     "fixturesPath": "docs/contracts/aw-feature-v1.fixtures.json",

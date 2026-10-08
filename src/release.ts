@@ -8,8 +8,8 @@ import {
 export { HOSTED_ASSESSMENT_OPTION_HELP };
 
 export const NPM_PACKAGE = "@augmentworks/cli";
-export const SOURCE_REPOSITORY = "https://github.com/jeffskafi/augmentworks-cli.git";
-export const SOURCE_REPOSITORY_HTTPS = "https://github.com/jeffskafi/augmentworks-cli";
+export const SOURCE_REPOSITORY = "https://github.com/augmentworks-org/augmentworks-cli.git";
+export const SOURCE_REPOSITORY_HTTPS = "https://github.com/augmentworks-org/augmentworks-cli";
 export const EXAMPLE_PATH = "examples/refund-agent";
 
 export const SOURCE_PACKAGE_VERSION: string = CLI_VERSION;

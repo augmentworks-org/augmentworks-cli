@@ -1,6 +1,6 @@
 # AugmentWorks CLI
 
-[![CI](https://github.com/jeffskafi/augmentworks-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffskafi/augmentworks-cli/actions/workflows/ci.yml)
+[![CI](https://github.com/augmentworks-org/augmentworks-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/augmentworks-org/augmentworks-cli/actions/workflows/ci.yml)
 
 AugmentWorks is regression testing for AI agents: it checks conversational
 responses, reported tool calls, and configured application state.
@@ -463,7 +463,7 @@ packet is synthetic. `examples/` is not in the npm tarball. The local CLI
 itself is this `0.3.7` package. This path is not the packaged `demo` command.
 
 ```bash
-git clone https://github.com/jeffskafi/augmentworks-cli.git
+git clone https://github.com/augmentworks-org/augmentworks-cli.git
 cd augmentworks-cli
 npm ci
 npm run build
@@ -588,9 +588,9 @@ CHATBOT_BASE_URL=http://127.0.0.1:8000
 CHATBOT_API_KEY=replace-locally
 ```
 
-See the [configuration reference](https://github.com/jeffskafi/augmentworks-cli/blob/main/docs/configuration.md), the versioned
+See the [configuration reference](https://github.com/augmentworks-org/augmentworks-cli/blob/main/docs/configuration.md), the versioned
 [`augmentworks.yaml` schema](schemas/v1/augmentworks.schema.json), and the
-[refund-agent example](https://github.com/jeffskafi/augmentworks-cli/blob/main/examples/refund-agent/README.md).
+[refund-agent example](https://github.com/augmentworks-org/augmentworks-cli/blob/main/examples/refund-agent/README.md).
 
 ## Data boundary
 
@@ -824,8 +824,8 @@ that the observer is truthful or that staging matches production.
   staging target and constructed test data while hosted real-data is
   release-disabled. See [Data scope](#data-scope).
 
-Read the complete [security model](https://github.com/jeffskafi/augmentworks-cli/blob/main/docs/security-model.md),
-[relay protocol](https://github.com/jeffskafi/augmentworks-cli/blob/main/docs/protocol.md), and
+Read the complete [security model](https://github.com/augmentworks-org/augmentworks-cli/blob/main/docs/security-model.md),
+[relay protocol](https://github.com/augmentworks-org/augmentworks-cli/blob/main/docs/protocol.md), and
 [security policy](SECURITY.md).
 
 ## Data scope
@@ -901,9 +901,9 @@ npm run build
 npm run smoke:pack
 ```
 
-See [CONTRIBUTING.md](https://github.com/jeffskafi/augmentworks-cli/blob/main/CONTRIBUTING.md)
+See [CONTRIBUTING.md](https://github.com/augmentworks-org/augmentworks-cli/blob/main/CONTRIBUTING.md)
 for repository conventions and the
-[agent setup guide](https://github.com/jeffskafi/augmentworks-cli/blob/main/docs/agent-setup.md)
+[agent setup guide](https://github.com/augmentworks-org/augmentworks-cli/blob/main/docs/agent-setup.md)
 for a safe coding-assistant workflow.
 
 ## Compatibility and releases
@@ -913,7 +913,7 @@ explicit protocol version. Patch releases remain compatible with their v1
 schema; incompatible configuration or protocol changes require a new version.
 Published releases are expected to use npm trusted publishing with provenance.
 
-See [CHANGELOG.md](https://github.com/jeffskafi/augmentworks-cli/blob/main/CHANGELOG.md)
+See [CHANGELOG.md](https://github.com/augmentworks-org/augmentworks-cli/blob/main/CHANGELOG.md)
 for release notes.
 
 ## License

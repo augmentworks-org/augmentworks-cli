@@ -7,7 +7,7 @@
   "recommended_cli_version": "0.3.7",
   "hosted_command_pin": "0.3.7",
   "local_distribution": "npm",
-  "local_source_repository": "https://github.com/jeffskafi/augmentworks-cli.git",
+  "local_source_repository": "https://github.com/augmentworks-org/augmentworks-cli.git",
   "local_source_ref": "main",
   "local_example_path": "examples/refund-agent",
   "hosted_packet": "support-refunds@0.1.0",

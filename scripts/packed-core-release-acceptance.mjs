@@ -1007,8 +1007,8 @@ cases:
       },
       predecessor: {
         aug47: {
-          repository: "jeffskafi/augmentworks",
-          pullRequest: "https://github.com/jeffskafi/augmentworks/pull/106",
+          repository: "augmentworks-org/augmentworks",
+          pullRequest: "https://github.com/augmentworks-org/augmentworks/pull/106",
           head: "d9f3a7fafca3ff2bb5d517bcea031dd2b9aa8ad9",
           handoff: "docs/feature-readiness/core-acceptance.md",
           cliPin: `${PACKAGE_NAME}@0.3.4`,
