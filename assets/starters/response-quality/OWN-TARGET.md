@@ -10,7 +10,7 @@ Streaming, WebSocket, history-array multi-turn, and connector marketplaces are
 not supported. The only JSON HTTP patterns in this CLI are response-only chat
 and the stateful `workflow` starter.
 
-This 0.3.7 package generates these files and includes `probe`. Do not pin
+This 0.3.8 package generates these files and includes `probe`. Do not pin
 immutable npm `0.3.3`. Invoke the CLI as `{{AW_CLI}}` below.
 
 ## Files

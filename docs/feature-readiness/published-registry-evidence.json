@@ -1,6 +1,6 @@
 {
   "schemaVersion": "aw-cli-registry-evidence/1",
-  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.3.7 tarball embeds the prior LAST_VERIFIED 0.3.6 snapshot; this file records the later inspection and is not inside that tarball.",
+  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.3.7 tarball embeds the prior LAST_VERIFIED 0.3.6 snapshot; this file records the later inspection and is not inside that tarball. thisPackageIdentity for 0.3.8 stays pending-protected-publish until the trusted publish is inspected.",
   "lastIndependentlyInspected": {
     "packageName": "@augmentworks/cli",
     "version": "0.3.7",
@@ -21,19 +21,16 @@
   },
   "thisPackageIdentity": {
     "packageName": "@augmentworks/cli",
-    "version": "0.3.7",
+    "version": "0.3.8",
     "publishedPackageVerifiedMeaning": "published-line identity, not inspection of this tarball",
-    "gitHead": "876454878a31a897aec1d722fa838c9c0ecea2aa",
-    "integrity": "sha512-O9IRRBgpCwRwQzUtIOgpa0nxRQ5UU6x28S7+G6e+egwmRP8QwvHTJgJUzmmFhyq+MhtzW8CPRHnAXhxRHNBIBA==",
-    "verifiedAt": "2026-09-27T21:06:12.276Z",
-    "status": "independently-inspected",
-    "githubRelease": "v0.3.7",
-    "githubReleasePublishedAt": "2026-09-27T20:58:35Z",
-    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.3.7",
-    "shasum": "4b53d91272e51d9b27af3a00f407e3943ae1fa6e",
-    "tarballSha256": "37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313",
-    "fileCount": 74,
-    "notes": "Same immutable artifact as lastIndependentlyInspected. The inspection commit is later than gitHead and is not inside the tarball. Do not overwrite 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
+    "gitHead": null,
+    "integrity": null,
+    "verifiedAt": null,
+    "status": "pending-protected-publish",
+    "githubRelease": null,
+    "githubReleasePublishedAt": null,
+    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.3.8",
+    "notes": "Source 0.3.8 ships the AUG-272 hosted report consistency check and the AUG-273 source-map-js audit refresh. Fill gitHead, integrity, and verifiedAt after the protected v0.3.8 GitHub release and npm trusted publish. Do not overwrite 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
   },
   "immutableArtifacts": [
     {

@@ -30,12 +30,12 @@ document are fictional. This text is not legal approval. Do not set
 `synthetic_only: true` on a live or authorized document, grant `suite:write`
 to a machine key, or test a third party without authority.
 
-The command exists in this `0.3.7` package. Native hosted
-`aw-customer-suite/1` upload translation is source on this revision and is
-not in immutable registry `0.3.6`. From this clone after `npm ci` and
-`npm run build`, use `node dist/index.js`. A protected `v0.3.7` publish must
-complete before automation pins adopt this tarball. Do not assume existing
-registry `0.3.6` contains the upload translation.
+The command exists in this `0.3.8` package. Native hosted
+`aw-customer-suite/1` upload translation shipped in immutable npm `0.3.7`
+and is not in immutable registry `0.3.6`. From this clone after `npm ci` and
+`npm run build`, use `node dist/index.js`. Pin `@augmentworks/cli@0.3.8`
+after the protected `v0.3.8` publish. Do not assume registry `0.3.6`
+contains the upload translation, and do not overwrite `0.3.7`.
 
 ## Commands
 

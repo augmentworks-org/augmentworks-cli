@@ -97,7 +97,7 @@ describe("discovery manifest", () => {
 
   it("keeps the source checkout development-status without claiming this tarball is already inspected", () => {
     const source = sourceDiscoveryManifest();
-    expect(source.package.version).toBe("0.3.7");
+    expect(source.package.version).toBe("0.3.8");
     expect(source.package.releaseStatus).toBe("development");
     expect(source.provenance.verifiedAt).toBeNull();
     expect(source.provenance.sourceCommit).toBeNull();

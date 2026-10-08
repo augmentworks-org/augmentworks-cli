@@ -1,7 +1,7 @@
-# Customer GitHub Actions example for this 0.3.7 package hosted CI with a
+# Customer GitHub Actions example for this 0.3.8 package hosted CI with a
 # read-only semantic release gate.
 #
-# Quoted `--max-credits`, `run wait`, and `gate` are in this 0.3.7 package.
+# Quoted `--max-credits`, `run wait`, and `gate` are in this 0.3.8 package.
 # Do not overwrite npm 0.3.5, 0.3.4, or 0.3.3.
 # No browser. npm `--yes` is not a spending ceiling. Billing rejection is
 # exit 13; a new required semantic regression is exit 10 even when

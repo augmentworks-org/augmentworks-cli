@@ -1,6 +1,6 @@
 {
   "name": "@augmentworks/cli",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Deterministic hosted and customer-executed local testing for AI agents",
   "type": "module",
   "bin": {

@@ -31,9 +31,11 @@ accurate extra term.
 Do not run `npm publish` ad hoc. `@augmentworks/cli@0.3.7` is already published
 from GitHub release `v0.3.7` (target
 `876454878a31a897aec1d722fa838c9c0ecea2aa`) by the trusted-publishing workflow
-and independently inspected. Do not republish 0.3.7. A later version needs a
-new tag and the same workflow, then a fresh tarball inspection. Do not
-overwrite or relabel `@augmentworks/cli@0.3.6`, `0.3.5`, `0.3.4`, or `0.3.3`.
+and independently inspected. Do not republish 0.3.7. `@augmentworks/cli@0.3.8`
+is the next immutable artifact: publish it only from GitHub release `v0.3.8`
+through `.github/workflows/release.yml`, then inspect that new tarball. Do not
+overwrite or relabel `@augmentworks/cli@0.3.7`, `0.3.6`, `0.3.5`, `0.3.4`, or
+`0.3.3`.
 
 ## Website
 

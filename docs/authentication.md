@@ -13,7 +13,7 @@ resolves only the target credentials named by the selected configuration.
 ## Interactive login
 
 ```bash
-npx --yes @augmentworks/cli@0.3.7 login
+npx --yes @augmentworks/cli@0.3.8 login
 ```
 
 The default flow uses browser Authorization Code with PKCE and a temporary
@@ -25,7 +25,7 @@ single-use and short-lived, and the callback listener closes after completion.
 For SSH and other headless environments:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.7 login --device
+npx --yes @augmentworks/cli@0.3.8 login --device
 ```
 
 The CLI displays a short user code and verification URL. Entering the code in a
@@ -152,8 +152,8 @@ before removal; unknown identity remains fail-closed.
 Use:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.7 whoami
-npx --yes @augmentworks/cli@0.3.7 logout
+npx --yes @augmentworks/cli@0.3.8 whoami
+npx --yes @augmentworks/cli@0.3.8 logout
 ```
 
 This package also provides `usage` and `billing`, which use the same connector

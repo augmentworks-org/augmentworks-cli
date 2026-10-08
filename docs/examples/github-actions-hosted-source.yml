@@ -1,6 +1,6 @@
 # Customer GitHub Actions example for a source-tree hosted assessment.
 #
-# Quoted `--max-credits` and `run wait` are in this 0.3.7 package. This recipe
+# Quoted `--max-credits` and `run wait` are in this 0.3.8 package. This recipe
 # builds `node dist/index.js` from a clone rather than installing npm.
 # No browser. npm `--yes` is not a spending ceiling. Billing rejection is
 # exit 13; chatbot assertion failure is exit 10; incomplete grading is 11.

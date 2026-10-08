@@ -29,7 +29,7 @@ schemas. Recovery uses a separate endpoint and protocol version.
    workflow. Do not republish `0.2.0`. `0.2.1` is already on npm
    ([v0.2.1](https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.2.1)).
 4. Update the website CLI pin and recovery copy to `0.3.1` after npm lists it.
-5. `npx --yes @augmentworks/cli@0.3.7 recover --help` must list
+5. `npx --yes @augmentworks/cli@0.3.8 recover --help` must list
    `--retire`, `--resume`, and `--cancel`, and must not list `--force-delete`.
    **Done:** verified on the published tarball.
 

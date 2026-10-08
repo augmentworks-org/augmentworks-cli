@@ -32,7 +32,7 @@ jobs:
           CHATBOT_BASE_URL: http://127.0.0.1:8000
           CHATBOT_API_KEY: ci-synthetic-placeholder
         run: |
-          npx --yes @augmentworks/cli@0.3.7 test \
+          npx --yes @augmentworks/cli@0.3.8 test \
             --local \
             -c augmentworks.yaml \
             --packet support-refunds-starter@0.1.0 \
