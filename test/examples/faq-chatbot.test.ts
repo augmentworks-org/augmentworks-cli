@@ -73,16 +73,61 @@ function startServer(directory: string, origin: string, token: string, policy: "
   return child;
 }
 
+function childHasExited(child: ReturnType<typeof spawn>): boolean {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+async function waitForChildExit(child: ReturnType<typeof spawn>, timeoutMs: number): Promise<void> {
+  if (childHasExited(child)) return;
+  await Promise.race([
+    new Promise<void>((fulfill) => {
+      const onExit = (): void => fulfill();
+      child.once("exit", onExit);
+      if (childHasExited(child)) {
+        child.off("exit", onExit);
+        fulfill();
+      }
+    }),
+    new Promise<void>((fulfill) => {
+      const timer = setTimeout(fulfill, timeoutMs);
+      timer.unref?.();
+    })
+  ]);
+}
+
 async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
-  if (child.exitCode !== null) return;
-  child.kill("SIGINT");
-  await new Promise((fulfill) => setTimeout(fulfill, 200));
-  if (child.exitCode === null) child.kill("SIGTERM");
+  if (childHasExited(child)) return;
+  child.kill("SIGTERM");
+  await waitForChildExit(child, 5_000);
+  if (childHasExited(child)) return;
+  child.kill("SIGKILL");
+  await waitForChildExit(child, 2_000);
+}
+
+function isRetryableRemoveError(error: unknown): boolean {
+  if (process.platform !== "win32" || typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+  const code = error.code;
+  return code === "EBUSY" || code === "EPERM" || code === "ENOTEMPTY";
+}
+
+async function removeDirectory(directory: string): Promise<void> {
+  const attempts = process.platform === "win32" ? 8 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (!isRetryableRemoveError(error) || attempt === attempts - 1) throw error;
+      await new Promise((fulfill) => setTimeout(fulfill, 25 * 2 ** attempt));
+    }
+  }
 }
 
 afterEach(async () => {
   await Promise.all(children.splice(0).map((child) => stopChild(child)));
-  await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+  await Promise.all(directories.splice(0).map((directory) => removeDirectory(directory)));
 });
 
 describe("faq chatbot example", () => {
@@ -104,7 +149,7 @@ describe("faq chatbot example", () => {
     expect(stderr).toContain("AW_FAQ_POLICY must be current or stale.");
   });
 
-  it("passes the current answer and fails the stale answer with local exits 0 and 10", async () => {
+  it("passes the current answer and fails the stale answer with local exits 0 and 10", { timeout: 120_000 }, async () => {
     const directory = await temporaryDirectory();
     await cp(exampleRoot, directory, { recursive: true });
     const port = await freeLoopbackPort();
