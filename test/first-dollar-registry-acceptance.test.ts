@@ -105,14 +105,14 @@ describe("first-dollar registry acceptance handoff", () => {
     );
 
     expect(PUBLISHED_PACKAGE_VERIFIED).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.3.8");
+    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.3.9");
     expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe(
-      "f36d9086bad1ac109a7670e8acc9bf14a5d15047"
+      "9e7919cbfe583cc15701904580be9d36da3bcaf4"
     );
     expect(LAST_VERIFIED_PUBLISHED_INTEGRITY).toBe(
-      "sha512-T+e1VWQ8plx0jJMdkOHxocpH8SjCr9BSeRLMsCnCHAO0Z3z9bhgIf0um9x6eyWJfwPz01YOL7CZvM6sLTiSLIA=="
+      "sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA=="
     );
-    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-08T01:42:45.969Z");
+    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-13T20:31:53.099Z");
     expect(REGISTRY_0_3_3_GIT_HEAD).toBe("4a08ea0d352f2515e725cb9ca946807112422436");
     expect(registryIdentity?.status).toBe("pass");
     expect(evidence.cli.gitHead).not.toBeNull();
@@ -126,27 +126,32 @@ describe("first-dollar registry acceptance handoff", () => {
 });
 
 describe("published registry evidence record", () => {
-  it("keeps this package identity separate from last independently inspected 0.3.8", async () => {
+  it("records independently inspected 0.3.9 without relabeling 0.3.8", async () => {
     const record = JSON.parse(await readFile(registryEvidenceUrl, "utf8")) as PublishedRegistryEvidence & {
       immutableArtifacts: Array<{ version: string; gitHead: string }>;
     };
 
     expect(record.schemaVersion).toBe("aw-cli-registry-evidence/1");
-    expect(record.lastIndependentlyInspected.version).toBe("0.3.8");
+    expect(record.lastIndependentlyInspected.version).toBe("0.3.9");
     expect(record.lastIndependentlyInspected.gitHead).toBe(
-      "f36d9086bad1ac109a7670e8acc9bf14a5d15047"
+      "9e7919cbfe583cc15701904580be9d36da3bcaf4"
     );
     expect(record.lastIndependentlyInspected.integrity).toBe(
-      "sha512-T+e1VWQ8plx0jJMdkOHxocpH8SjCr9BSeRLMsCnCHAO0Z3z9bhgIf0um9x6eyWJfwPz01YOL7CZvM6sLTiSLIA=="
+      "sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA=="
     );
-    expect(record.lastIndependentlyInspected.verifiedAt).toBe("2026-10-08T01:42:45.969Z");
+    expect(record.lastIndependentlyInspected.verifiedAt).toBe("2026-10-13T20:31:53.099Z");
     expect(record.thisPackageIdentity.version).toBe(SOURCE_PACKAGE_VERSION);
     expect(record.thisPackageIdentity.version).toBe("0.3.9");
-    expect(record.thisPackageIdentity.gitHead).toBeNull();
-    expect(record.thisPackageIdentity.integrity).toBeNull();
-    expect(record.thisPackageIdentity.verifiedAt).toBeNull();
-    expect(record.thisPackageIdentity.status).toBe("pending-protected-publish");
-    expect(record.thisPackageIdentity.version).not.toBe(record.lastIndependentlyInspected.version);
+    expect(record.thisPackageIdentity.gitHead).toBe("9e7919cbfe583cc15701904580be9d36da3bcaf4");
+    expect(record.thisPackageIdentity.integrity).toBe(
+      "sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA=="
+    );
+    expect(record.thisPackageIdentity.verifiedAt).toBe("2026-10-13T20:31:53.099Z");
+    expect(record.thisPackageIdentity.status).toBe("independently-inspected");
+    expect(record.thisPackageIdentity.version).toBe(record.lastIndependentlyInspected.version);
+    expect(record.immutableArtifacts.find((artifact) => artifact.version === "0.3.9")?.gitHead).toBe(
+      "9e7919cbfe583cc15701904580be9d36da3bcaf4"
+    );
     expect(record.immutableArtifacts.find((artifact) => artifact.version === "0.3.8")?.gitHead).toBe(
       "f36d9086bad1ac109a7670e8acc9bf14a5d15047"
     );
