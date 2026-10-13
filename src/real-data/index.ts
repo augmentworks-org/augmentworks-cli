@@ -105,6 +105,7 @@ export {
   localBinding
 } from "./scope-store.js";
 export {
+  assertHostedScopeUsable,
   requireHostedAuthorizedScope,
   dispatchPolicyFromHostedScope,
   persistHostedScopeForRun,

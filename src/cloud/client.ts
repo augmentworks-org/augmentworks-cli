@@ -719,10 +719,7 @@ export class CloudClient {
       if (!looksLikeExecutionScopeResponse(value)) return undefined;
       return parseExecutionScopeResponse(value);
     } catch (error) {
-      if (
-        error instanceof AwError &&
-        (error.details?.["http_status"] === 404 || error.code === "CLOUD_REQUEST_FAILED")
-      ) {
+      if (error instanceof AwError && error.details?.["http_status"] === 404) {
         return undefined;
       }
       throw error;
@@ -871,15 +868,20 @@ export class CloudClient {
       externalSignal?.removeEventListener("abort", onAbort);
     }
     let value: unknown;
+    let nonJsonErrorBody = false;
     try {
       value = text.length === 0 ? undefined : JSON.parse(text);
     } catch (error) {
-      throw new AwError({
-        code: "INVALID_CLOUD_RESPONSE",
-        category: "protocol",
-        message: "AugmentWorks returned an invalid JSON response.",
-        cause: error
-      });
+      if (response.ok || errorFamily === "billing") {
+        throw new AwError({
+          code: "INVALID_CLOUD_RESPONSE",
+          category: "protocol",
+          message: "AugmentWorks returned an invalid JSON response.",
+          cause: error
+        });
+      }
+      value = undefined;
+      nonJsonErrorBody = true;
     }
     if (value !== undefined) assertJsonLimits(value, "AugmentWorks response");
     if (response.status === 401 && allowAuthRefresh && this.#accessTokenProvider !== undefined) {
@@ -915,7 +917,7 @@ export class CloudClient {
           profileRecoveryUrl(this.apiUrl)
         );
       }
-      throw cloudHttpError(
+      const httpError = cloudHttpError(
         response.status,
         value,
         method,
@@ -923,6 +925,8 @@ export class CloudClient {
         profileRecoveryUrl(this.apiUrl),
         response.headers.get("retry-after")
       );
+      if (!nonJsonErrorBody) throw httpError;
+      throw nameNonJsonRoute(httpError, method, path);
     }
     if (value === undefined) {
       throw new AwError({
@@ -1096,6 +1100,20 @@ function responseTooLarge(): AwError {
     code: "RELAY_ENVELOPE_TOO_LARGE",
     category: "protocol",
     message: "The AugmentWorks response exceeds the relay envelope limit."
+  });
+}
+
+function nameNonJsonRoute(error: AwError, method: "GET" | "POST", path: string): AwError {
+  if (error.message.includes(method) && error.message.includes(path)) return error;
+  return new AwError({
+    code: error.code,
+    category: error.category,
+    message: `${error.message} ${method} ${path}`,
+    retryable: error.retryable,
+    ...(error.operation === undefined ? {} : { operation: error.operation }),
+    ...(error.commandId === undefined ? {} : { commandId: error.commandId }),
+    ...(error.details === undefined ? {} : { details: error.details }),
+    cause: error
   });
 }
 

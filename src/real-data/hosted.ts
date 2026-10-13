@@ -25,29 +25,30 @@ import {
   assertBindingMatches
 } from "./scope-store.js";
 
-export async function requireHostedAuthorizedScope(
-  cloud: CloudClient,
-  ref: SuiteExecutionScopeRef,
+export async function assertHostedScopeUsable(
+  response: ExecutionScopeResponse,
   options: {
+    readonly cloud: CloudClient;
     readonly workspaceId: string;
     readonly resolved?: ResolvedConfig;
     readonly signal?: AbortSignal;
     readonly now?: number;
+    readonly revision?: number;
+    readonly scopeHash?: string;
   }
-): Promise<ExecutionScopeResponse> {
-  const capabilities = await cloud.getRealDataCapabilities(options.signal);
+): Promise<void> {
+  const capabilities = await options.cloud.getRealDataCapabilities(options.signal);
   assertHostedRealDataRelease(capabilities);
-  const response = await cloud.getExecutionScope(ref.scopeId, options.signal);
   if (response.scope.workspaceId !== options.workspaceId) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
       "The admitted execution scope belongs to a different workspace."
     );
   }
-  if (ref.revision !== undefined && response.scope.revision !== ref.revision) {
+  if (options.revision !== undefined && response.scope.revision !== options.revision) {
     throw realDataError("EXECUTION_SCOPE_STALE", "The admitted scope revision does not match the suite binding.");
   }
-  if (ref.scopeHash !== undefined && response.scope.scopeHash !== ref.scopeHash) {
+  if (options.scopeHash !== undefined && response.scope.scopeHash !== options.scopeHash) {
     throw realDataError("EXECUTION_SCOPE_STALE", "The admitted scope hash does not match the suite binding.");
   }
   if (response.availability === "revoked") {
@@ -76,6 +77,28 @@ export async function requireHostedAuthorizedScope(
   if (options.resolved !== undefined) {
     assertBoundaryMatchesConfig(response.targetBoundary, options.resolved);
   }
+}
+
+export async function requireHostedAuthorizedScope(
+  cloud: CloudClient,
+  ref: SuiteExecutionScopeRef,
+  options: {
+    readonly workspaceId: string;
+    readonly resolved?: ResolvedConfig;
+    readonly signal?: AbortSignal;
+    readonly now?: number;
+  }
+): Promise<ExecutionScopeResponse> {
+  const response = await cloud.getExecutionScope(ref.scopeId, options.signal);
+  await assertHostedScopeUsable(response, {
+    cloud,
+    workspaceId: options.workspaceId,
+    ...(options.resolved === undefined ? {} : { resolved: options.resolved }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+    ...(options.now === undefined ? {} : { now: options.now }),
+    ...(ref.revision === undefined ? {} : { revision: ref.revision }),
+    ...(ref.scopeHash === undefined ? {} : { scopeHash: ref.scopeHash })
+  });
   return response;
 }
 
@@ -241,11 +264,18 @@ export async function resolveDispatchPolicyForBinding(options: {
     return dispatchPolicyFromHostedScope(response);
   }
 
+  if (!packetRequiresHostedScope(options.binding.packet)) {
+    return undefined;
+  }
+
   const fromRun = await options.cloud.getRunExecutionScope(options.binding.run_id, options.signal);
   if (fromRun !== undefined) {
-    if (options.resolved !== undefined) {
-      assertBoundaryMatchesConfig(fromRun.targetBoundary, options.resolved);
-    }
+    await assertHostedScopeUsable(fromRun, {
+      cloud: options.cloud,
+      workspaceId: options.workspaceId,
+      ...(options.resolved === undefined ? {} : { resolved: options.resolved }),
+      ...(options.signal === undefined ? {} : { signal: options.signal })
+    });
     await persistHostedScopeForRun({
       runId: options.binding.run_id,
       configSha256: options.binding.config_sha256,
@@ -256,11 +286,8 @@ export async function resolveDispatchPolicyForBinding(options: {
     return dispatchPolicyFromHostedScope(fromRun);
   }
 
-  if (packetRequiresHostedScope(options.binding.packet)) {
-    throw realDataError(
-      "INVALID_EXECUTION_SCOPE",
-      "This authorized run has no persisted or server-admitted execution scope. Re-admit from the original suite, assessment, or manifest; do not reconstruct authority from YAML."
-    );
-  }
-  return undefined;
+  throw realDataError(
+    "INVALID_EXECUTION_SCOPE",
+    "This authorized run has no persisted or server-admitted execution scope. Re-admit from the original suite, assessment, or manifest; do not reconstruct authority from YAML."
+  );
 }
