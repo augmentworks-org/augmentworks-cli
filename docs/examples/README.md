@@ -25,7 +25,7 @@ directories retain raw provenance from the generation command.
 
 See `../walkthrough-draft.md`. Do not fabricate a recording.
 
-## Hosted CI (this 0.3.8 package)
+## Hosted CI (this 0.3.9 package)
 
 `github-actions-hosted.yml` is the maintained customer GitHub Actions recipe:
 scoped `AUGMENTWORKS_API_KEY`, expected `AUGMENTWORKS_WORKSPACE_ID`, isolated synthetic target, offline doctor and
