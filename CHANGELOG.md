@@ -4,7 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.9] - 2026-10-13
+
+Immutable patch. Customers can install the hosted run-scope lookup hardening
+without replacing npm `0.3.8`.
+
+### Fixed
+
+- Hosted runs no longer crash when the server returns an HTML error page
+  ([AUG-335](https://linear.app/augmentworks/issue/AUG-335/qa-bugcli-harden-the-run-scope-lookup-and-stop-html-error-pages-from)).
+  Synthetic and saved-suite v2 bindings do not request an execution scope.
+  A looked-up scope uses the same usability checks as the pinned path, except
+  the revision and hash comparison when there is no suite reference. A 404 from
+  that lookup on a packet that requires a scope stays `INVALID_EXECUTION_SCOPE`.
+  Other lookup failures propagate. A non-JSON error body keeps `http_status`
+  instead of `INVALID_CLOUD_RESPONSE`; a non-JSON success body still fails as
+  `INVALID_CLOUD_RESPONSE`. This ships in `@augmentworks/cli@0.3.9` and does
+  not overwrite npm `0.3.8`.
 
 ### Added
 
@@ -538,6 +554,7 @@ This repository does not overwrite or relabel 0.3.3.
 - Refund-agent mock target, public documentation, schema, tests, packed-package
   smoke test, CI, and npm trusted-publishing workflow.
 
+[0.3.9]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.9
 [0.3.8]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.8
 [0.3.7]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.7
 [0.3.6]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.6
