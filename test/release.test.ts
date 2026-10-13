@@ -67,11 +67,11 @@ describe("CLI release metadata", () => {
   it("exposes published-line identity without baking a stale last-verified 0.3.2 result", () => {
     expect(PUBLISHED_PACKAGE_VERIFIED).toBe(true);
     expect(CLI_RELEASE.published_package_verified).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.3.8");
-    expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe("f36d9086bad1ac109a7670e8acc9bf14a5d15047");
-    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-08T01:42:45.969Z");
+    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.3.9");
+    expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe("9e7919cbfe583cc15701904580be9d36da3bcaf4");
+    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-13T20:31:53.099Z");
     expect(LAST_VERIFIED_PUBLISHED_INTEGRITY).toBe(
-      "sha512-T+e1VWQ8plx0jJMdkOHxocpH8SjCr9BSeRLMsCnCHAO0Z3z9bhgIf0um9x6eyWJfwPz01YOL7CZvM6sLTiSLIA=="
+      "sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA=="
     );
     expect(REGISTRY_0_3_3_GIT_HEAD).toBe("4a08ea0d352f2515e725cb9ca946807112422436");
     expect(REGISTRY_0_3_6_GIT_HEAD).toBe("a9b927a2413305003f817c20e9c5df277512f83e");
