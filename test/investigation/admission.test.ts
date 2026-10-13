@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { runEstimate, runTest } from "../../src/commands/test.js";
+import type { RelayRunner } from "../../src/relay/runner.js";
 import { runReleasePolicyCommand } from "../../src/baseline/execute.js";
 import { inspectInvestigation, fetchInvestigation } from "../../src/investigation/execute.js";
 import { canonicalize, sha256 } from "../../src/util/canonical.js";
@@ -605,5 +606,88 @@ describe("investigation reproduction admission", () => {
     expect(payload.admissionCalls).toBe(0);
     expect(paths.some((path) => path.startsWith("POST /v1/runs/"))).toBe(true);
     expect(paths.some((path) => path.includes("/v1/relay/runs"))).toBe(false);
+  });
+
+  it("completes an investigation rerun against an HTML 404 fallback", async () => {
+    const cwd = await tempDir("aw-inv-html-");
+    temporaryDirectories.push(cwd);
+    await copyInvestigation("response-only.json", cwd, "investigation.json");
+    const paths: string[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = new URL(String(input));
+      paths.push(`${init?.method ?? "GET"} ${url.pathname}`);
+      const body = init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as Record<string, unknown>);
+      if (url.pathname === `/v1/suites/${FAQ_SUITE_ID}/revisions/${FAQ_REVISION}`) {
+        return Response.json({
+          suiteId: FAQ_SUITE_ID,
+          revisionId: FAQ_REVISION,
+          contentHash: FAQ_HASH,
+          canonicalDocument: faqPinnedDocument()
+        });
+      }
+      if (url.pathname === "/v1/billing/capabilities") {
+        return Response.json(billingFixtures.fixtures["eligible_trial"]?.response);
+      }
+      if (url.pathname === "/v1/billing/quote") {
+        return Response.json(billingFixtures.fixtures["quote_success_with_balance"]?.response);
+      }
+      if (url.pathname === "/v1/relay/runs") {
+        const request = body ?? {};
+        return Response.json({
+          protocol_version: "aw-relay/0.3",
+          create_request_id: request["create_request_id"],
+          create_request_sha256: sha256(canonicalize(request)),
+          create_disposition: "created",
+          run_id: "run-repro-faq",
+          session_id: "session-1",
+          packet: { key: "aw-customer-suite", version: "1.0.0", sha256: "a".repeat(64) },
+          config_sha256: request["config_sha256"],
+          fencing_epoch: 1,
+          status: "running",
+          dashboard_url: "http://127.0.0.1:8787/portal/runs/run-repro-faq",
+          run_expires_at: "2099-09-06T00:00:00.000Z",
+          credit_state: "reserved"
+        });
+      }
+      const missing = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+      return new Response(missing, {
+        status: 404,
+        headers: { "content-type": "text/html; charset=utf-8" }
+      });
+    });
+    const result = await runTest(
+      {
+        cwd,
+        investigation: "investigation.json",
+        maxCredits: "30",
+        yes: true,
+        stateDirectory: cwd,
+        handleSignals: false,
+        env: { AUGMENTWORKS_API_URL: "http://127.0.0.1:8787" }
+      },
+      {
+        doctor: doctorFor(),
+        isInteractive: () => false,
+        accessToken: async () => "token",
+        identity: async () => identity(),
+        cloud: hostedCloud(fetchMock),
+        runner: () =>
+          ({
+            run: async () => ({
+              protocol_version: "aw-relay/0.1",
+              run_id: "run-repro-faq",
+              status: "completed",
+              credit_state: "reserved",
+              outcome: "passed"
+            }),
+            requestCancellation: async () => {
+              throw new Error("investigation rerun must not cancel");
+            }
+          }) as unknown as RelayRunner
+      }
+    );
+    expect(result.binding.run_id).toBe("run-repro-faq");
+    expect(result.run.status).toBe("completed");
+    expect(paths.some((path) => path.includes("execution-scope"))).toBe(false);
   });
 });

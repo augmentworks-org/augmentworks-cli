@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CloudClient } from "../../src/cloud/client.js";
+import type { RelayRunner } from "../../src/relay/runner.js";
 import {
   createTestCommand,
   installSelectionExecutionInterruptHandler,
@@ -44,6 +45,7 @@ import {
   SelectionExecutionSchema,
   type SuiteSelectionManifest
 } from "../../src/selection/schema.js";
+import { CANONICAL_HASH, SUITE_ID, SUITE_REVISION, savedSuiteManifest } from "./saved-suite-fixtures.js";
 
 const projectRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const fixtures = JSON.parse(
@@ -1471,5 +1473,81 @@ describe("selection execution tenant pinning", () => {
     expect(second.execution.tenant.workspace_id).toBe(OTHER_WORKSPACE);
     expect(second.execution.shards.every((shard) => shard.runId === null)).toBe(true);
     await second.lock.release();
+  });
+
+  it("completes a saved v2 suite run against an HTML 404 fallback", async () => {
+    const cwd = await stateDir();
+    const stateDirectory = await stateDir();
+    const manifest = savedSuiteManifest();
+    await writeFile(join(cwd, "suite-selection.manifest.json"), `${JSON.stringify(manifest)}\n`, "utf8");
+    const apiOrigin = new URL("http://127.0.0.1:8787/");
+    const paths: string[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = new URL(String(input));
+      paths.push(`${init?.method ?? "GET"} ${url.pathname}`);
+      if (url.pathname === "/v1/billing/capabilities") {
+        return Response.json(billingFixtures.fixtures["eligible_trial"]?.response);
+      }
+      if (url.pathname === "/v1/billing/quote") {
+        return Response.json(billingFixtures.fixtures["quote_success_with_balance"]?.response);
+      }
+      if (url.pathname === "/v1/relay/runs" && (init?.method ?? "GET") === "POST") {
+        const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return Response.json({
+          ...createRunJson(request, "run-saved-v2", apiOrigin),
+          status: "running"
+        });
+      }
+      if (url.pathname === `/v1/suites/${SUITE_ID}/revisions/${SUITE_REVISION}`) {
+        return Response.json({
+          suiteId: SUITE_ID,
+          revisionId: SUITE_REVISION,
+          contentHash: CANONICAL_HASH,
+          canonicalDocument: { schemaVersion: "aw-customer-suite/2", syntheticOnly: false }
+        });
+      }
+      const missing = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+      return new Response(missing, {
+        status: 404,
+        headers: { "content-type": "text/html; charset=utf-8" }
+      });
+    });
+    const result = await runTest(
+      {
+        manifest: "suite-selection.manifest.json",
+        allShards: true,
+        maxCredits: "100",
+        yes: true,
+        cwd,
+        stateDirectory,
+        handleSignals: false,
+        env: { CI: "1", AUGMENTWORKS_API_URL: apiOrigin.origin }
+      },
+      {
+        doctor: doctorFor(),
+        apiOrigin: () => apiOrigin,
+        accessToken: async () => "token",
+        identity: async () => hostedIdentity(),
+        cloud: (options) =>
+          new CloudClient({
+            apiUrl: options.apiOrigin,
+            accessToken: options.accessToken,
+            accessTokenProvider: options.accessTokenProvider,
+            fetch: fetchMock
+          }),
+        runner: () =>
+          ({
+            run: async () => runStatusJson("run-saved-v2", apiOrigin),
+            requestCancellation: async () => {
+              throw new Error("saved suite run must not cancel");
+            }
+          }) as unknown as RelayRunner,
+        stdout: { write: () => true },
+        stderr: { write: () => true }
+      }
+    );
+    expect(result.binding.run_id).toBe("run-saved-v2");
+    expect(result.run.status).toBe("completed");
+    expect(paths.some((path) => path.includes("execution-scope"))).toBe(false);
   });
 });

@@ -297,6 +297,15 @@ function send(response, status, value) {
   response.end(body);
 }
 
+function sendHtmlNotFound(response) {
+  const body = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+  response.writeHead(404, {
+    "content-type": "text/html; charset=utf-8",
+    "content-length": Buffer.byteLength(body)
+  });
+  response.end(body);
+}
+
 function rewriteOrigin(value, from, to) {
   if (typeof value === "string") return value.split(from).join(to);
   if (Array.isArray(value)) return value.map((item) => rewriteOrigin(item, from, to));
@@ -491,7 +500,7 @@ function startServer(billing, reports, producer) {
         );
         return;
       }
-      send(response, 404, { error: { code: "NOT_FOUND", message: `${request.method} ${url.pathname}` } });
+      sendHtmlNotFound(response);
     });
   });
   return { httpServer, requests, counts };

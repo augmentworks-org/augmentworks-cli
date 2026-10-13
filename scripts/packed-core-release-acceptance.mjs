@@ -192,6 +192,15 @@ function json(response, status, body) {
   response.end(payload);
 }
 
+function htmlNotFound(response) {
+  const body = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+  response.writeHead(404, {
+    "content-type": "text/html; charset=utf-8",
+    "content-length": Buffer.byteLength(body)
+  });
+  response.end(body);
+}
+
 function readBody(request) {
   return new Promise((resolveBody, reject) => {
     const chunks = [];
@@ -666,7 +675,7 @@ cases:
         return;
       }
       await readBody(request);
-      json(response, 404, { error: { code: "not_found" } });
+      htmlNotFound(response);
     }, async (mock) => {
       const env = {
         ...baseEnv,
@@ -755,7 +764,7 @@ cases:
         return;
       }
       await readBody(request);
-      json(response, 404, { error: { code: "not_found" } });
+      htmlNotFound(response);
     }, async (mock) => {
       const env = {
         ...baseEnv,
@@ -794,7 +803,7 @@ cases:
           return;
         }
         await readBody(request);
-        json(response, 404, { error: { code: "not_found" } });
+        htmlNotFound(response);
       }, async (mock) => {
         const env = {
           ...baseEnv,

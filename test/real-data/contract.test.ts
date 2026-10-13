@@ -3,15 +3,19 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { CloudClient } from "../../src/cloud/client.js";
+import { resolveConfig } from "../../src/config/resolve.js";
+import type { AugmentWorksConfig } from "../../src/config/types.js";
 import { AW_REAL_DATA_CONTRACT } from "../../src/real-data/generated/contract.js";
 import {
   parseCapabilities,
   parseExecutionScope,
   parseExecutionScopeResponse,
   parseLocalExecutionScope,
-  looksLikeHostedExecutionScope
+  looksLikeHostedExecutionScope,
+  type ExecutionScopeResponse
 } from "../../src/real-data/documents.js";
 import { assertHostedRealDataRelease, DISABLED_REAL_DATA_CAPABILITIES } from "../../src/real-data/capabilities.js";
 import { applyRedactionProfile, failClosedPrivacyService, minimizeForUpload, registerPrivacyService } from "../../src/real-data/privacy.js";
@@ -29,6 +33,7 @@ import type { RelayCommand } from "../../src/cloud/protocol.js";
 import { AwError } from "../../src/errors.js";
 import {
   ADVERTISED_DISABLED_CAPABILITIES,
+  ENABLED_CAPABILITIES,
   FUTURE,
   hostedScopeResponse,
   localAuthorizedPacketManifest,
@@ -36,6 +41,7 @@ import {
   canaryRedactionPolicy,
   sealedBoundary,
   sealedLocalScope,
+  UUID_A,
   UUID_C
 } from "./helpers.js";
 
@@ -361,5 +367,257 @@ describe("local authorized packets and private targets", () => {
         workspaceId: UUID_C
       })
     ).rejects.toMatchObject({ code: "INVALID_EXECUTION_SCOPE" });
+  });
+});
+
+const HTML_NOT_FOUND = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+
+function resolvedTarget(baseUrl: string, path = "/chat") {
+  const config: AugmentWorksConfig = {
+    version: 1,
+    target: {
+      name: "support",
+      connector: "http",
+      base_url: baseUrl,
+      operations: {
+        send: {
+          method: "POST",
+          path,
+          request: { message: "$input.message" },
+          response: { content: "$.answer" }
+        }
+      }
+    }
+  };
+  const inspection = resolveConfig(config, "/tmp/augmentworks.yaml", "/tmp", {});
+  if (inspection.resolvedConfig === undefined) {
+    throw new Error(`test config did not resolve: ${JSON.stringify(inspection.diagnostics)}`);
+  }
+  return inspection.resolvedConfig;
+}
+
+function runBinding(packet: { readonly key: string; readonly version: string }, runId = "run-scope") {
+  return {
+    protocol_version: "aw-relay/0.1" as const,
+    create_request_id: "crq_aaaaaaaaaaaaaaaaaaaaaaaa",
+    create_request_sha256: "c".repeat(64),
+    create_disposition: "created" as const,
+    run_id: runId,
+    session_id: "session-1",
+    packet: { ...packet, sha256: "d".repeat(64) },
+    config_sha256: "a".repeat(64),
+    fencing_epoch: 1,
+    status: "connected" as const,
+    dashboard_url: `https://example.test/runs/${runId}`,
+    run_expires_at: FUTURE,
+    credit_state: "reserved" as const
+  };
+}
+
+describe("hosted run scope lookup", () => {
+  it("does not request a scope for a synthetic or v2 binding", async () => {
+    const calls: string[] = [];
+    const cloud = {
+      async getRealDataCapabilities() {
+        calls.push("capabilities");
+        return ENABLED_CAPABILITIES;
+      },
+      async getRunExecutionScope() {
+        calls.push("scope");
+        return hostedScopeResponse();
+      }
+    };
+    for (const packet of [
+      { key: "support-refunds", version: "0.1.0" },
+      { key: "aw-customer-suite", version: "2.0.0" }
+    ]) {
+      await expect(
+        resolveDispatchPolicyForBinding({
+          cloud: cloud as never,
+          binding: runBinding(packet),
+          workspaceId: UUID_C
+        })
+      ).resolves.toBeUndefined();
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("uses a looked-up scope that passes the shared checks", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "aw-scope-lookup-"));
+    temporaryDirectories.push(directory);
+    const response = hostedScopeResponse();
+    const calls: string[] = [];
+    const cloud = {
+      async getRealDataCapabilities() {
+        calls.push("capabilities");
+        return ENABLED_CAPABILITIES;
+      },
+      async getRunExecutionScope() {
+        calls.push("scope");
+        return response;
+      }
+    };
+    const policy = await resolveDispatchPolicyForBinding({
+      cloud: cloud as never,
+      binding: runBinding({ key: "aw-customer-suite", version: "3.0.0" }, "run-looked-up"),
+      workspaceId: UUID_C,
+      resolved: resolvedTarget("https://support.example.com"),
+      stateDirectory: directory
+    });
+    expect(calls).toEqual(["scope", "capabilities"]);
+    expect(policy).toMatchObject({
+      kind: "authorized",
+      origin: "https://support.example.com"
+    });
+  });
+
+  it.each([
+    {
+      name: "release capability",
+      code: "EXECUTION_RELEASE_UNAVAILABLE",
+      capabilities: ADVERTISED_DISABLED_CAPABILITIES,
+      response: () => hostedScopeResponse()
+    },
+    {
+      name: "workspace",
+      code: "TARGET_SCOPE_MISMATCH",
+      workspaceId: UUID_A,
+      response: () => hostedScopeResponse()
+    },
+    {
+      name: "revoked availability",
+      code: "TARGET_AUTHORITY_REVOKED",
+      response: () => ({ ...hostedScopeResponse(), availability: "revoked" as const })
+    },
+    {
+      name: "expired availability",
+      code: "TARGET_AUTHORITY_EXPIRED",
+      response: () => ({ ...hostedScopeResponse(), availability: "expired" as const })
+    },
+    {
+      name: "release-unavailable availability",
+      code: "EXECUTION_RELEASE_UNAVAILABLE",
+      response: () => ({ ...hostedScopeResponse(), availability: "release_unavailable" as const })
+    },
+    {
+      name: "authority verification",
+      code: "TARGET_AUTHORITY_REQUIRED",
+      response: (): ExecutionScopeResponse => {
+        const response = hostedScopeResponse();
+        return {
+          ...response,
+          authority: { ...response.authority, verificationStatus: "pending" }
+        };
+      }
+    },
+    {
+      name: "scope expiry",
+      code: "TARGET_AUTHORITY_EXPIRED",
+      response: (): ExecutionScopeResponse => {
+        const response = hostedScopeResponse();
+        return { ...response, scope: { ...response.scope, expiresAt: "2000-01-01T00:00:00Z" } };
+      }
+    },
+    {
+      name: "authority expiry",
+      code: "TARGET_AUTHORITY_EXPIRED",
+      response: (): ExecutionScopeResponse => {
+        const response = hostedScopeResponse();
+        return {
+          ...response,
+          authority: { ...response.authority, expiresAt: "2000-01-01T00:00:00Z" }
+        };
+      }
+    },
+    {
+      name: "target boundary",
+      code: "TARGET_SCOPE_MISMATCH",
+      resolved: true,
+      response: () => hostedScopeResponse()
+    }
+  ])("rejects a looked-up scope that fails $name", async (entry) => {
+    const cloud = {
+      async getRealDataCapabilities() {
+        return entry.capabilities ?? ENABLED_CAPABILITIES;
+      },
+      async getRunExecutionScope() {
+        return entry.response();
+      }
+    };
+    await expect(
+      resolveDispatchPolicyForBinding({
+        cloud: cloud as never,
+        binding: runBinding({ key: "aw-customer-suite", version: "3.0.0" }),
+        workspaceId: entry.workspaceId ?? UUID_C,
+        ...(entry.resolved === true ? { resolved: resolvedTarget("https://other.example.com") } : {})
+      })
+    ).rejects.toMatchObject({ code: entry.code });
+  });
+
+  it("turns an HTML 404 from the lookup into INVALID_EXECUTION_SCOPE", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      new Response(HTML_NOT_FOUND, {
+        status: 404,
+        headers: { "content-type": "text/html; charset=utf-8" }
+      })
+    );
+    const cloud = new CloudClient({
+      apiUrl: "http://127.0.0.1:8787",
+      accessToken: "token",
+      fetch: fetchMock
+    });
+    await expect(
+      resolveDispatchPolicyForBinding({
+        cloud,
+        binding: runBinding({ key: "aw-customer-suite", version: "3.0.0" }, "run-html-404"),
+        workspaceId: UUID_C
+      })
+    ).rejects.toMatchObject({ code: "INVALID_EXECUTION_SCOPE" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/v1/relay/runs/run-html-404/execution-scope");
+  });
+
+  it("propagates a 503 from the lookup", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json({ error: "unavailable" }, { status: 503 })
+    );
+    const cloud = new CloudClient({
+      apiUrl: "http://127.0.0.1:8787",
+      accessToken: "token",
+      fetch: fetchMock
+    });
+    await expect(
+      resolveDispatchPolicyForBinding({
+        cloud,
+        binding: runBinding({ key: "aw-customer-suite", version: "3.0.0" }, "run-503"),
+        workspaceId: UUID_C
+      })
+    ).rejects.toMatchObject({
+      code: "CLOUD_REQUEST_FAILED",
+      details: { http_status: 503 }
+    });
+  });
+
+  it("still rejects a stale pinned revision before availability", async () => {
+    const response = hostedScopeResponse();
+    const cloud = {
+      async getRealDataCapabilities() {
+        return ENABLED_CAPABILITIES;
+      },
+      async getExecutionScope() {
+        return { ...response, availability: "revoked" as const };
+      }
+    };
+    await expect(
+      requireHostedAuthorizedScope(
+        cloud as never,
+        {
+          schemaVersion: "aw-execution-scope/1",
+          scopeId: response.scope.scopeId,
+          revision: response.scope.revision + 1
+        },
+        { workspaceId: UUID_C }
+      )
+    ).rejects.toMatchObject({ code: "EXECUTION_SCOPE_STALE" });
   });
 });

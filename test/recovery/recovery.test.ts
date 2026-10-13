@@ -998,6 +998,87 @@ describe("CLI recovery (B04)", () => {
     expect(targetRuns).toBe(1);
     expect(report.outcome).toBe("resumed");
   });
+
+  it("completes recover --resume for a synthetic run against an HTML 404 fallback", async () => {
+    const stateDirectory = await stateDir();
+    const resolved = resolvedConfig();
+    const boundary = targetBoundarySha256(resolved);
+    const store = new RunIntentStore({
+      apiOrigin: new URL("http://127.0.0.1:8787/"),
+      tenant: { workspace_id: "workspace-1", connector_id: "connector-1" },
+      stateDirectory,
+      createRequestId: () => `crq_${"k".repeat(32)}`
+    });
+    await store.open();
+    const loaded = await store.loadOrCreate({
+      protocol_version: RELAY_PROTOCOL_VERSION,
+      packet: { key: PACKET.key, version: PACKET.version },
+      config_sha256: resolved.configDigest,
+      target: {
+        name: resolved.config.target.name,
+        boundary_sha256: boundary,
+        capabilities: {
+          prepare: false,
+          observation: false,
+          cleanup: false,
+          tool_events: false,
+          observation_keys: []
+        }
+      }
+    });
+    await store.bind(
+      bindingFor(loaded.intent.request as unknown as Record<string, unknown>, {
+        config_sha256: loaded.intent.request.config_sha256,
+        status: "running",
+        credit_state: "consumed"
+      }) as never
+    );
+    await store.close();
+
+    const paths: string[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      paths.push(url.pathname);
+      if (url.pathname === "/v1/relay/runs") {
+        throw new Error("resume must not create");
+      }
+      if (url.pathname === "/v1/relay/runs/run-1") {
+        return Response.json(statusFor({ status: "running", outcome: null, credit_state: "consumed" }));
+      }
+      const body = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+      return new Response(body, {
+        status: 404,
+        headers: { "content-type": "text/html; charset=utf-8" }
+      });
+    });
+    const report = await runRecover(
+      { resume: true, stateDirectory, env: {}, handleSignals: false },
+      {
+        doctor: doctorFor(),
+        apiOrigin: () => new URL("http://127.0.0.1:8787/"),
+        accessToken: async () => "token",
+        identity: async () => identity(),
+        cloud: ({ accessToken, accessTokenProvider }) =>
+          new CloudClient({
+            apiUrl: "http://127.0.0.1:8787/",
+            accessToken,
+            accessTokenProvider,
+            fetch: fetchMock
+          }),
+        runner: () =>
+          ({
+            run: async () => statusFor(),
+            requestCancellation: async () => {
+              throw new Error("resume must not cancel");
+            }
+          }) as unknown as RelayRunner,
+        stdout: { write: () => true },
+        stderr: { write: () => true }
+      }
+    );
+    expect(report.outcome).toBe("resumed");
+    expect(paths.some((path) => path.includes("execution-scope"))).toBe(false);
+  });
 });
 
 describe("generic create errors are not treated as no-create", () => {

@@ -66,7 +66,12 @@ describe("catalog CLI", () => {
         send(response, 200, current?.response, current?.headers);
         return;
       }
-      send(response, 404, { error: { code: "not_found", message: "missing" } });
+      const missing = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+      response.writeHead(404, {
+        "content-type": "text/html; charset=utf-8",
+        "content-length": Buffer.byteLength(missing)
+      });
+      response.end(missing);
     });
     const state = await mkdtemp(join(tmpdir(), "aw-catalog-"));
     temporaryDirectories.push(state);

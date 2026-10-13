@@ -80,6 +80,15 @@ function send(response, status, value) {
   response.end(body);
 }
 
+function sendHtmlNotFound(response) {
+  const body = "<!DOCTYPE html><html><body>404: This page could not be found.</body></html>";
+  response.writeHead(404, {
+    "content-type": "text/html; charset=utf-8",
+    "content-length": Buffer.byteLength(body)
+  });
+  response.end(body);
+}
+
 function cloneMutate(fixtures, name, origin, mutate) {
   const fixture = fixtureNamed(fixtures, name, origin);
   const body = JSON.parse(JSON.stringify(fixture.body));
@@ -213,7 +222,7 @@ function startFixtureServer(fixtures, producer) {
       send(response, fixture.status, fixture.body);
       return;
     }
-    send(response, 404, { error: { code: "NOT_FOUND", message: "missing packed report fixture route" } });
+    sendHtmlNotFound(response);
   });
   return { httpServer, requests, state };
 }
