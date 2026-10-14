@@ -1,6 +1,6 @@
 # Billing Stage 5A → CLI Stage 5B handoff
 
-Owned by `jeffskafi/augmentworks`. Do not implement Stage 5B in this
+Owned by `augmentworks-org/augmentworks`. Do not implement Stage 5B in this
 repository. The CLI counterpart must vendor this contract as published here.
 
 ## Identity

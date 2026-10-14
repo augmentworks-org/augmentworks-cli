@@ -2,7 +2,7 @@
 
 This is the CLI half of the September 5, 2026 stabilization rollout. Database
 migrations, publication RPCs, Turnstile, and dashboard grants belong to
-`jeffskafi/augmentworks`.
+`augmentworks-org/augmentworks`.
 
 This document does not authorize production publication, customer contact, or
 running customer targets.
@@ -27,7 +27,7 @@ schemas. Recovery uses a separate endpoint and protocol version.
    environment (website repo).
 3. Publish `@augmentworks/cli@0.3.1` through the existing trusted-publishing
    workflow. Do not republish `0.2.0`. `0.2.1` is already on npm
-   ([v0.2.1](https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.2.1)).
+   ([v0.2.1](https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.2.1)).
 4. Update the website CLI pin and recovery copy to `0.3.1` after npm lists it.
 5. `npx --yes @augmentworks/cli@0.3.9 recover --help` must list
    `--retire`, `--resume`, and `--cancel`, and must not list `--force-delete`.

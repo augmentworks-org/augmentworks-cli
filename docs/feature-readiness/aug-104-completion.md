@@ -2,7 +2,7 @@
 
 Issue: [AUG-104](https://linear.app/augmentworks/issue/AUG-104/cli-ar03-consume-only-authoritative-v2-whole-suite-release-receipts)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main (`jeffskafi/augmentworks`) remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main (`augmentworks-org/augmentworks`) remains read-only.
 
 This is **source integration** for the CLI identity-only aggregate gate client
 (`aw-manifest-release-gate-request/2` → `aw-manifest-release-policy/2`).

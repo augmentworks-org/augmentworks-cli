@@ -2,7 +2,7 @@
 
 Issue: [AUG-59](https://linear.app/augmentworks/issue/AUG-59/cli-reject-incomplete-or-mixed-workspace-hosted-report-exports)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main (`jeffskafi/augmentworks`) remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main (`augmentworks-org/augmentworks`) remains read-only.
 
 This is source/fixture completion for CLI retrieval completeness. It is not
 publication, npm-registry, or deployed-API acceptance. Those belong to
@@ -16,7 +16,7 @@ publication, npm-registry, or deployed-API acceptance. Those belong to
 | Default main at start | `1cb11978f9d2fc4a021a0b51a6c444152074ccba` (AUG-54 PR #26 merged) |
 | Working branch | `cursor/aug-59-report-completeness-5a5a` |
 | Implementation commit | `64271b1fe65e9f4f75a5d8b88dbff39eca705513` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/28 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/28 |
 | Source package | `0.3.3` (not a published npm version) |
 | Verified published npm | `@augmentworks/cli@0.3.2` |
 | Report schema | `aw-run-report/1` |

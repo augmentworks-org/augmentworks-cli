@@ -2,7 +2,7 @@
 
 Issue: [AUG-124](https://linear.app/augmentworks/issue/AUG-124/cli-land-the-missing-aug-112-live-informational-client-handoff)
 Provenance: [AUG-112](https://linear.app/augmentworks/issue/AUG-112/maincli-add-authorized-live-informational-assessments-with-truthful)
-Repository: `jeffskafi/augmentworks-cli`
+Repository: `augmentworks-org/augmentworks-cli`
 Write boundary: CLI source only. No server, database, allowlist, npm publish, website pin, or live-target execution.
 
 This is the missing client half of AUG-112. Website/server `main`
@@ -10,7 +10,7 @@ This is the missing client half of AUG-112. Website/server `main`
 `aw-customer-suite/2`, the live packet overlay, and
 `?scope=live-informational`. CLI `main` `f6131d3c78944ba25a25ff0a912cee3f5e597158`
 still admitted only synthetic `aw-suite/1`. The matching local CLI commit from
-PR [jeffskafi/augmentworks#141](https://github.com/jeffskafi/augmentworks/pull/141)
+PR [augmentworks-org/augmentworks#141](https://github.com/augmentworks-org/augmentworks/pull/141)
 was never pushed (GitHub App 403). This change ports that contract onto current
 CLI `main` after PRs #52 and #53.
 

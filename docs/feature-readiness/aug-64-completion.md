@@ -2,7 +2,7 @@
 
 Issue: [AUG-64](https://linear.app/augmentworks/issue/AUG-64/cli-parse-the-servers-actual-criterion-index-and-detail-wire-formats)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main (`jeffskafi/augmentworks`) remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main (`augmentworks-org/augmentworks`) remains read-only.
 
 This is source/fixture completion for criterion wire compatibility. It is **not**
 publication, npm-registry, or deployed-API acceptance. Those belong to

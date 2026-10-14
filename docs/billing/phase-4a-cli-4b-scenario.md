@@ -1,6 +1,6 @@
 # Clean-directory scenario script imported from main Stage 4A
 
-Copied from `jeffskafi/augmentworks` `docs/billing/phase-4a-cli-4b-scenario.md`
+Copied from `augmentworks-org/augmentworks` `docs/billing/phase-4a-cli-4b-scenario.md`
 at main commit `49806f0f52377bbca0fbe02f160668723c589fa7`. Main 4A fixture YAML
 is **not** proof that `augmentworks init` generates those files. This CLI
 phase owns packaged onboarding.

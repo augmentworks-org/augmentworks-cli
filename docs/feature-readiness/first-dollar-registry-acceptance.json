@@ -44,7 +44,7 @@
       "name": "candidate-main-head",
       "artifactKind": "registry",
       "status": "pass",
-      "evidence": "Default main b8c3e7c3d71d9bef2cb07ddf3771c0822934208d includes AUG-35 PR #32, AUG-32 PR #31, AUG-24 PR #30, AUG-59 PR #28, AUG-54 PR #26. Candidate PR https://github.com/jeffskafi/augmentworks-cli/pull/33. Rechecked 2026-09-07 as branch/head selection. GitHub release v0.3.4 later targeted c3da8d92bdd3daa21e9e230ffc5d110b43adaa5f."
+      "evidence": "Default main b8c3e7c3d71d9bef2cb07ddf3771c0822934208d includes AUG-35 PR #32, AUG-32 PR #31, AUG-24 PR #30, AUG-59 PR #28, AUG-54 PR #26. Candidate PR https://github.com/augmentworks-org/augmentworks-cli/pull/33. Rechecked 2026-09-07 as branch/head selection. GitHub release v0.3.4 later targeted c3da8d92bdd3daa21e9e230ffc5d110b43adaa5f."
     },
     {
       "name": "npm-ci-check-audit",
@@ -80,7 +80,7 @@
       "name": "github-release-v0.3.4",
       "artifactKind": "registry",
       "status": "pass",
-      "evidence": "GitHub release v0.3.4 published 2026-09-08 06:33:39 UTC, target c3da8d92bdd3daa21e9e230ffc5d110b43adaa5f. https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.3.4"
+      "evidence": "GitHub release v0.3.4 published 2026-09-08 06:33:39 UTC, target c3da8d92bdd3daa21e9e230ffc5d110b43adaa5f. https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.3.4"
     },
     {
       "name": "registry-tarball-gitHead-integrity",

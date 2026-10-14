@@ -1,6 +1,6 @@
 # Billing Stage 4B completion record
 
-This is the CLI (`jeffskafi/augmentworks-cli`) Stage 4B record. It is **code
+This is the CLI (`augmentworks-org/augmentworks-cli`) Stage 4B record. It is **code
 complete** for packaged empty-directory onboarding, packed-tarball smoke,
 and the prepaid journey over the vendored `aw-billing/1` contract.
 
@@ -17,7 +17,7 @@ subscriptions.
 | Working branch | `cursor/billing-stage-4b-91a7` |
 | Implementation | `c9f079a3fe9b08ba743977115849e594462bbb3d` (packed journey); `7e213781a387292f634ea3df05800ef632e1f184` (rebuild stale packed dist) |
 | Vendored main commit | `49806f0f52377bbca0fbe02f160668723c589fa7` |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified in this prompt |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified in this prompt |
 | Working directory used for verification | `/Users/jeffskafi/Desktop/augmentworks-cli-billing-4b` |
 
 ## Code completion vs verification vs release

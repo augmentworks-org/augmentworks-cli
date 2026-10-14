@@ -1,6 +1,6 @@
 # Stage 5B completion record
 
-Repository: `jeffskafi/augmentworks-cli`
+Repository: `augmentworks-org/augmentworks-cli`
 Stage: **5B** monthly usage, renewal states, and finite CI
 Date: 2026-09-07
 

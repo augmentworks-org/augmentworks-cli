@@ -96,7 +96,7 @@ so `npm audit --audit-level=high` can pass `prepublishOnly`.
 - Frozen AW-REAL-DATA-1 revision 1 schema, fixtures, and checksums are vendored
   from the verified Linear attachment on
   [AUG-188](https://linear.app/augmentworks/issue/AUG-188/cli-support-real-data-execution-in-hosted-and-fully-offline-workflows)
-  (`jeffskafi/augmentworks@b198906188bab2dac9ae2a1ad539405807e46e1e`).
+  (`augmentworks-org/augmentworks@b198906188bab2dac9ae2a1ad539405807e46e1e`).
   `contracts/aw-real-data-1.lock.json` records `imported: true` with
   `releaseEnabled` and `runtimeEnforced` still false. Generic fabricated
   contract bytes only; no customer records.

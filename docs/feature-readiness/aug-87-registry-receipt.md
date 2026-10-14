@@ -15,8 +15,8 @@ This file is later than the published tarball and is not inside it.
 | published | `2026-09-27T21:06:12.276Z` |
 | registry | `https://registry.npmjs.org/@augmentworks/cli/0.3.7` |
 | tarball | `https://registry.npmjs.org/@augmentworks/cli/-/cli-0.3.7.tgz` |
-| GitHub release | `https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.3.7` (`2026-09-27T20:58:35Z`) |
-| workflow | `https://github.com/jeffskafi/augmentworks-cli/actions/runs/36349981048` (success, provenance log index `2979747594`) |
+| GitHub release | `https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.3.7` (`2026-09-27T20:58:35Z`) |
+| workflow | `https://github.com/augmentworks-org/augmentworks-cli/actions/runs/36349981048` (success, provenance log index `2979747594`) |
 
 Pin this exact version. Do not use `@latest`. Do not republish 0.3.7.
 Immutable priors stay `0.3.6` (capabilities, no saved-suite `/2`), `0.3.5`

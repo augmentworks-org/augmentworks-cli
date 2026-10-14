@@ -2,7 +2,7 @@
 
 Issue: [AUG-98](https://linear.app/augmentworks/issue/AUG-98/cli-land-the-missing-aug-90-saved-suite-v2-client-handoff)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main (`jeffskafi/augmentworks`) remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main (`augmentworks-org/augmentworks`) remains read-only.
 
 This is **source integration** for the saved-suite v2 compile → quote → execute
 client contract. It is **not** npm publication, website pin adoption, billing
@@ -20,15 +20,15 @@ patch existed. This issue is not marked Done from that patch file.
 | --- | --- |
 | CLI default main at start | `dcba2537c2a298af1dfaebbddac679b4c8145622` (AUG-98 reviewed head) |
 | Working branch | `cursor/saved-suite-v2-handoff-80d9` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/47 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/47 |
 | Source package | `0.3.6` (unchanged; not a published npm version bump) |
 | Published artifact | still immutable `@augmentworks/cli@0.3.6` `gitHead` `a9b927a2413305003f817c20e9c5df277512f83e` |
-| Server half | already merged in `jeffskafi/augmentworks#117`; cited main `df4844bef8b9990b747e2c79c02c57ff55cdd43b` |
-| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/jeffskafi/augmentworks` returns HTTP 404. `docs/policy-tests/P06-cli.patch` was **not** applied. Client reconstructed from the AUG-90/AUG-98 contract against current CLI `main`. |
+| Server half | already merged in `augmentworks-org/augmentworks#117`; cited main `df4844bef8b9990b747e2c79c02c57ff55cdd43b` |
+| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/augmentworks-org/augmentworks` returns HTTP 404. `docs/policy-tests/P06-cli.patch` was **not** applied. Client reconstructed from the AUG-90/AUG-98 contract against current CLI `main`. |
 | Billing contract (untouched) | `aw-billing/1` from `650472d91442a6866a7b6ef18e6dacc23a2a9260`; schema `3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645`; fixtures `a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84` |
 | Run-report contract (untouched) | `aw-run-report/1` schema `7726ec277d33e435d2832e8be0898baf9337631d779f073a10c7795fc7de38ff`; fixtures `febd2626c96672d0e79afc4706b3a5136598b61bbebbdeb0f8ec1bdbc44cd806` |
 | Migrations | none |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
 
 ## Owned implementation
 

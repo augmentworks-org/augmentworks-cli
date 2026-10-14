@@ -1,7 +1,7 @@
 # E06 completion — customer-owned suite files (AUG-32)
 
 Issue: [AUG-32](https://linear.app/augmentworks/issue/AUG-32/cli-author-validate-preview-and-run-customer-owned-suite-files)
-Repository: `jeffskafi/augmentworks-cli`
+Repository: `augmentworks-org/augmentworks-cli`
 Work package: E06 · Audit coverage: F02
 
 This file is issue-specific. It does not replace C05 (`c05-completion.md`) or
@@ -18,16 +18,16 @@ is distinct from release acceptance under AUG-7.
 | Audit / default-main baseline | `8a9f31a9fa6d99b2f0ea7e1530a4b73741592027` |
 | Working base (`origin/main`) | `4a08ea0d352f2515e725cb9ca946807112422436` (merge of PR #28; includes merged AUG-24 PR #30) |
 | Working branch | `cursor/customer-owned-suites-70eb` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/31 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/31 |
 | AUG-24 (C05) | Merged PR #30. Handoff `docs/feature-readiness/c05-completion.md`. Hosted `multi_turn` comes from `target.conversation.strategy: explicit_session_v1`, not from a suite file. |
 | AUG-14 (G01) | Done. Billing contract remains vendored `aw-billing/1`. |
 | AUG-13 / AUG-14 feature package | `aw-feature/1` schema SHA-256 `4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870`; fixtures SHA-256 `8f481f4c30fd4db165c738c3333c529a72904c8cf8b00780b40b64e391495f23` |
-| AUG-17 (main E05) | Linear Done. Cited by merged AUG-22 as `ad40b3549e882aad5a7f577aa93c289d2a8d2116`; head cited `620dd54`. Handoff `docs/feature-readiness/e05-completion.md` on main. Migration `20260907160001_customer_suite_revisions.sql`. Main PR https://github.com/jeffskafi/augmentworks/pull/42 |
-| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/jeffskafi/augmentworks` returns HTTP 404 for this agent. Source schema files were **not** byte-copied. Checksums above are Linear-published AUG-13/AUG-17 identities; they are not invented beyond those published values. |
+| AUG-17 (main E05) | Linear Done. Cited by merged AUG-22 as `ad40b3549e882aad5a7f577aa93c289d2a8d2116`; head cited `620dd54`. Handoff `docs/feature-readiness/e05-completion.md` on main. Migration `20260907160001_customer_suite_revisions.sql`. Main PR https://github.com/augmentworks-org/augmentworks/pull/42 |
+| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/augmentworks-org/augmentworks` returns HTTP 404 for this agent. Source schema files were **not** byte-copied. Checksums above are Linear-published AUG-13/AUG-17 identities; they are not invented beyond those published values. |
 | Live API probe (configured API origin, unauthenticated) | `POST /v1/suites` and `POST /v1/suites/validate` exist (401). `GET /v1/suites/{id}/revisions/{id}` and `/latest` exist (401). `POST /v1/suites/preview` is **404**. Local preview is therefore offline and not a server round-trip. |
 | Billing contract (untouched) | `aw-billing/1` from `650472d91442a6866a7b6ef18e6dacc23a2a9260`; schema `3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645`; fixtures `a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84` |
 | Migrations | None. This repository does not own SQL. |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
 
 Lock file: `contracts/aw-suite-v1.lock.json`.
 
@@ -118,8 +118,8 @@ Behavior covered (synthetic fixtures only):
 
 ## Remaining release requirements
 
-- Review/merge of https://github.com/jeffskafi/augmentworks-cli/pull/31
-- Byte-vendor of main schema files when a token with `jeffskafi/augmentworks` access is available; until then lock checksums stay Linear-published identities only
+- Review/merge of https://github.com/augmentworks-org/augmentworks-cli/pull/31
+- Byte-vendor of main schema files when a token with `augmentworks-org/augmentworks` access is available; until then lock checksums stay Linear-published identities only
 - Live hosted admission against a workspace that accepts `POST /v1/suites` and the sentinel packet binding
 - npm publication of a version that contains `suite` / `test --suite` (not 0.3.2)
 - AUG-7 release-acceptance against the published tarball

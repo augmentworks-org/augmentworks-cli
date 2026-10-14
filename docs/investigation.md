@@ -79,10 +79,10 @@ answer. Hosted semantic judging uses `test --suite` or `test --investigation`.
 ## Schema
 
 The consumed main-owned identity is `aw-investigation-export/1` from AUG-33
-(PR https://github.com/jeffskafi/augmentworks/pull/73, cited head
+(PR https://github.com/augmentworks-org/augmentworks/pull/73, cited head
 `a8e5ad17ce60f9b199d6a45f34188546d075e4bf`). Feature package `aw-feature/1`
 schema SHA-256
 `4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870`.
-`jeffskafi/augmentworks` is not readable from this environment (GitHub 404);
+`augmentworks-org/augmentworks` is not readable from this environment (GitHub 404);
 checksums are Linear-published identities, not invented hashes. Lock file:
 `contracts/aw-investigation-export-v1.lock.json`.

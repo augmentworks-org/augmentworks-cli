@@ -1,6 +1,6 @@
 # Billing Stage 3B completion record
 
-This is the CLI (`jeffskafi/augmentworks-cli`) Stage 3B record. It is **code
+This is the CLI (`augmentworks-org/augmentworks-cli`) Stage 3B record. It is **code
 complete** for first-party billing-page navigation, insufficient-credit
 recovery copy, and pending-purchase display.
 
@@ -18,7 +18,7 @@ subscriptions.
 | Implementation | `7fef4e9463a7c7baaf5f2f5873c0a95b0f37a45c` (billing command `4b0f06a49c158feaef152473cd78013a5d5064ef`) |
 | Vendored main commit | `931838f29ee04fc018ef6359c22abd8d3e8da4c8` (`cursor/billing-stage-3a-91a7`) |
 | Main 3A feature commit (hashes frozen) | `926ae72f1e8bba959cd2d5e54c3996236960b8c6` |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified in this prompt |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified in this prompt |
 
 ## Code completion vs verification vs release
 

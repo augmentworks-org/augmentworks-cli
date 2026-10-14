@@ -1,6 +1,6 @@
 # Stabilization implementation ledger (CLI)
 
-Website work is tracked in `jeffskafi/augmentworks`. This repository implements
+Website work is tracked in `augmentworks-org/augmentworks`. This repository implements
 only CLI-owned phases of the September 5, 2026 stabilization plan.
 
 ## Baseline (Phase 00)
@@ -78,16 +78,16 @@ See `docs/stabilization-rollout.md`.
 | `npm run test:e2e:cli-auth` | 1 file / 4 tests pass |
 | `npm run smoke:pack` | pass, packed `recover --help` includes `--retire`/`--resume`/`--cancel` |
 
-Working commit after local verification is recorded in git history on `cursor/cli-stabilization-recovery-8ae6`. Release pins and the credential-lock reclaim fix landed on `main` via [PR #10](https://github.com/jeffskafi/augmentworks-cli/pull/10).
+Working commit after local verification is recorded in git history on `cursor/cli-stabilization-recovery-8ae6`. Release pins and the credential-lock reclaim fix landed on `main` via [PR #10](https://github.com/augmentworks-org/augmentworks-cli/pull/10).
 
-Externally blocked: Chromium/WebKit against production-equivalent website CSP on a same-machine browser; website `POST /v1/relay/run-intents:reconcile` plus typed `rejected_uncreated` must be deployed before documenting `--retire` of unbound creates in production; website CLI pin in `jeffskafi/augmentworks` should move to `0.2.1`.
+Externally blocked: Chromium/WebKit against production-equivalent website CSP on a same-machine browser; website `POST /v1/relay/run-intents:reconcile` plus typed `rejected_uncreated` must be deployed before documenting `--retire` of unbound creates in production; website CLI pin in `augmentworks-org/augmentworks` should move to `0.2.1`.
 
 ## Publish evidence (0.2.1)
 
 | Check | Result |
 | --- | --- |
-| GitHub Release | [v0.2.1](https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.2.1) |
-| Publish workflow | [success](https://github.com/jeffskafi/augmentworks-cli/actions/runs/33988894523) |
+| GitHub Release | [v0.2.1](https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.2.1) |
+| Publish workflow | [success](https://github.com/augmentworks-org/augmentworks-cli/actions/runs/33988894523) |
 | `npm view @augmentworks/cli version` | `0.2.1` |
 | `npm view @augmentworks/cli@0.2.1 version` | `0.2.1` |
 | Installed `augmentworks --version` | `0.2.1` |

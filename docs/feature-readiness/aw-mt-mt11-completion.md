@@ -2,7 +2,7 @@
 
 Issue: [AUG-137](https://linear.app/augmentworks/issue/AUG-137/cli-mt11-pin-every-shard-and-resumed-selection-to-one-workspace-and)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main (`jeffskafi/augmentworks`) remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main (`augmentworks-org/augmentworks`) remains read-only.
 
 This is **source integration** for local selection-execution tenant pinning
 (`aw-selection-execution/3`). It is **not** npm publication, server deployment,
@@ -16,7 +16,7 @@ this merge.
 | --- | --- |
 | CLI default main at start | `e36352fafb96e1ba4a7462bd571a4188befc962b` (issue-cited audit head) |
 | Working branch | `cursor/mt11-selection-tenant-pin-b1f4` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/55 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/55 |
 | Source head after verification | recorded in git on this branch after the verification commit |
 | Frozen contract | [AW-MULTITENANCY-1](https://linear.app/augmentworks/document/aw-multitenancy-1-gap-analysis-contracts-and-implementation-plan-2026-09482fb6b45f) |
 | Source package | `0.3.7` (unpublished; npm latest at ticket write was `0.3.6`) |

@@ -4,7 +4,7 @@ Issue: [AUG-48](https://linear.app/augmentworks/issue/AUG-48/cli-verify-the-publ
 Schema: `aw-core-release-acceptance/1`
 Machine record: `docs/feature-readiness/release-acceptance.json`
 
-This is the CLI (`jeffskafi/augmentworks-cli`) core customer-loop publication
+This is the CLI (`augmentworks-org/augmentworks-cli`) core customer-loop publication
 gate. It installs the **exact npm registry tarball** and exercises own-target
 starters, owned suites, session files, mapping preview/probe, quoted spend,
 wait/running states, and release-policy CI decisions.
@@ -24,8 +24,8 @@ install. Local pack success is recorded separately and is not a passed release.
 | --- | --- |
 | Default branch | `main` |
 | `origin/main` | `5ecae185e34f09574c878f8b0e149710444a0625` (merge of CLI PR #40 / AUG-46) |
-| Open PRs at start | Draft [PR #39](https://github.com/jeffskafi/augmentworks-cli/pull/39) (AUG-79) owns the 0.3.5 candidate-metadata correction. This ticket does not change package versions or publish. |
-| AUG-47 | Done. Main [PR #106](https://github.com/jeffskafi/augmentworks/pull/106) head `d9f3a7fafca3ff2bb5d517bcea031dd2b9aa8ad9`. Handoff `docs/feature-readiness/core-acceptance.md`. CLI pin `@augmentworks/cli@0.3.4` `gitHead` `c3da8d9`. Packed tarball SHA-256 `a97b1ff77823933defcecac8181c0dc5c925cfe356dfe2d6bad2f39e271d4021` matches this registry download. Deployed web SHA remains unverified on that ticket. |
+| Open PRs at start | Draft [PR #39](https://github.com/augmentworks-org/augmentworks-cli/pull/39) (AUG-79) owns the 0.3.5 candidate-metadata correction. This ticket does not change package versions or publish. |
+| AUG-47 | Done. Main [PR #106](https://github.com/augmentworks-org/augmentworks/pull/106) head `d9f3a7fafca3ff2bb5d517bcea031dd2b9aa8ad9`. Handoff `docs/feature-readiness/core-acceptance.md`. CLI pin `@augmentworks/cli@0.3.4` `gitHead` `c3da8d9`. Packed tarball SHA-256 `a97b1ff77823933defcecac8181c0dc5c925cfe356dfe2d6bad2f39e271d4021` matches this registry download. Deployed web SHA remains unverified on that ticket. |
 | AUG-73 | Done. Candidate 0.3.4 later published. |
 | npm `latest` | `@augmentworks/cli@0.3.4` published 2026-09-08T06:38:24.847Z via GitHub Actions trusted publishing |
 | GitHub release | `v0.3.4` tag `c3da8d92bdd3daa21e9e230ffc5d110b43adaa5f` |

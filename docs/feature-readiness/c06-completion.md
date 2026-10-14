@@ -2,7 +2,7 @@
 
 Work package C06 / Linear [AUG-12](https://linear.app/augmentworks/issue/AUG-12/cli-preview-response-mappings-and-the-exact-sanitized-evidence-payload): preview response mappings and the exact sanitized evidence payload locally.
 
-This is the CLI (`jeffskafi/augmentworks-cli`) record for F05/F13 mapping preview. It is **code complete** in this repository.
+This is the CLI (`augmentworks-org/augmentworks-cli`) record for F05/F13 mapping preview. It is **code complete** in this repository.
 
 It is **not** npm-published. Source integration is distinct from release acceptance under AUG-7.
 
@@ -13,12 +13,12 @@ It is **not** npm-published. Source integration is distinct from release accepta
 | Audit / default-main baseline | `8a9f31a9fa6d99b2f0ea7e1530a4b73741592027` |
 | Working branch | `cursor/preview-mapping-e212` |
 | Feature commit | `fa6b664f2af5aab610d55f3ba6246f034a0bbc9e` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/20 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/20 |
 | Consumed dependency commits | None. C06 has no blocking implementation PRs. Open CLI PRs at start: none. |
 | Schema versions | Unchanged. Config remains v1 (`CONFIG_VERSION = 1`). Relay evidence remains `aw-target/0.1`. Preview JSON is `AW-MAPPING-PREVIEW-1`. |
 | Billing contract (untouched) | `aw-billing/1` from `67749b22f04bbb8d94c0309acd36be3cb3144400`; schema `4816444925c39629d41fc6993b0206fa5db25641ce40aafc13af6fe1a89ef901`; fixtures `cb26b6d36bf01d7c1957354f8982f20a6cfd8c8c47859f46e37d5270b75dd4a1` |
 | Migrations | None. This repository does not own SQL. |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
 
 ## Code completion vs verification vs release
 
@@ -102,7 +102,7 @@ Behavior covered:
 
 ## Follow-up after #20 (this PR)
 
-[PR #20](https://github.com/jeffskafi/augmentworks-cli/pull/20) landed the
+[PR #20](https://github.com/augmentworks-org/augmentworks-cli/pull/20) landed the
 shipped `previewMapping` implementation on `main`. This branch was the parallel
 C06 agent (`cursor/aug-12-end-to-end-ticket-c610`). After rebase it keeps that
 implementation and adds:

@@ -4,7 +4,7 @@ Issue: [AUG-73](https://linear.app/augmentworks/issue/AUG-73/cli-publish-a-verif
 Schema: `aw-first-dollar-release/1`
 Machine record: `docs/feature-readiness/first-dollar-registry-acceptance.json`
 
-This is the CLI (`jeffskafi/augmentworks-cli`) first-dollar publication handoff
+This is the CLI (`augmentworks-org/augmentworks-cli`) first-dollar publication handoff
 for **published** `@augmentworks/cli@0.3.4`. It does **not** claim live
 purchases, full regression-CI completion, or hosted browser QA
 ([AUG-58](https://linear.app/augmentworks/issue/AUG-58/main-verify-deployed-api-key-password-and-published-cli-qa-integration)).
@@ -40,7 +40,7 @@ Do not overwrite npm 0.3.3 or relabel its provenance.
 
 ## Candidate verification (not registry)
 
-Tested head: PR https://github.com/jeffskafi/augmentworks-cli/pull/33 on branch `cursor/cli-verified-customer-release-f205`. Base `main` `b8c3e7c3d71d9bef2cb07ddf3771c0822934208d`.
+Tested head: PR https://github.com/augmentworks-org/augmentworks-cli/pull/33 on branch `cursor/cli-verified-customer-release-f205`. Base `main` `b8c3e7c3d71d9bef2cb07ddf3771c0822934208d`.
 
 | Command | Result |
 | --- | --- |

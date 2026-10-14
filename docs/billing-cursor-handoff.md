@@ -1,6 +1,6 @@
 # Billing Stage 5B → main follow-on handoff
 
-Owned by `jeffskafi/augmentworks-cli`. Main owns the wire contract. This
+Owned by `augmentworks-org/augmentworks-cli`. Main owns the wire contract. This
 repository vendors that contract; it does not change it.
 
 Imported main 5A handoff is saved separately at
@@ -74,7 +74,7 @@ Lock: `contracts/aw-billing-v1.lock.json`
 Generated bindings: `src/billing/generated/contract.ts`
 
 ```bash
-node scripts/import-aw-billing-contract.mjs --from <path-to-jeffskafi/augmentworks>
+node scripts/import-aw-billing-contract.mjs --from <path-to-augmentworks-org/augmentworks>
 npm run check:billing-contract
 ```
 

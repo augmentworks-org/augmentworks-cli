@@ -1,7 +1,7 @@
 # E12 completion — inspect and reproduce an exported failure (AUG-44)
 
 Issue: [AUG-44](https://linear.app/augmentworks/issue/AUG-44/cli-inspect-and-reproduce-an-exported-failure-with-pinned-case)
-Repository: `jeffskafi/augmentworks-cli`
+Repository: `augmentworks-org/augmentworks-cli`
 Work package: E12 · Audit coverage: F07
 
 This file is issue-specific. It does not replace E06, E10, C07, or other
@@ -18,17 +18,17 @@ integration is distinct from release acceptance under AUG-7.
 | Audit / default-main baseline | `8a9f31a9fa6d99b2f0ea7e1530a4b73741592027` |
 | Working base (`origin/main`) | `e14dd09261630c2937c173ea6148657256943b2d` (includes merged AUG-32 PR #31 and AUG-40 PR #34) |
 | Working branch | `cursor/inspect-reproduce-failure-c6ea` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/37 |
-| AUG-33 (main E11) | Done. PR https://github.com/jeffskafi/augmentworks/pull/73. Cited head `a8e5ad17ce60f9b199d6a45f34188546d075e4bf` on `cursor/investigation-export-0a0c`. Handoff `docs/feature-readiness/e11-completion.md` on main. Schema `aw-investigation-export/1`; issue-proposal `aw-issue-proposal/1`. |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/37 |
+| AUG-33 (main E11) | Done. PR https://github.com/augmentworks-org/augmentworks/pull/73. Cited head `a8e5ad17ce60f9b199d6a45f34188546d075e4bf` on `cursor/investigation-export-0a0c`. Handoff `docs/feature-readiness/e11-completion.md` on main. Schema `aw-investigation-export/1`; issue-proposal `aw-issue-proposal/1`. |
 | AUG-32 (CLI E06) | Merged PR #31. `test --suite` selection is reused, not duplicated. |
 | AUG-40 (CLI E10) | Merged PR #34. Reproduction compare uses `compare` against `aw-release-policy/1` fixtures. |
 | AUG-13 / AUG-14 feature package | `aw-feature/1` schema SHA-256 `4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870`; AUG-13 fixtures SHA-256 `8f481f4c30fd4db165c738c3333c529a72904c8cf8b00780b40b64e391495f23` |
-| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/jeffskafi/augmentworks` returns HTTP 404 for this agent. Source schema files were **not** byte-copied. Checksums above are Linear-published identities. |
+| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/augmentworks-org/augmentworks` returns HTTP 404 for this agent. Source schema files were **not** byte-copied. Checksums above are Linear-published identities. |
 | Live API probe (configured origin, unauthenticated) | `GET` and `POST /v1/runs/{runId}/evaluations/{evaluationId}/attempts/{attemptId}/criteria/{criterionId}/investigation` exist (401 JSON, `aw-feature-error/1`, `unauthenticated`). `GET /v1/suites/{id}/revisions/{id}` and `/latest` exist (401). No credential was sent. |
 | Billing contract (untouched) | `aw-billing/1` from `650472d91442a6866a7b6ef18e6dacc23a2a9260`; schema `3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645`; fixtures `a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84` |
 | Run-report contract (untouched) | `aw-run-report/1` schema `7726ec277d33e435d2832e8be0898baf9337631d779f073a10c7795fc7de38ff`; fixtures `febd2626c96672d0e79afc4706b3a5136598b61bbebbdeb0f8ec1bdbc44cd806` |
 | Migrations | None. This repository does not own SQL. |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
 | Competing CLI PR | None open besides this PR #37 |
 
 Lock file: `contracts/aw-investigation-export-v1.lock.json`.

@@ -1,6 +1,6 @@
 # Billing Stage 1B completion record
 
-This is the CLI (`jeffskafi/augmentworks-cli`) Stage 1B record. It is **code
+This is the CLI (`augmentworks-org/augmentworks-cli`) Stage 1B record. It is **code
 complete** for authenticated usage display and identity-preserving refresh.
 
 It is **not** npm-published, **not** integration-verified against a deployed
@@ -14,7 +14,7 @@ Stage 1A host, and **not** release-ready for live sales.
 | Working branch | `cursor/billing-stage-1b-91a7` |
 | Implementation | `3d2bdfa32a727ac35c1b0ea49a9dfd376151b895` |
 | Vendored main commit | `e037958ba3c9f38a436b6065cddb5fb8ee3943fa` |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified in this prompt |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified in this prompt |
 
 ## Code completion vs verification vs release
 

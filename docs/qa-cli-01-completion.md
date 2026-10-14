@@ -2,7 +2,7 @@
 
 Issue: [AUG-54](https://linear.app/augmentworks/issue/AUG-54/cli-add-explicit-api-key-mode-full-hosted-report-export-and-truthful)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main (`jeffskafi/augmentworks`) remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main (`augmentworks-org/augmentworks`) remains read-only.
 
 This is source/fixture completion for work-package QA-CLI-01. It is not
 publication, npm-registry, or deployed-API acceptance. Those belong to the
@@ -15,7 +15,7 @@ combined release gate ([AUG-58](https://linear.app/augmentworks/issue/AUG-58/mai
 | Default main at start | `3db54a6` (merge of billing Stage 5B) |
 | Audited CLI SHA in the ticket | `197bbf7689b120fbe5d190b575429e1de8128495` (older than current main) |
 | Working branch | `cursor/aug-54-api-key-report-3f6d` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/26 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/26 |
 | Source package | `0.3.3` (not a published npm version) |
 | Verified published npm | `@augmentworks/cli@0.3.2` |
 | Contract | AW-QA-1 hosted authentication and report contract |
@@ -28,7 +28,7 @@ combined release gate ([AUG-58](https://linear.app/augmentworks/issue/AUG-58/mai
 | Migrations | none (CLI does not own SQL) |
 | Competing PRs on write paths | none open at start |
 
-Producer artifacts from `jeffskafi/augmentworks` were not published when this
+Producer artifacts from `augmentworks-org/augmentworks` were not published when this
 CLI work started. The CLI vendors the exact AW-QA-1 compatibility fixtures in
 `contracts/aw-run-report-v1.{schema,fixtures,lock}.json`. Final integration
 compares those files to the canonical copies once AUG-55 lands. Wire field

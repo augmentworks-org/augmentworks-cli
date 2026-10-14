@@ -1,7 +1,7 @@
 # First-user UX — CLI repository ledger
 
 This ledger tracks the **`augmentworks-cli`** portion of the September 4, 2026
-first-user UX brief. Website/portal work belongs in `jeffskafi/augmentworks`
+first-user UX brief. Website/portal work belongs in `augmentworks-org/augmentworks`
 and is out of scope here.
 
 ## Baseline (Phase 00)
@@ -69,14 +69,14 @@ Website-only rows (A01–A08, A11, A13–A19, A21–A36, A38–A42) are not clai
 
 ## Remaining external actions
 
-1. Website repo (`jeffskafi/augmentworks`) must consume `schemas/v1/cli-release.json` so public commands stay on the verified `0.2.0` pin.
+1. Website repo (`augmentworks-org/augmentworks`) must consume `schemas/v1/cli-release.json` so public commands stay on the verified `0.2.0` pin.
 
 ## Phase 15 evidence
 
 | Check | Result |
 | --- | --- |
-| GitHub Release | [v0.2.0](https://github.com/jeffskafi/augmentworks-cli/releases/tag/v0.2.0) |
-| Publish workflow | [success](https://github.com/jeffskafi/augmentworks-cli/actions/runs/33928829354) (`publish` job after trusted-publisher rerun) |
+| GitHub Release | [v0.2.0](https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.2.0) |
+| Publish workflow | [success](https://github.com/augmentworks-org/augmentworks-cli/actions/runs/33928829354) (`publish` job after trusted-publisher rerun) |
 | `npm view @augmentworks/cli version` | `0.2.0` |
 | `npm view @augmentworks/cli@0.2.0 version` | `0.2.0` |
 | Installed `augmentworks --version` | `0.2.0` |

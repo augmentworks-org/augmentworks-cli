@@ -1,7 +1,7 @@
 # E10 completion — consume authoritative baseline comparisons (AUG-40)
 
 Issue: [AUG-40](https://linear.app/augmentworks/issue/AUG-40/cli-consume-authoritative-baseline-comparisons-and-fail-ci-on-semantic)
-Repository: `jeffskafi/augmentworks-cli`
+Repository: `augmentworks-org/augmentworks-cli`
 Work package: E10 · Audit coverage: F03
 
 This file is issue-specific. It does not replace C01, C07, E06, or other
@@ -18,19 +18,19 @@ is distinct from release acceptance under AUG-7.
 | Audit / default-main baseline | `8a9f31a9fa6d99b2f0ea7e1530a4b73741592027` |
 | Working base (`origin/main`) | `b8c3e7c3d71d9bef2cb07ddf3771c0822934208d` (merge of PR #32; includes merged AUG-32 PR #31 and AUG-11 PR #18) |
 | Working branch | `cursor/baseline-compare-release-gate-61dc` (`057d541`) |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/34 |
-| AUG-23 (main E08) | Done. Cited head `235d39074cab1c57ada2cc015192dc129697683c` on PR https://github.com/jeffskafi/augmentworks/pull/58. Later portal consumer AUG-27 cited `0fd19ef`. Handoff `docs/feature-readiness/e08-completion.md` on main. Migration `20260911120001_application_environment_baselines.sql`. |
-| AUG-27 (main E09) | Done. PR https://github.com/jeffskafi/augmentworks/pull/70. Fixtures checksum published as prefix `be0cc3f54…` (not completed here). |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/34 |
+| AUG-23 (main E08) | Done. Cited head `235d39074cab1c57ada2cc015192dc129697683c` on PR https://github.com/augmentworks-org/augmentworks/pull/58. Later portal consumer AUG-27 cited `0fd19ef`. Handoff `docs/feature-readiness/e08-completion.md` on main. Migration `20260911120001_application_environment_baselines.sql`. |
+| AUG-27 (main E09) | Done. PR https://github.com/augmentworks-org/augmentworks/pull/70. Fixtures checksum published as prefix `be0cc3f54…` (not completed here). |
 | AUG-32 (CLI E06) | Merged PR #31. `src/commands/test.ts` was **not** edited. |
 | AUG-11 (CLI C01) | Merged PR #18. Gate wait reuses `classifyBillingRunStatus`. |
 | AUG-35 (CLI C07) | Merged PR #32. Additive CLI registration only. |
 | AUG-13 / AUG-14 feature package | `aw-feature/1` schema SHA-256 `4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870`; AUG-13 fixtures SHA-256 `8f481f4c30fd4db165c738c3333c529a72904c8cf8b00780b40b64e391495f23` |
-| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/jeffskafi/augmentworks` returns HTTP 404 for this agent. Source schema files were **not** byte-copied. Checksums above are Linear-published identities. |
+| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/augmentworks-org/augmentworks` returns HTTP 404 for this agent. Source schema files were **not** byte-copied. Checksums above are Linear-published identities. |
 | Live API probe (configured origin, unauthenticated) | `GET /v1/applications`, `POST /v1/comparisons/evaluate`, `POST /v1/release-gates/evaluate`, `POST /v1/baselines/{id}/promote` exist (401 JSON). |
 | Billing contract (untouched) | `aw-billing/1` from `650472d91442a6866a7b6ef18e6dacc23a2a9260`; schema `3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645`; fixtures `a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84` |
 | Migrations | None. This repository does not own SQL. |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
-| Competing CLI PR | Open draft [PR #33](https://github.com/jeffskafi/augmentworks-cli/pull/33) (AUG-73 0.3.4 candidate) edits README/copy/release metadata. This ticket’s edits to those files are additive command rows and constants only. |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
+| Competing CLI PR | Open draft [PR #33](https://github.com/augmentworks-org/augmentworks-cli/pull/33) (AUG-73 0.3.4 candidate) edits README/copy/release metadata. This ticket’s edits to those files are additive command rows and constants only. |
 
 Lock file: `contracts/aw-release-policy-v1.lock.json`.
 Consumer fixtures: `contracts/aw-release-policy-v1.fixtures.json` SHA-256
@@ -113,7 +113,7 @@ from a clean `npm pack` extract.
 | `npm run check:discovery` | Pass. `@augmentworks/cli@0.3.3 (development)` |
 | `npm run check:billing-contract` | Pass. Untouched `aw-billing/1` hashes above |
 | `npm run check:run-report-contract` | Pass. Untouched `aw-run-report/1` hashes above |
-| `npm run check` | Pass locally. GitHub Actions on `057d541` (run [34172973673](https://github.com/jeffskafi/augmentworks-cli/actions/runs/34172973673)): **9/9 passed** — Node 20/22/24 on ubuntu-latest, macos-latest, and windows-latest. Earlier Windows failure on `862faf8` was CRLF hashing of `contracts/aw-release-policy-v1.fixtures.json` (`db12c3cd…` vs locked LF `dcc76898…`); packed gate tests had already passed on those jobs. |
+| `npm run check` | Pass locally. GitHub Actions on `057d541` (run [34172973673](https://github.com/augmentworks-org/augmentworks-cli/actions/runs/34172973673)): **9/9 passed** — Node 20/22/24 on ubuntu-latest, macos-latest, and windows-latest. Earlier Windows failure on `862faf8` was CRLF hashing of `contracts/aw-release-policy-v1.fixtures.json` (`db12c3cd…` vs locked LF `dcc76898…`); packed gate tests had already passed on those jobs. |
 | `npm run smoke:pack` | Pass. Packed tarball **55 files, 440048 compressed bytes**. Includes packed `compare` / `gate` / `baseline` help and lock/fixture inventory. Packed billing fixture: `creates=1 quotes=4 targets=1 polls=3 refreshes=1`. Packed report fixture: `requests=8`. |
 | Live hosted assessment / npm publish | **Not run** |
 

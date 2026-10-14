@@ -2,7 +2,7 @@
 
 Issue: [AUG-11](https://linear.app/augmentworks/issue/AUG-11/cli-prevent-unfinished-run-observation-from-returning-success)
 
-Owned repository: `jeffskafi/augmentworks-cli`. Main remains read-only.
+Owned repository: `augmentworks-org/augmentworks-cli`. Main remains read-only.
 
 ## Identity
 
@@ -11,7 +11,7 @@ Owned repository: `jeffskafi/augmentworks-cli`. Main remains read-only.
 | Audit baseline / default main | `8a9f31a9fa6d99b2f0ea7e1530a4b73741592027` |
 | Working branch | `cursor/prevent-unfinished-run-observation-5ddb` |
 | Implementation HEAD | recorded after verification commit on this branch |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/18 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/18 |
 | Consumed billing 2B | already merged on main (`dc35d9e` / PR #15), vendored main `67749b22f04bbb8d94c0309acd36be3cb3144400` |
 | Schema version | `aw-billing/1` |
 | Schema SHA-256 | `4816444925c39629d41fc6993b0206fa5db25641ce40aafc13af6fe1a89ef901` |
@@ -67,7 +67,7 @@ Ambiguous combinations (running + complete + passed, complete + null outcome, un
 
 ## Proposed main fixture additions
 
-Do **not** hand-edit vendored contract checksums in this CLI. Ask the contract owner (`jeffskafi/augmentworks`) to add additive fixtures, then re-import:
+Do **not** hand-edit vendored contract checksums in this CLI. Ask the contract owner (`augmentworks-org/augmentworks`) to add additive fixtures, then re-import:
 
 - `status_running_absent_zero_attempts` — the reproduction (`running`, `absent`, `0/10`, `outcome: null`)
 - `status_completed_deterministic_passed` — terminal deterministic-only success (`completed`, `absent`, `outcome: "passed"`)

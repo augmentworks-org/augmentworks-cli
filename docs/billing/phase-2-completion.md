@@ -1,6 +1,6 @@
 # Billing Stage 2B completion record
 
-This is the CLI (`jeffskafi/augmentworks-cli`) Stage 2B record. It is **code
+This is the CLI (`augmentworks-org/augmentworks-cli`) Stage 2B record. It is **code
 complete** for estimates, spending consent, quoted admission, and original-run
 status/recovery.
 
@@ -15,7 +15,7 @@ Stage 2A host, and **not** release-ready for live sales.
 | Working branch | `cursor/billing-stage-2b-91a7` |
 | Implementation | `901f82ea11a69a136364ea9c604629886c1cf878` (feature), `77b17f0514bfe9a06dc9eefefa01c2c5c6f30e9c` (verification record) |
 | Vendored main commit | `67749b22f04bbb8d94c0309acd36be3cb3144400` |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified in this prompt |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified in this prompt |
 
 ## Code completion vs verification vs release
 

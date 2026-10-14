@@ -2,7 +2,7 @@
 
 Work package C07 / Linear [AUG-35](https://linear.app/augmentworks/issue/AUG-35/cli-complete-own-target-starter-recipes-and-an-explicit-bounded): complete own-target starter recipes and an explicit bounded connection probe.
 
-This is the CLI (`jeffskafi/augmentworks-cli`) record for F05/F06 own-target starters and probe. It is **code complete** in this repository.
+This is the CLI (`augmentworks-org/augmentworks-cli`) record for F05/F06 own-target starters and probe. It is **code complete** in this repository.
 
 It is **not** npm-published. Source integration is distinct from release acceptance under AUG-7.
 
@@ -14,18 +14,18 @@ It is **not** npm-published. Source integration is distinct from release accepta
 | Working base (`origin/main`) | `d9c0fb8e5c4a9c235cca9085b2d3870825e36cfd` (merge of CLI PR #31 / AUG-32) |
 | Working branch | `cursor/own-target-starter-probe-b534` |
 | Implementation commit | `d18c01ae7db19858b558e1cfac71cf1bec530ede` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/32 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/32 |
 | AUG-24 (C05) | Merged CLI#30 `29aa07e`. Handoff `docs/feature-readiness/c05-completion.md`. Probe session turns use `explicit_session_v1`; success is not a chatbot-memory claim. |
 | AUG-12 (C06) | Merged CLI#20 `e767e75` / CLI#21 `fa24dae`. Handoff `docs/feature-readiness/c06-completion.md`. Probe reuses `previewMapping` on captured JSON. |
 | AUG-32 (E06) | Merged CLI#31 `d9c0fb8`. Handoff `docs/feature-readiness/e06-completion.md`. Packaged `own-chatbot.suite.yaml` is `aw-suite/1` with five FAQ cases. |
-| AUG-18 / AUG-25 | Linear-recorded Done at dispatch (main#53 `e925bd0`, main#74 `71fc0d4`). This environment cannot read `jeffskafi/augmentworks` (GitHub 404); those SHAs are not re-fetched here. |
+| AUG-18 / AUG-25 | Linear-recorded Done at dispatch (main#53 `e925bd0`, main#74 `71fc0d4`). This environment cannot read `augmentworks-org/augmentworks` (GitHub 404); those SHAs are not re-fetched here. |
 | Competing open PRs at start | None. Rechecked before edit. `src/commands/test.ts` was not modified (C12 / AUG-46). |
 | Config schema | v1 unchanged (`CONFIG_VERSION = 1`). Probe JSON is `AW-CONNECTION-PROBE-1`. |
 | Billing contract (untouched) | `aw-billing/1` from `650472d91442a6866a7b6ef18e6dacc23a2a9260`; schema `3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645`; fixtures `a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84` |
 | Run-report contract (untouched) | `aw-run-report/1`; schema `7726ec277d33e435d2832e8be0898baf9337631d779f073a10c7795fc7de38ff`; fixtures `febd2626c96672d0e79afc4706b3a5136598b61bbebbdeb0f8ec1bdbc44cd806` (AW-QA-1) |
 | Suite lock (untouched) | `contracts/aw-suite-v1.lock.json`; `aw-feature/1` schema `4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870` |
 | Migrations | None. This repository does not own SQL. |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
 
 ## Code completion vs verification vs release
 

@@ -1,7 +1,7 @@
 # C03 completion — scoped machine credentials and hosted GitHub Actions (AUG-45)
 
 Issue: [AUG-45](https://linear.app/augmentworks/issue/AUG-45/cli-support-scoped-machine-credentials-and-a-complete-hosted-github)
-Repository: `jeffskafi/augmentworks-cli`
+Repository: `augmentworks-org/augmentworks-cli`
 Work package: C03 · Audit coverage: F04
 
 This file is issue-specific. It does not replace C01, C07, E06, E10, E12, or
@@ -18,7 +18,7 @@ integration is distinct from release acceptance under AUG-7.
 | Audit / default-main baseline | `8a9f31a9fa6d99b2f0ea7e1530a4b73741592027` |
 | Working base (`origin/main`) | `fa81ef16fdc6d3683737a9349692088fab77bf7f` (merge of PR #37 / AUG-44) |
 | Working branch | `cursor/hosted-gha-machine-ci-edbb` |
-| Pull request | https://github.com/jeffskafi/augmentworks-cli/pull/38 |
+| Pull request | https://github.com/augmentworks-org/augmentworks-cli/pull/38 |
 | AUG-54 | Merged PR #26 `1cb11978f9d2fc4a021a0b51a6c444152074ccba` (`6ef0edc` API-key mode, report export, conservative exits). AW-QA-1 identities consumed; auth/report/classifier modules were **not** reimplemented. |
 | AUG-44 | Merged PR #37. Recipe documents `investigation inspect` after a blocked gate; it does not start another billed run. |
 | AUG-40 | Merged PR #34. `gate` is the CI provenance call (`POST /v1/release-gates/evaluate`). |
@@ -27,12 +27,12 @@ integration is distinct from release acceptance under AUG-7.
 | AUG-24 | Merged PR #30. Starter remains single-turn; session advertisement is unchanged. |
 | AUG-11 | Merged PR #18. Wait/gate classification: unfinished evaluation cannot be green. |
 | AUG-13 / AUG-14 feature package | `aw-feature/1` schema SHA-256 `4f026740a349c736e98af95599736a92cb81246bea3a1673b26e7fa94cadc870`; AUG-13 fixtures SHA-256 `8f481f4c30fd4db165c738c3333c529a72904c8cf8b00780b40b64e391495f23` |
-| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/jeffskafi/augmentworks` returns HTTP 404. No cross-repo edits. AUG-15 `own_target.ci_result_recorded` is a server emission on the existing gate API. |
+| Main repository fetch | **Blocked.** `GET https://api.github.com/repos/augmentworks-org/augmentworks` returns HTTP 404. No cross-repo edits. AUG-15 `own_target.ci_result_recorded` is a server emission on the existing gate API. |
 | Billing contract (untouched) | `aw-billing/1` from `650472d91442a6866a7b6ef18e6dacc23a2a9260`; schema `3097c7aa74233e97233dcc488ba7eaacb1be5c6af0554bc308ca1569d155b645`; fixtures `a4b9234b426f98132ddbd8e82755caa0aa718c4ec1e3bf17064d1bf364a6cb84` |
 | Run-report contract (untouched) | `aw-run-report/1` schema `7726ec277d33e435d2832e8be0898baf9337631d779f073a10c7795fc7de38ff`; fixtures `febd2626c96672d0e79afc4706b3a5136598b61bbebbdeb0f8ec1bdbc44cd806` (AW-QA-1) |
 | Release-policy consumer fixtures (untouched) | `contracts/aw-release-policy-v1.fixtures.json` SHA-256 `dcc76898c8e89bf4e2e18c68f6882e7c9643f0fe2a612a88eae1167d5224c65f` |
 | Migrations | None. This repository does not own SQL. |
-| Counterpart | `jeffskafi/augmentworks` was **not** modified |
+| Counterpart | `augmentworks-org/augmentworks` was **not** modified |
 | Competing CLI PRs | None open at start besides this PR #38 |
 
 Lock files were not rewritten. C12 / AUG-46 catalog/shard CLI is out of scope.
@@ -189,7 +189,7 @@ Behavior covered (synthetic fixtures only):
 
 ## Remaining release requirements
 
-- Review/merge of PR https://github.com/jeffskafi/augmentworks-cli/pull/38.
+- Review/merge of PR https://github.com/augmentworks-org/augmentworks-cli/pull/38.
 - AUG-7 / AUG-48 / AUG-58 verify deployed web commit and published CLI artifacts.
 - A real GitHub-hosted ephemeral runner with a scoped workspace key is not
   claimed here.

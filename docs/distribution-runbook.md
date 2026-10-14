@@ -12,7 +12,7 @@ homepage, no topics.
 Proposed:
 
 ```bash
-gh repo edit jeffskafi/augmentworks-cli \
+gh repo edit augmentworks-org/augmentworks-cli \
   --description "Deterministic hosted and customer-executed local testing for AI agents" \
   --homepage "https://augmentworks.ai" \
   --add-topic agent-testing \

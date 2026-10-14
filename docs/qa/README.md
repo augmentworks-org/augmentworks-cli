@@ -1,6 +1,6 @@
 # CLI QA instructions
 
-This file is the generic QA guide for `jeffskafi/augmentworks-cli`. It is
+This file is the generic QA guide for `augmentworks-org/augmentworks-cli`. It is
 documentation, not a product API and not a substitute for executing the
 commands it lists.
 
@@ -10,7 +10,7 @@ private evidence on the private tracker issue that owns the audit.
 
 The main application's coverage map (owned by that repository's campaign
 coordinator) should link here. This file does not replace
-[hosted QA docs in the main repository](https://github.com/jeffskafi/augmentworks/blob/main/docs/qa/hosted-qa.md).
+[hosted QA docs in the main repository](https://github.com/augmentworks-org/augmentworks/blob/main/docs/qa/hosted-qa.md).
 
 ## Source build is not published; local is not hosted
 
@@ -208,8 +208,8 @@ Do not start a billed production assessment from this local guide. Exclusive
 live admission, credit caps, and report completeness belong to the main
 repository's hosted QA harness:
 
-- [docs/qa/hosted-qa.md](https://github.com/jeffskafi/augmentworks/blob/main/docs/qa/hosted-qa.md)
-  in `jeffskafi/augmentworks`
+- [docs/qa/hosted-qa.md](https://github.com/augmentworks-org/augmentworks/blob/main/docs/qa/hosted-qa.md)
+  in `augmentworks-org/augmentworks`
 
 A missing hosted receipt is **blocked**, never a hidden pass. Read-only
 `whoami` / usage and registry downloads are not a new assessment. Conflicting

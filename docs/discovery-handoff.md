@@ -107,7 +107,7 @@ republish the version.
 - tarball SHA-256 `37b448b4db2c195b5c361daab10604d57476fa4d9e441916f7bfe2054f81b313`
 - file count 74
 - GitHub release `v0.3.7` published `2026-09-27T20:58:35Z`
-- workflow `https://github.com/jeffskafi/augmentworks-cli/actions/runs/36349981048`
+- workflow `https://github.com/augmentworks-org/augmentworks-cli/actions/runs/36349981048`
 - provenance log index `2979747594`
 
 Website maintainers (AUG-250) adopt this exact pin. Do not fetch `latest`.
