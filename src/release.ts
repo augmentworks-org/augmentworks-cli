@@ -34,6 +34,8 @@ export const PUBLISHED_PACKAGE_VERIFIED = true;
 export const LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION = "0.3.9";
 export const LAST_VERIFIED_PUBLISHED_GIT_HEAD = "9e7919cbfe583cc15701904580be9d36da3bcaf4";
 export const LAST_VERIFIED_PUBLISHED_AT = "2026-10-13T20:31:53.099Z";
+/** The `engines.node` range that the inspected tarball declares. */
+export const LAST_VERIFIED_PUBLISHED_NODE_RANGE = ">=20";
 export const LAST_VERIFIED_PUBLISHED_INTEGRITY =
   "sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA==";
 /** Immutable npm 0.3.3 (not this release). Do not overwrite or relabel. */

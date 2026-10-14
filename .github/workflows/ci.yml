@@ -25,9 +25,10 @@ jobs:
           - macos-latest
           - windows-latest
         node:
-          - 20
+          - 22.12.0
           - 22
           - 24
+          - 26
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
@@ -40,7 +41,8 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # On the minimum Node lane, fail if any dependency needs a newer Node.
+        run: npm ci ${{ matrix.node == '22.12.0' && '--engine-strict' || '' }}
 
       - name: Typecheck, test, and build
         run: npm run check

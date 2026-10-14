@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   LAST_VERIFIED_PUBLISHED_AT,
   LAST_VERIFIED_PUBLISHED_GIT_HEAD,
+  LAST_VERIFIED_PUBLISHED_NODE_RANGE,
   LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION,
   LOCAL_PACKET_REFERENCE,
   NPM_PACKAGE,
@@ -178,10 +179,11 @@ const discoveryManifestSchema = z
         path: ["provenance", "verifiedAt"]
       });
     }
-    if (!value.runtime.node.includes("20")) {
+    const nodeFloor = /^>=\s*(\d+)(?:\.\d+){0,2}$/.exec(value.runtime.node.trim());
+    if (nodeFloor == null || Number(nodeFloor[1]) < 20) {
       ctx.addIssue({
         code: "custom",
-        message: "runtime.node must describe the supported Node 20+ range",
+        message: "runtime.node must be a >= range starting at Node 20 or later",
         path: ["runtime", "node"]
       });
     }
@@ -204,12 +206,16 @@ export function parseDiscoveryManifest(value: unknown): DiscoveryManifestParseRe
   return { ok: true, manifest: parsed.data as DiscoveryManifestV1 };
 }
 
+/** Must match `engines.node` in package.json. */
+const SOURCE_NODE_RANGE = ">=22.12";
+
 export interface BuildDiscoveryManifestOptions {
   readonly releaseStatus?: DiscoveryReleaseStatus;
   readonly version?: string;
   readonly localDemo?: boolean;
   readonly sourceCommit?: string | null;
   readonly verifiedAt?: string | null;
+  readonly nodeRange?: string;
 }
 
 export function buildDiscoveryManifest(
@@ -230,7 +236,7 @@ export function buildDiscoveryManifest(
       version,
       releaseStatus
     },
-    runtime: { node: ">=20" },
+    runtime: { node: options.nodeRange ?? SOURCE_NODE_RANGE },
     capabilities: {
       localDemo,
       localTest: true,
@@ -263,13 +269,15 @@ export function publishedDiscoveryManifest(options: {
   readonly localDemo: boolean;
   readonly sourceCommit: string | null;
   readonly verifiedAt: string;
+  readonly nodeRange?: string;
 }): DiscoveryManifestV1 {
   return buildDiscoveryManifest({
     releaseStatus: "published",
     version: options.version,
     localDemo: options.localDemo,
     sourceCommit: options.sourceCommit,
-    verifiedAt: options.verifiedAt
+    verifiedAt: options.verifiedAt,
+    ...(options.nodeRange === undefined ? {} : { nodeRange: options.nodeRange })
   });
 }
 
@@ -311,5 +319,6 @@ export const LAST_VERIFIED_PUBLISHED_DISCOVERY = publishedDiscoveryManifest({
   version: LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION,
   localDemo: true,
   sourceCommit: LAST_VERIFIED_PUBLISHED_GIT_HEAD,
-  verifiedAt: LAST_VERIFIED_PUBLISHED_AT
+  verifiedAt: LAST_VERIFIED_PUBLISHED_AT,
+  nodeRange: LAST_VERIFIED_PUBLISHED_NODE_RANGE
 });
