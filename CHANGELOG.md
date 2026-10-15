@@ -27,6 +27,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- On Node.js older than 22.12, the CLI prints a one-line warning to stderr
+  with a link to the current LTS release, then runs the command as before.
 - Recorded the independent inspection of npm `@augmentworks/cli@0.3.9`.
   The published tarball is unchanged and still embeds the prior 0.3.8
   `LAST_VERIFIED` snapshot.
