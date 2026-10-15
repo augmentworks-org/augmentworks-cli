@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { AwError } from "../errors.js";
 import { realDataError } from "../real-data/errors.js";
 import { acquireSecureLock, ensureSecureDirectory } from "../relay/secure-lock.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import {
   ActionIntentSchema,
@@ -460,7 +461,7 @@ function isCurrentOwner(uid: number): boolean {
 }
 
 function sameIdentity(left: Stats, right: Stats): boolean {
-  return left.dev === right.dev && left.ino === right.ino;
+  return sameFileIdentity(left, right);
 }
 
 function unsafeLedger(message: string, cause?: unknown): AwError {

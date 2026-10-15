@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import openUrl from "open";
 
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 
 export type LocalReportOpener = (path: string) => Promise<void>;
 
@@ -21,20 +22,12 @@ export async function openLocalReport(path: string): Promise<void> {
         : 0;
     handle = await openFile(path, fsConstants.O_RDONLY | noFollow);
     const opened = await handle.stat();
-    if (
-      !opened.isFile() ||
-      opened.dev !== metadata.dev ||
-      opened.ino !== metadata.ino
-    ) {
+    if (!opened.isFile() || !sameFileIdentity(opened, metadata)) {
       throw new Error("the report path changed while it was being opened");
     }
     const resolved = await realpath(path);
     const resolvedMetadata = await lstat(resolved);
-    if (
-      !resolvedMetadata.isFile() ||
-      resolvedMetadata.dev !== opened.dev ||
-      resolvedMetadata.ino !== opened.ino
-    ) {
+    if (!resolvedMetadata.isFile() || !sameFileIdentity(resolvedMetadata, opened)) {
       throw new Error("the resolved report path changed while it was being opened");
     }
     await openUrl(pathToFileURL(resolved).toString(), { wait: false });

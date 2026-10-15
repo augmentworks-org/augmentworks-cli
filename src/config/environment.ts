@@ -4,6 +4,7 @@ import { lstat, open } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import type { Stats } from "node:fs";
 
+import { sameFileIdentity } from "../system/file-identity.js";
 import type { Diagnostic } from "./types.js";
 
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
@@ -71,7 +72,7 @@ async function openAndReadEnvironment(envPath: string): Promise<{ readonly metad
     if (!metadata.isFile()) throw new Error("The .env path is not a regular file.");
     if (
       preOpenMetadata !== undefined &&
-      (preOpenMetadata.dev !== metadata.dev || preOpenMetadata.ino !== metadata.ino)
+      !sameFileIdentity(preOpenMetadata, metadata)
     ) {
       throw new Error("The .env file changed while it was being opened.");
     }

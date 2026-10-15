@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { z } from "zod";
 
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { canonicalize } from "../util/canonical.js";
 
 const LOCK_VERSION = "aw-secure-lock/0.1" as const;
@@ -111,7 +112,7 @@ export async function ensureSecureDirectory(options: SecureDirectoryOptions): Pr
         if (process.platform !== "win32" && (stat.mode & 0o777) !== 0o700) {
           await chmod(options.path, 0o700);
           const repaired = await lstat(options.path);
-          if (repaired.dev !== stat.dev || repaired.ino !== stat.ino) {
+          if (!sameFileIdentity(repaired, stat)) {
             throw new Error("directory changed while permissions were being secured");
           }
           stat = repaired;
@@ -510,7 +511,7 @@ function assertOwnedDirectory(stat: Stats): void {
 }
 
 function sameIdentity(left: Stats, right: Stats): boolean {
-  return left.dev === right.dev && left.ino === right.ino;
+  return sameFileIdentity(left, right);
 }
 
 async function rmdirLockDirectory(

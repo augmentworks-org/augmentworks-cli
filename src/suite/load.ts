@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { parseYamlStrict, StrictYamlError } from "../config/yaml.js";
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import { canonicalize, sha256 } from "../util/canonical.js";
 import { suiteError } from "./errors.js";
@@ -128,7 +129,7 @@ async function readBoundedUtf8File(path: string, limit: number, label: string): 
       process.platform !== "win32" && typeof constants.O_NOFOLLOW === "number" ? constants.O_NOFOLLOW : 0;
     handle = await open(path, constants.O_RDONLY | noFollow);
     const metadata = await handle.stat();
-    if (!metadata.isFile() || metadata.dev !== beforeOpen.dev || metadata.ino !== beforeOpen.ino) {
+    if (!metadata.isFile() || !sameFileIdentity(metadata, beforeOpen)) {
       throw suiteError("SUITE_NOT_A_FILE", `The ${label} changed while it was being opened.`, { path });
     }
     const bytes = Buffer.alloc(limit + 1);

@@ -13,6 +13,7 @@ import {
   type RunStatusResponse
 } from "../cloud/protocol.js";
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { canonicalize, sha256 } from "../util/canonical.js";
 import { getStateDirectory } from "./state-dir.js";
 import { acquireSecureLock, ensureSecureDirectory, type SecureLockHandle } from "./secure-lock.js";
@@ -540,7 +541,7 @@ async function readIntent(path: string): Promise<RunIntent | LegacyRunIntent | u
   }
   try {
     const stat = await handle.stat();
-    if (stat.dev !== pathIdentity.dev || stat.ino !== pathIdentity.ino) {
+    if (!sameFileIdentity(stat, pathIdentity)) {
       throw intentError(
         "UNSAFE_RUN_INTENT",
         "The active run intent changed while it was being opened."

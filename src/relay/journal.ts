@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { z } from "zod";
 
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { canonicalize, sha256 } from "../util/canonical.js";
 import {
   PacketBindingSchema,
@@ -890,10 +891,6 @@ async function verifiedJournalIdentity(path: string, handle: FileHandle): Promis
     throw journalChanged("The relay journal changed while its file identity was being verified.");
   }
   return handleIdentity;
-}
-
-function sameFileIdentity(left: Stats, right: Stats): boolean {
-  return left.dev === right.dev && left.ino === right.ino;
 }
 
 function journalChanged(message: string, cause?: unknown): AwError {
