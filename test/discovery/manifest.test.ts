@@ -95,6 +95,22 @@ describe("discovery manifest", () => {
     }
   });
 
+  it("declares Node 22.12 for source builds and accepts older published Node floors", async () => {
+    const source = sourceDiscoveryManifest();
+    const packageJson = JSON.parse(
+      await readFile(new URL("../../package.json", import.meta.url), "utf8")
+    ) as { engines: { node: string } };
+    expect(source.runtime.node).toBe(">=22.12");
+    expect(source.runtime.node).toBe(packageJson.engines.node);
+    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.runtime.node).toBe(">=20");
+    for (const node of [">=20", ">=22", ">=22.12", ">=22.12.0", ">=24"]) {
+      expect(parseDiscoveryManifest({ ...source, runtime: { node } }).ok).toBe(true);
+    }
+    for (const node of [">=18", "22.x", "^22.12.0", ""]) {
+      expect(parseDiscoveryManifest({ ...source, runtime: { node } }).ok).toBe(false);
+    }
+  });
+
   it("keeps the source checkout development-status without claiming this tarball is already inspected", () => {
     const source = sourceDiscoveryManifest();
     expect(source.package.version).toBe("0.3.9");
