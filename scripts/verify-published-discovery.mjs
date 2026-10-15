@@ -80,7 +80,7 @@ process.stdout.write(
           version,
           releaseStatus: "published"
         },
-        runtime: { node: metadata.engines?.node ?? ">=22.12" },
+        runtime: { node: metadata.engines?.node ?? ">=22.17" },
         capabilities: {
           localDemo: false,
           localTest: true,

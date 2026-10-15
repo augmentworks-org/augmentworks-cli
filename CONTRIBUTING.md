@@ -6,7 +6,7 @@ claims matter more than connector cleverness.
 
 ## Development setup
 
-Use Node.js 22.12 or newer (22 or 24) and npm:
+Use Node.js 22.17 or newer (22 or 24) and npm:
 
 ```bash
 npm ci
