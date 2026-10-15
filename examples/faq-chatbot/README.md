@@ -54,7 +54,7 @@ third mode.
 
 ## Prerequisites
 
-- Node.js 22.17 or newer (`package.json` `engines.node` is `>=22.17`).
+- Node.js 22.12 or newer (`package.json` `engines.node` is `>=22.12`).
   Node.js 20 reached end of life in April 2026.
 - A shell whose current directory is **not** a checkout of this CLI
   repository. Inside the checkout, `npx` can bind the local package and exit
@@ -199,7 +199,7 @@ an AugmentWorks workspace.
 | Situation | What you should see | Exit |
 | --- | --- | --- |
 | `node` is not on `PATH` | The shell reports that `node` or `npx` was not found. The CLI does not start. | Shell status, often `127` |
-| Node.js older than 22.17 | Outside this package's `engines.node` range. Upgrade Node.js to 22.17 or newer. | Not a tested CLI exit |
+| Node.js older than 22.12 | Outside this package's `engines.node` range. Upgrade Node.js to 22.12 or newer. | Not a tested CLI exit |
 | No `.env` and neither variable is set | `ERROR ENV_REQUIRED` for `CHATBOT_BASE_URL` (`target.base_url`) and `CHATBOT_API_KEY` (`target.auth.bearer_env`). `Doctor found configuration errors.` | `2` |
 | `.env` created with `cp` and left world-readable | `WARN ENV_FILE_PERMISSIONS` and doctor can still exit `0`. `chmod 600 .env` removes that warning. | `0` |
 | `augmentworks.malformed.yaml` | `ERROR YAML_PARSE_ERROR` and the parser message. For this file: `Flow sequence in block collection must be sufficiently indented and end with a ]`, then the config path. `Doctor found configuration errors.` | `2` |

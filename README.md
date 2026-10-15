@@ -24,8 +24,8 @@ target SDK, and no coding assistant is used in either runtime path.
 
 | Path | What it is | Needs | Status |
 | --- | --- | --- | --- |
-| Packaged `demo` | Loopback-only synthetic refund target, isolated fixtures, and the real local runner/scorer. Shows a policy bug, then the same packet passing after the policy is enforced. | Node.js 22.17+ | In this `@augmentworks/cli@0.3.9` package |
-| Local `test --local` | Customer-executed scoring of a data-only packet against *your* configured target. Requires no AugmentWorks account and contacts no AugmentWorks service. | Node.js 22.17+, a connector YAML, and a target you are authorized to call. The bundled starter is an isolated synthetic fixture. | In this `@augmentworks/cli@0.3.9` package |
+| Packaged `demo` | Loopback-only synthetic refund target, isolated fixtures, and the real local runner/scorer. Shows a policy bug, then the same packet passing after the policy is enforced. | Node.js 22.12+ | In this `@augmentworks/cli@0.3.9` package |
+| Local `test --local` | Customer-executed scoring of a data-only packet against *your* configured target. Requires no AugmentWorks account and contacts no AugmentWorks service. | Node.js 22.12+, a connector YAML, and a target you are authorized to call. The bundled starter is an isolated synthetic fixture. | In this `@augmentworks/cli@0.3.9` package |
 | Hosted `test` | Outbound HTTPS relay assessment with a live dashboard. Browser approval does not start a run. Pending hosted judging is never a pass. | Invited workspace, login, and an authorized isolated synthetic or staging target while hosted real-data is release-disabled | In this `@augmentworks/cli@0.3.9` package, including quoted `--estimate` / `--max-credits` |
 
 Product site: [https://augmentworks.ai](https://augmentworks.ai).
@@ -49,7 +49,7 @@ published package. Do not run `@latest`.
 
 ## Support and FAQ example
 
-Prerequisites: Node.js 22.17 or newer. No AugmentWorks account. Run the published
+Prerequisites: Node.js 22.12 or newer. No AugmentWorks account. Run the published
 CLI from a directory that is not this checkout; inside the checkout, `npx` can
 exit `127` with `augmentworks: not found`.
 
@@ -126,7 +126,7 @@ Executable `npx` examples pin **0.3.9**, the identity of this package. This publ
 
 ## Packaged demo (this 0.3.9 package)
 
-Prerequisites: Node.js 22.17 or newer. No API key, login, second terminal, Docker,
+Prerequisites: Node.js 22.12 or newer. No API key, login, second terminal, Docker,
 database, or model.
 
 From a clone of this repository after `npm ci && npm run build`:
@@ -173,7 +173,7 @@ still names 0.3.6; the inspection receipt is the later evidence file.
 
 ## Hosted quickstart
 
-Prerequisites: Node.js 22.17 or newer, an invited AugmentWorks workspace, and an
+Prerequisites: Node.js 22.12 or newer, an invited AugmentWorks workspace, and an
 authorized, isolated synthetic or staging target while hosted real-data is
 release-disabled. Hosted access is not a public self-serve signup; do not
 assume a trial entitlement.
@@ -996,7 +996,7 @@ for a safe coding-assistant workflow.
 
 ## Compatibility and releases
 
-The package requires Node.js 22.17 or newer. Configuration and relay envelopes carry an
+The package requires Node.js 22.12 or newer. Configuration and relay envelopes carry an
 explicit protocol version. Patch releases remain compatible with their v1
 schema; incompatible configuration or protocol changes require a new version.
 Published releases are expected to use npm trusted publishing with provenance.

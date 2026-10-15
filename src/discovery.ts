@@ -207,7 +207,7 @@ export function parseDiscoveryManifest(value: unknown): DiscoveryManifestParseRe
 }
 
 /** Must match `engines.node` in package.json. */
-const SOURCE_NODE_RANGE = ">=22.17";
+const SOURCE_NODE_RANGE = ">=22.12";
 
 export interface BuildDiscoveryManifestOptions {
   readonly releaseStatus?: DiscoveryReleaseStatus;

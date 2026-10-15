@@ -8,16 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Breaking
 
-- The CLI now requires Node.js 22.17 or newer (`engines.node` is
-  `>=22.17`). Node.js 20 reached end of life in April 2026 and no longer
+- The CLI now requires Node.js 22.12 or newer (`engines.node` is
+  `>=22.12`). Node.js 20 reached end of life in April 2026 and no longer
   gets security fixes, and the CLI's own dependencies (`commander@15`,
-  `vitest@5`) already need 22.12. On Windows, Node.js 22.12 to 22.16
-  report inconsistent file identities (fixed by libuv 1.51.0 in Node.js
-  22.17.0), which makes the CLI's file-safety checks reject unchanged files,
-  so 22.17 is the floor. Upgrade Node.js before installing this release.
-  `@augmentworks/cli@0.3.9` stays the last version for Node.js 20.
-  CI now tests Node.js 22.17.0, 22, 24 and 26, with an engine-strict install
-  on the 22.17.0 lane. The build targets `node22`.
+  `vitest@5`) already need 22.12. Upgrade Node.js before installing this
+  release. `@augmentworks/cli@0.3.9` stays the last version for Node.js 20.
+  CI now tests Node.js 22.12.0, 22, 24 and 26, with an engine-strict install
+  on the 22.12.0 lane. The build targets `node22`.
 
 ### Changed
 
