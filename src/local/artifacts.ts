@@ -8,6 +8,7 @@ import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:p
 import { redactSecrets } from "../connector/mapping.js";
 import { inspectOutbound, type DataPolicyContext } from "../data-policy/index.js";
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { assertJsonLimits } from "../util/limits.js";
 import { sha256Json } from "./canonical.js";
 import { LOCAL_TRUST_NOTICE, renderLocalReportHtml } from "./report-html.js";
@@ -402,8 +403,7 @@ async function removeOwnedOutput(
     metadata === undefined ||
     metadata.isSymbolicLink() ||
     !metadata.isDirectory() ||
-    metadata.dev !== identity.dev ||
-    metadata.ino !== identity.ino
+    !sameFileIdentity(metadata, identity)
   ) {
     return;
   }
@@ -419,8 +419,7 @@ async function unlinkOwnedFile(path: string, identity: FileIdentity): Promise<vo
     metadata === undefined ||
     metadata.isSymbolicLink() ||
     !metadata.isFile() ||
-    metadata.dev !== identity.dev ||
-    metadata.ino !== identity.ino
+    !sameFileIdentity(metadata, identity)
   ) {
     return;
   }

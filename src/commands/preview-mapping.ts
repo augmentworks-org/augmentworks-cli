@@ -16,6 +16,7 @@ import {
 } from "../connector/mapping-preview.js";
 import { selectResponse } from "../connector/mapping.js";
 import { EXIT, AwError, sanitizeTerminal } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import { LIMITS } from "../util/limits.js";
 
@@ -459,7 +460,7 @@ async function readBoundedRegularFile(path: string, maxBytes: number, label: str
   try {
     handle = await open(path, fsConstants.O_RDONLY | noFollow | nonBlocking);
     const metadata = await handle.stat();
-    if (!metadata.isFile() || metadata.dev !== beforeOpen.dev || metadata.ino !== beforeOpen.ino) {
+    if (!metadata.isFile() || !sameFileIdentity(metadata, beforeOpen)) {
       throw new BoundedFileError(
         label === "fixture" ? "FIXTURE_UNREADABLE" : "CONFIG_FILE_UNREADABLE",
         `The ${label} file changed while it was being opened.`,

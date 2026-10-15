@@ -4,6 +4,7 @@ import { lstat, open } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import { canonicalize, sha256 } from "../util/canonical.js";
 import { parseYamlStrict, StrictYamlError } from "../config/yaml.js";
@@ -301,7 +302,7 @@ async function readBoundedUtf8File(
         : 0;
     handle = await open(path, constants.O_RDONLY | noFollow);
     const metadata = await handle.stat();
-    if (!metadata.isFile() || metadata.dev !== beforeOpen.dev || metadata.ino !== beforeOpen.ino) {
+    if (!metadata.isFile() || !sameFileIdentity(metadata, beforeOpen)) {
       throw assessmentError(invalidCode, "The file changed while it was being opened.");
     }
     const bytes = Buffer.alloc(limit + 1);

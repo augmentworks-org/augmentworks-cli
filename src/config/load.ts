@@ -4,6 +4,7 @@ import { lstat, open } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import { loadEnvironment } from "./environment.js";
 import { resolveConfig } from "./resolve.js";
@@ -116,11 +117,7 @@ async function readConfigFile(path: string): Promise<string> {
   try {
     handle = await open(path, fsConstants.O_RDONLY | noFollow | nonBlocking);
     const metadata = await handle.stat();
-    if (
-      !metadata.isFile() ||
-      metadata.dev !== beforeOpen.dev ||
-      metadata.ino !== beforeOpen.ino
-    ) {
+    if (!metadata.isFile() || !sameFileIdentity(metadata, beforeOpen)) {
       throw new ConfigFileError(
         "CONFIG_FILE_UNREADABLE",
         "The configuration file changed while it was being opened."
