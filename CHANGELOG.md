@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format follows
   release. `@augmentworks/cli@0.3.9` stays the last version for Node.js 20.
   CI now tests Node.js 22.12.0, 22, 24 and 26, with an engine-strict install
   on the 22.12.0 lane. The build targets `node22`.
+- On Node.js older than 22.12, the CLI prints a one-line warning to stderr
+  with a link to the current LTS release, then runs the command as before.
 
 ### Fixed
 

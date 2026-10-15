@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runCli } from "./cli.js";
+import { nodeSupportWarning } from "./system/node-support.js";
 
 export { createCli, runCli, type CliIo } from "./cli.js";
 export {
@@ -34,5 +35,7 @@ function isDirectInvocation(metaUrl: string, argvEntry: string | undefined): boo
 }
 
 if (isDirectInvocation(import.meta.url, process.argv[1])) {
+  const nodeWarning = nodeSupportWarning(process.versions.node);
+  if (nodeWarning !== null) process.stderr.write(`${nodeWarning}\n`);
   process.exitCode = await runCli(process.argv);
 }
