@@ -1,4 +1,4 @@
-name: CI
+name: CI (temporary Windows probe)
 
 on:
   workflow_dispatch:
@@ -21,14 +21,14 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
           - windows-latest
         node:
           - 22.12.0
-          - 22
-          - 24
-          - 26
+          - 22.16.0
+          - 22.17.0
+          - 24.0.0
+          - 24.1.0
+          - 24.2.0
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
