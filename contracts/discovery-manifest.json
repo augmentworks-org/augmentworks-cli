@@ -6,7 +6,7 @@
     "releaseStatus": "development"
   },
   "runtime": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "capabilities": {
     "localDemo": true,

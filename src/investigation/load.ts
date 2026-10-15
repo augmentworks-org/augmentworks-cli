@@ -4,6 +4,7 @@ import { lstat, open } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import { SecretRedactor, isSensitiveKey } from "../system/redact.js";
 import { MAX_INVESTIGATION_FILE_BYTES, type InvestigationExport } from "./schema.js";
@@ -71,7 +72,7 @@ async function readBoundedUtf8File(path: string, limit: number): Promise<Buffer>
       process.platform !== "win32" && typeof constants.O_NOFOLLOW === "number" ? constants.O_NOFOLLOW : 0;
     handle = await open(path, constants.O_RDONLY | noFollow);
     const metadata = await handle.stat();
-    if (!metadata.isFile() || metadata.dev !== beforeOpen.dev || metadata.ino !== beforeOpen.ino) {
+    if (!metadata.isFile() || !sameFileIdentity(metadata, beforeOpen)) {
       throw investigationError(
         "INVESTIGATION_NOT_A_FILE",
         "The investigation file changed while it was being opened.",

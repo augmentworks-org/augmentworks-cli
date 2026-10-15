@@ -46,7 +46,7 @@ Do not run `@latest`. Do not pin immutable npm `0.3.5` / `0.3.4` / `0.3.3` or ov
 Independent inspection of 0.3.5 is recorded in
 `docs/feature-readiness/published-registry-evidence.json`.
 
-Prerequisites: Node.js 20+ and either the packaged fictional demo or a target
+Prerequisites: Node.js 22.12 or newer and either the packaged fictional demo or a target
 you are authorized to call. Test your chatbot with your questions and business
 rules. That hosted scope stays off until a compatible published release is
 enabled. Until then, hosted runs

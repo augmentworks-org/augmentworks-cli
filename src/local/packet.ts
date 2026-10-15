@@ -10,6 +10,7 @@ import starterPacketJson from "../../packets/support-refunds-starter/0.1.0/packe
   type: "json"
 };
 import { AwError } from "../errors.js";
+import { sameFileIdentity } from "../system/file-identity.js";
 import { findUnsafeSymbolicLinkComponent } from "../system/path-safety.js";
 import { LIMITS } from "../util/limits.js";
 import { hostedSuiteUnsupportedLocalError, livePacketUnsupportedLocalError, authorizedPacketUnsupportedLocalError } from "../suite/errors.js";
@@ -636,7 +637,7 @@ async function readPacketJson(path: string): Promise<unknown> {
     if (!metadata.isFile()) {
       throw packetError("LOCAL_PACKET_FILE_INVALID", "The local packet path is not a regular file.");
     }
-    if (metadata.dev !== beforeOpen.dev || metadata.ino !== beforeOpen.ino) {
+    if (!sameFileIdentity(metadata, beforeOpen)) {
       throw packetError(
         "LOCAL_PACKET_FILE_INVALID",
         "The local packet changed while it was being opened."
@@ -644,7 +645,7 @@ async function readPacketJson(path: string): Promise<unknown> {
     }
     await assertNoSymbolicLinkComponents(path);
     const afterOpen = await lstat(path);
-    if (afterOpen.dev !== metadata.dev || afterOpen.ino !== metadata.ino) {
+    if (!sameFileIdentity(afterOpen, metadata)) {
       throw packetError(
         "LOCAL_PACKET_FILE_INVALID",
         "The local packet path changed after it was opened."
