@@ -99,6 +99,16 @@ All notable changes to this project are documented here. The format follows
   workspace without the real-data statement, or an unverified target, stops
   with the step that's missing. Needs an owner's login. Ends with
   `augmentworks test --suite <file>`.
+- `target list` shows each target's status, verification expiry and test
+  scopes (scopes for owners only), and marks a scope that expires within 7
+  days. `--suite <file>` also checks that file's scope and says how to
+  replace it.
+- `target pull <name>` brings a target added in the portal into
+  `augmentworks.yaml`: its name, address and endpoints. Mappings and auth
+  aren't touched, and an operation that calls an endpoint the target doesn't
+  have stops without writing. With no file, it creates one whose unknown
+  values are marked `FILL_IN`. `doctor` now reports any `FILL_IN` value left
+  in the configuration as an error (`PLACEHOLDER_UNFILLED`).
 
 ### Changed
 

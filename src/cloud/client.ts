@@ -101,9 +101,11 @@ import {
   parseTargetDetail,
   parseTargetList,
   parseTargetRegistration,
+  parseTargetScopes,
   parseVerifyResponse,
   realDataStatementPath,
   targetDetailPath,
+  targetScopesPath,
   targetVerifyPath,
   workspaceTargetsPath,
   type CreateScopeRequest,
@@ -113,6 +115,7 @@ import {
   type StoredTarget,
   type TargetDetail,
   type TargetRegistration,
+  type TargetScopeSummary,
   type VerifyTargetRequest,
   type VerifyTargetResponse
 } from "../target/protocol.js";
@@ -810,6 +813,12 @@ export class CloudClient {
   ): Promise<VerifyTargetResponse> {
     const value = await this.#request("POST", targetVerifyPath(workspaceId, targetId), request, signal);
     return parseVerifyResponse(value, targetId);
+  }
+
+  /** A target's test scopes. Owners only. */
+  async listTargetScopes(workspaceId: string, targetId: string, signal?: AbortSignal): Promise<TargetScopeSummary[]> {
+    const value = await this.#request("GET", targetScopesPath(workspaceId, targetId), undefined, signal);
+    return parseTargetScopes(value, targetId);
   }
 
   async listDataPolicies(workspaceId: string, signal?: AbortSignal): Promise<DataPolicySummary[]> {

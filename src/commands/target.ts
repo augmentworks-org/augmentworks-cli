@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { readFile, rename, writeFile } from "node:fs/promises";
+import { relative, resolve } from "node:path";
 
 import { Command, Option } from "commander";
+import { parseDocument } from "yaml";
 
 import { inspectCredentialEnvironment } from "../auth/credential-store.js";
 import { addWorkspaceOption, formatWorkspaceLabel } from "../auth/workspace-expectation.js";
@@ -18,7 +20,10 @@ import {
   TARGET_LIMITS,
   type RealDataStatement,
   type RegisterTargetRequest,
+  type StoredTarget,
+  type TargetDetail,
   type TargetEnvironment,
+  type TargetScopeSummary,
   type TargetRegistration,
   type VerificationMethod
 } from "../target/protocol.js";
@@ -30,6 +35,7 @@ import {
   shellWord,
   type TargetDoctor
 } from "../target/common.js";
+import { mergeTargetIntoConfig, newConfigFromTarget, PLACEHOLDER_MARKER, type PullResult } from "../target/pull.js";
 import {
   DEFAULT_VERIFY_TIMEOUT_MS,
   selectTarget,
@@ -160,7 +166,301 @@ export function createTargetCommand(dependencies: TargetDependencies = {}): Comm
       );
     }
   );
+  addWorkspaceOption(
+    target
+      .command("list")
+      .description("List this workspace's targets: status, verification expiry and test scopes")
+      .option("--suite <file>", "also check the scope in this aw-suite/3 file")
+      .option("--json", "write one machine-readable target list to stdout")
+      .option(
+        "--allow-file-credentials",
+        "allow a warned mode-0600 credential file when OS credential storage is unavailable"
+      )
+  ).action(async (values: Omit<TargetListOptions, "env">) => {
+    await executeTargetCommand(
+      async () => await runTargetList(values, dependencies),
+      (result) => formatTargetListHuman(result),
+      (result) => targetListJson(result),
+      values.json === true,
+      dependencies
+    );
+  });
+  addWorkspaceOption(
+    target
+      .command("pull")
+      .description(
+        "Bring a target added in the portal into augmentworks.yaml: its address and endpoints. Mappings and auth aren't touched"
+      )
+      .argument("<name>", "the target's name")
+      .addOption(new Option("--env <environment>", "which environment, when the name is in more than one").choices([...TARGET_ENVIRONMENTS]))
+      .option("-c, --config <path>", "configuration path", "augmentworks.yaml")
+      .option("--json", "write one machine-readable result object to stdout")
+      .option(
+        "--allow-file-credentials",
+        "allow a warned mode-0600 credential file when OS credential storage is unavailable"
+      )
+  ).action(async (name: string, values: Omit<TargetPullOptions, "env" | "environment" | "name"> & { env?: string }) => {
+    const { env: environment, ...rest } = values;
+    await executeTargetCommand(
+      async () =>
+        await runTargetPull({ ...rest, name, ...(environment === undefined ? {} : { environment }) }, dependencies),
+      (result) => formatTargetPullHuman(result),
+      (result) => targetPullJson(result),
+      values.json === true,
+      dependencies
+    );
+  });
   return target;
+}
+
+async function executeTargetCommand<T>(
+  run: () => Promise<T>,
+  human: (result: T) => string,
+  machine: (result: T) => Record<string, unknown>,
+  json: boolean,
+  dependencies: TargetDependencies
+): Promise<void> {
+  const stdout = dependencies.stdout ?? process.stdout;
+  const stderr = dependencies.stderr ?? process.stderr;
+  try {
+    const result = await run();
+    stdout.write(json ? `${JSON.stringify(machine(result))}\n` : human(result));
+  } catch (error) {
+    const awError =
+      error instanceof AwError
+        ? error
+        : new AwError({ code: "INTERNAL", category: "local", message: "The target command could not be completed." });
+    if (!json) throw awError;
+    stdout.write(
+      `${JSON.stringify({ ok: false, error: { code: awError.code, message: awError.message }, exitCode: exitCodeFor(awError) })}\n`
+    );
+    stderr.write(`${sanitizeTerminal(awError.message)}\n`);
+    (dependencies.setExitCode ?? ((code: number) => (process.exitCode = code)))(exitCodeFor(awError));
+  }
+}
+
+export interface TargetListOptions extends HostedAuthOptions {
+  readonly suite?: string;
+  readonly json?: boolean;
+}
+
+export interface TargetListEntry {
+  readonly target: StoredTarget;
+  readonly detail?: TargetDetail;
+  /** Undefined when this login can't read scopes (only owners can). */
+  readonly scopes?: readonly TargetScopeSummary[];
+}
+
+export interface TargetListResult {
+  readonly entries: readonly TargetListEntry[];
+  readonly now: number;
+  readonly suite?: { readonly path: string; readonly scopeId?: string; readonly warning?: string };
+}
+
+/** A scope this close to its expiry is flagged. */
+export const SCOPE_EXPIRY_WARNING_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export async function runTargetList(
+  options: TargetListOptions,
+  dependencies: TargetDependencies = {}
+): Promise<TargetListResult> {
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const stderr = dependencies.stderr ?? process.stderr;
+  const now = (dependencies.verify?.now ?? Date.now)();
+  const suitePath = options.suite === undefined ? undefined : resolve(cwd, options.suite);
+  const suiteScopeId = suitePath === undefined ? undefined : await suiteScopeIdOf(suitePath);
+  const session = await authenticateHostedSession(options, { ...dependencies, stderr });
+  const workspaceId = session.identity.workspaceId;
+  const targets = await session.cloud.listTargets(workspaceId, options.signal);
+  const entries: TargetListEntry[] = [];
+  for (const target of targets) {
+    if (target.status === "revoked") {
+      entries.push({ target });
+      continue;
+    }
+    const detail = await session.cloud.getTargetDetail(workspaceId, target.targetId, options.signal);
+    let scopes: TargetScopeSummary[] | undefined;
+    try {
+      scopes = await session.cloud.listTargetScopes(workspaceId, target.targetId, options.signal);
+    } catch (error) {
+      if (!(error instanceof AwError) || error.details?.["http_status"] !== 403) throw error;
+    }
+    entries.push({ target, detail, ...(scopes === undefined ? {} : { scopes }) });
+  }
+  const result: TargetListResult = { entries, now };
+  if (suitePath === undefined) return result;
+  const shown = relative(cwd, suitePath) || suitePath;
+  return { ...result, suite: { path: shown, ...suiteWarning(entries, shown, suiteScopeId, now) } };
+}
+
+async function suiteScopeIdOf(path: string): Promise<string | undefined> {
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch {
+    throw new AwError({ code: "SUITE_SCOPE_WRITE_FAILED", category: "config", message: `Can't read the suite file ${path}.` });
+  }
+  const parsed = parseDocument(text).toJS() as { execution_scope?: { scope_id?: unknown } } | null;
+  const scopeId = parsed?.execution_scope?.scope_id;
+  return typeof scopeId === "string" ? scopeId : undefined;
+}
+
+function suiteWarning(
+  entries: readonly TargetListEntry[],
+  path: string,
+  scopeId: string | undefined,
+  now: number
+): { scopeId?: string; warning?: string } {
+  if (scopeId === undefined) {
+    return { warning: `${path} has no execution_scope. Add one with \`augmentworks scope create --target <name> --suite ${shellWord(path)}\`.` };
+  }
+  for (const entry of entries) {
+    const scope = entry.scopes?.find((item) => item.scopeId === scopeId);
+    if (scope === undefined) continue;
+    const renew = `Run \`augmentworks scope create --target ${shellWord(entry.target.name)} --suite ${shellWord(path)}\` for a new one.`;
+    const expires = Date.parse(scope.expiresAt);
+    if (expires <= now) return { scopeId, warning: `The scope in ${path} expired on ${scope.expiresAt}. ${renew}` };
+    const days = Math.ceil((expires - now) / DAY_MS);
+    if (days <= SCOPE_EXPIRY_WARNING_DAYS) {
+      return { scopeId, warning: `The scope in ${path} expires on ${scope.expiresAt}, in ${days} day${days === 1 ? "" : "s"}. ${renew}` };
+    }
+    return { scopeId };
+  }
+  const readable = entries.some((entry) => entry.scopes !== undefined);
+  return {
+    scopeId,
+    warning: readable
+      ? `The scope in ${path} (${scopeId}) isn't a scope of any target in this workspace.`
+      : `Only a workspace owner can see scopes, so the scope in ${path} wasn't checked.`
+  };
+}
+
+function targetStatusLabel(entry: TargetListEntry, now: number): string {
+  if (entry.target.status === "revoked") return "revoked";
+  if (entry.target.status === "pending" || entry.detail === undefined) return "waiting for verification";
+  const expires = Date.parse(entry.detail.authority.expiresAt);
+  const day = entry.detail.authority.expiresAt.slice(0, 10);
+  if (expires <= now) return `verification expired ${day}`;
+  if (Date.parse(entry.detail.authority.renewalOpensAt) <= now) return `renew by ${day}`;
+  return `verified until ${day}`;
+}
+
+export function formatTargetListHuman(result: TargetListResult): string {
+  if (result.entries.length === 0) {
+    return "This workspace has no targets yet. Add one with `augmentworks target add --env <environment>`.\n";
+  }
+  const lines: string[] = [];
+  for (const entry of result.entries) {
+    const target = entry.target;
+    lines.push(
+      `${sanitizeTerminal(target.name)} (${target.environment})  ${targetStatusLabel(entry, result.now)}  ${sanitizeTerminal(target.assessedIdentity)}`
+    );
+    if (target.status === "revoked") continue;
+    if (entry.scopes === undefined) {
+      lines.push("  scopes: only a workspace owner can see them");
+      continue;
+    }
+    if (entry.scopes.length === 0) lines.push("  no test scopes yet");
+    for (const scope of entry.scopes) {
+      const expires = Date.parse(scope.expiresAt);
+      const soon = expires > result.now && expires - result.now <= SCOPE_EXPIRY_WARNING_DAYS * DAY_MS;
+      lines.push(
+        `  scope ${scope.scopeId} revision ${scope.revision}, ${scope.effects}, expires ${scope.expiresAt.slice(0, 10)} (${scope.state})${soon ? ", expires soon" : ""}`
+      );
+    }
+  }
+  if (result.suite?.warning !== undefined) lines.push("", result.suite.warning);
+  return `${lines.join("\n")}\n`;
+}
+
+export function targetListJson(result: TargetListResult): Record<string, unknown> {
+  return {
+    ok: true,
+    targets: result.entries.map((entry) => ({
+      targetId: entry.target.targetId,
+      name: entry.target.name,
+      environment: entry.target.environment,
+      status: entry.target.status,
+      assessedIdentity: entry.target.assessedIdentity,
+      verificationMethod: entry.target.verificationMethod,
+      verifiedUntil: entry.target.status === "verified" ? (entry.detail?.authority.expiresAt ?? null) : null,
+      renewalOpensAt: entry.detail?.authority.renewalOpensAt ?? null,
+      scopes: entry.scopes ?? null
+    })),
+    ...(result.suite === undefined ? {} : { suite: result.suite })
+  };
+}
+
+export interface TargetPullOptions extends HostedAuthOptions {
+  readonly name: string;
+  readonly environment?: string;
+  readonly config?: string;
+  readonly json?: boolean;
+}
+
+export interface TargetPullResultSummary extends PullResult {
+  readonly configPath: string;
+  readonly name: string;
+}
+
+/**
+ * `target pull <name>`: writes the address and endpoints of a target added in
+ * the portal into augmentworks.yaml, or creates the file with placeholders.
+ */
+export async function runTargetPull(
+  options: TargetPullOptions,
+  dependencies: TargetDependencies = {}
+): Promise<TargetPullResultSummary> {
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const stderr = dependencies.stderr ?? process.stderr;
+  const environment = options.environment === undefined ? undefined : parseEnvironment(options.environment);
+  const configPath = resolve(cwd, options.config ?? "augmentworks.yaml");
+  let existing: string | undefined;
+  try {
+    existing = await readFile(configPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  const session = await authenticateHostedSession(options, { ...dependencies, stderr });
+  const workspaceId = session.identity.workspaceId;
+  const targets = await session.cloud.listTargets(workspaceId, options.signal);
+  const selected = selectTarget(targets, options.name, environment);
+  const detail = await session.cloud.getTargetDetail(workspaceId, selected.targetId, options.signal);
+  const pulled = existing === undefined ? newConfigFromTarget(detail) : mergeTargetIntoConfig(existing, detail);
+  if (pulled.created || pulled.changes.length > 0) {
+    const temporary = `${configPath}.${process.pid}.tmp`;
+    await writeFile(temporary, pulled.text, { encoding: "utf8", flag: "w" });
+    await rename(temporary, configPath);
+  }
+  return { ...pulled, configPath: relative(cwd, configPath) || configPath, name: detail.target.name };
+}
+
+export function formatTargetPullHuman(result: TargetPullResultSummary): string {
+  const name = sanitizeTerminal(result.name);
+  const lines = result.created
+    ? [`Created ${result.configPath} for ${name}.`]
+    : result.changes.length === 0
+      ? [`${result.configPath} already matches ${name}.`]
+      : [`Updated ${result.configPath} for ${name}: ${result.changes.join("; ")}.`];
+  lines.push(...result.notes.map((note) => sanitizeTerminal(note)));
+  lines.push(
+    result.created || result.changes.some((change) => change.includes("fill in"))
+      ? `Next: replace the ${PLACEHOLDER_MARKER} values, then run augmentworks doctor.`
+      : "Next: augmentworks doctor"
+  );
+  return `${lines.join("\n")}\n`;
+}
+
+export function targetPullJson(result: TargetPullResultSummary): Record<string, unknown> {
+  return {
+    ok: true,
+    name: result.name,
+    config: result.configPath,
+    created: result.created,
+    changes: result.changes,
+    notes: result.notes
+  };
 }
 
 export interface TargetVerifyOptions extends HostedAuthOptions {

@@ -311,3 +311,42 @@ export interface CreateScopeRequest {
   readonly budget: ScopeBudget;
   readonly expiresAt: string;
 }
+
+export function targetScopesPath(workspaceId: string, targetId: string): string {
+  return `${targetDetailPath(workspaceId, targetId)}/scopes`;
+}
+
+const TargetScopesSchema = z
+  .object({
+    schemaVersion: z.literal("aw-target-scopes/1"),
+    targetId: z.string().uuid(),
+    scopes: z
+      .array(
+        z
+          .object({
+            scopeId: z.string().uuid(),
+            revision: z.number().int().positive(),
+            environment: z.enum(TARGET_ENVIRONMENTS),
+            effects: z.string().min(1),
+            expiresAt: z.string().min(20).max(40),
+            state: z.string().min(1).max(60)
+          })
+          .passthrough()
+      )
+      .max(500)
+  })
+  .passthrough();
+
+export type TargetScopeSummary = z.infer<typeof TargetScopesSchema>["scopes"][number];
+
+export function parseTargetScopes(value: unknown, targetId: string): TargetScopeSummary[] {
+  const parsed = TargetScopesSchema.safeParse(value);
+  if (!parsed.success || parsed.data.targetId !== targetId) {
+    throw new AwError({
+      code: "INVALID_CLOUD_RESPONSE",
+      category: "protocol",
+      message: "AugmentWorks returned a scope list that doesn't match aw-target-scopes/1 for this target."
+    });
+  }
+  return parsed.data.scopes;
+}
