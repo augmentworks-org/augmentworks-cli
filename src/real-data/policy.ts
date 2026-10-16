@@ -59,8 +59,12 @@ export function authorizedDispatchPolicy(options: {
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
 }): AuthorizedDispatchPolicy {
-  assertScopeNotExpired(options.scope.expiresAt, options.now ?? Date.now());
   const local = options.scope.schemaVersion === "aw-local-execution-scope/1";
+  assertScopeNotExpired(
+    options.scope.expiresAt,
+    options.now ?? Date.now(),
+    local ? "This packet's local scope" : undefined
+  );
   return {
     kind: "authorized",
     local,

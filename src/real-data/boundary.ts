@@ -180,13 +180,17 @@ export function assertLocalScopeNotRevoked(scope: LocalExecutionScope, revokedId
   }
 }
 
-export function assertScopeNotExpired(expiresAt: string, now = Date.now()): void {
+export function assertScopeNotExpired(
+  expiresAt: string,
+  now = Date.now(),
+  subject = "This suite's test scope"
+): void {
   const milliseconds = Date.parse(expiresAt);
   if (!Number.isFinite(milliseconds)) {
     throw realDataError("INVALID_EXECUTION_SCOPE", "Scope expiry is not a valid absolute timestamp.");
   }
   if (milliseconds <= now) {
-    throw realDataError("TARGET_AUTHORITY_EXPIRED", `Execution scope expired at ${expiresAt}.`);
+    throw realDataError("TARGET_AUTHORITY_EXPIRED", `${subject} expired at ${expiresAt}.`);
   }
 }
 

@@ -46,7 +46,7 @@ export async function assertHostedScopeUsable(
   if (response.scope.workspaceId !== options.workspaceId) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      "The admitted execution scope belongs to a different workspace."
+      "This suite's test scope belongs to a different workspace than the one you're logged in to."
     );
   }
   if (options.revision !== undefined && response.scope.revision !== options.revision) {
@@ -56,15 +56,15 @@ export async function assertHostedScopeUsable(
     throw realDataError("EXECUTION_SCOPE_STALE", "The admitted scope hash does not match the suite binding.");
   }
   if (response.availability === "revoked") {
-    throw realDataError("TARGET_AUTHORITY_REVOKED", "The admitted execution scope is revoked.");
+    throw realDataError("TARGET_AUTHORITY_REVOKED", "This suite's test scope was revoked, so nothing was sent to your agent.");
   }
   if (response.availability === "expired") {
-    throw realDataError("TARGET_AUTHORITY_EXPIRED", "The admitted execution scope is expired.");
+    throw realDataError("TARGET_AUTHORITY_EXPIRED", "This suite's test scope has expired, so nothing was sent to your agent.");
   }
   if (response.availability === "release_unavailable") {
     throw realDataError(
       "EXECUTION_RELEASE_UNAVAILABLE",
-      "The server advertised this scope but hosted real-data execution is not released."
+      "AugmentWorks isn't accepting real-data tests for this scope right now."
     );
   }
   if (response.availability !== "ready") {
@@ -73,11 +73,11 @@ export async function assertHostedScopeUsable(
   if (response.authority.verificationStatus !== "verified") {
     throw realDataError(
       "TARGET_AUTHORITY_REQUIRED",
-      "The accompanying authority document is not server-verified. JSON verificationStatus cannot grant access."
+      "This suite's target isn't verified yet, so it can't run real-data tests."
     );
   }
   assertScopeNotExpired(response.scope.expiresAt, options.now ?? Date.now());
-  assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now());
+  assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now(), "This target's verification");
   if (options.resolved !== undefined) {
     assertBoundaryMatchesConfig(response.targetBoundary, options.resolved, {
       effects: response.scope.effects
@@ -188,7 +188,7 @@ export async function loadPersistedDispatchPolicy(options: {
       // Bindings written before the boundary was stored compare the config hash.
       throw realDataError(
         "TARGET_SCOPE_MISMATCH",
-        "Current target configuration does not match the persisted admitted boundary."
+        "augmentworks.yaml no longer matches the target this run was started against."
       );
     }
   }

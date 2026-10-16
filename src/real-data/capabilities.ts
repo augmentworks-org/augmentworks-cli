@@ -54,7 +54,7 @@ export function assertHostedRealDataRelease(capabilities: RealDataCapabilities):
   if (!capabilitiesReleaseEnabled(capabilities)) {
     throw realDataError(
       "EXECUTION_RELEASE_UNAVAILABLE",
-      "Hosted real-data quote and admission remain release-disabled until backend and privacy integration are verified."
+      "AugmentWorks isn't accepting real-data tests right now."
     );
   }
 }

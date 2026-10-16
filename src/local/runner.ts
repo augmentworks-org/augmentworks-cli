@@ -121,7 +121,7 @@ export class LocalRunner {
     this.#dataPolicy = options.dataPolicy;
     this.#startedMs = Date.now();
     if (isLocalAuthorizedPacket(this.#packet)) {
-      assertScopeNotExpired(this.#packet.execution_scope.expiresAt);
+      assertScopeNotExpired(this.#packet.execution_scope.expiresAt, Date.now(), "This packet's local scope");
     }
     if (
       !Number.isSafeInteger(this.#runDeadlineMs) ||

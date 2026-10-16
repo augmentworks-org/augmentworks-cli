@@ -58,11 +58,11 @@ export function assertBindingMatches(options: {
   if (binding.configSha256 !== options.configSha256) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      "Persisted execution scope does not match the current target configuration."
+      "augmentworks.yaml no longer matches the target this run's scope was created for."
     );
   }
   if (options.workspaceId !== undefined && binding.workspaceId !== undefined && binding.workspaceId !== options.workspaceId) {
-    throw realDataError("TARGET_SCOPE_MISMATCH", "Persisted execution scope belongs to a different workspace.");
+    throw realDataError("TARGET_SCOPE_MISMATCH", "This run's scope belongs to a different workspace than the one you're logged in to.");
   }
   if (options.quoteId !== undefined && binding.quoteId !== undefined && binding.quoteId !== options.quoteId) {
     throw realDataError("QUOTE_SCOPE_MISMATCH", "Persisted execution scope does not match the quoted admission.");
