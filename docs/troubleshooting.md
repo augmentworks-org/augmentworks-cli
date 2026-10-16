@@ -19,21 +19,33 @@ OK OFFLINE_CHECK_COMPLETE: No target hooks or cloud operations were invoked.
 Doctor passed.
 ```
 
-## Data scope and release gate
+## Data scope and real-data errors
 
-Hosted real-data quote and admission stay release-disabled
-(`EXECUTION_RELEASE_UNAVAILABLE`) until a compatible published release is
-enabled and an operator verifies it. While that gate is closed, use an
-authorized, isolated synthetic or staging target and constructed test data. Do
-not point a hosted run at a production system, and do not upload production,
-customer, or regulated records.
+Hosted real-data tests need a registered, verified target and a test scope
+(`augmentworks target add`, `augmentworks target verify <name>`,
+`augmentworks scope create`). Without a scope, use an authorized, isolated
+synthetic or staging target and constructed test data, and don't point a
+hosted run at a production system.
+
+Real-data errors say what happened, then what to do, and end with the code:
+`Error: <message> (<CODE>)`. The common ones:
+
+| Code | What it means | What to do |
+| --- | --- | --- |
+| `TARGET_OWNER_LOGIN_REQUIRED` | Setup was run with a machine key or by a non-owner | Unset `AUGMENTWORKS_API_KEY` and run `augmentworks login` as a workspace owner |
+| `STATEMENT_NOT_ACCEPTED` | The workspace hasn't accepted the real-data statement | An owner runs `augmentworks target add` in a terminal, or accepts it in Settings → Targets |
+| `TARGET_NOT_VERIFIED` / `TARGET_AUTHORITY_REQUIRED` | The target isn't verified | `augmentworks target verify <name>`, then `augmentworks scope create` |
+| `TARGET_AUTHORITY_EXPIRED` | The scope, the target's verification, or the verification code expired | `augmentworks scope create` for a new scope, or `augmentworks target verify <name>` to renew |
+| `TARGET_AUTHORITY_REVOKED` | An owner revoked the target in Settings → Targets | Verify it again, then create a new scope; past results stay readable with `augmentworks run report <run-id>` |
+| `TARGET_SCOPE_MISMATCH` | `augmentworks.yaml` calls an address or endpoint the target wasn't registered with | `augmentworks target pull <name>` copies the registered address and endpoints; `augmentworks target list` shows them |
+| `EXECUTION_BUDGET_EXHAUSTED` | The run used up its scope's allowance | Run fewer cases at a time, for example with `augmentworks selection compile` and `test --shard` |
+| `EXECUTION_RELEASE_UNAVAILABLE` | The server isn't accepting real-data tests right now | Try again later; nothing was sent to your agent |
 
 `aw-packet/0.1` and `aw-suite/1` files still work. `aw-suite/2` still requires
 `synthetic_only: false` and is not relabeled as synthetic. `aw-suite/3` and
 `aw-packet/local-authorized-1` are explicit. Offline local execution stays
-account-free and never contacts AugmentWorks. This package does not guess the
-minimum published npm version for a later real-data release, and this text is
-not legal approval. Packaged starters remain fictional.
+account-free and never contacts AugmentWorks. Real-data suites need CLI 0.4.0
+or newer, and this text is not legal approval. Packaged starters remain fictional.
 
 ## Common failures
 

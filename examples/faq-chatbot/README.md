@@ -20,8 +20,9 @@ sentence. A later npm release is required before a guide claims the published
 package includes the stale-answer control. The commands below pin `@augmentworks/cli@0.3.9` and run it against these
 git files.
 
-Hosted real-data quote and admission stay release-disabled. Do not point a
-hosted run at production records. This text is not legal approval.
+This example is fictional. Real-data tests run only against your own
+registered, verified target (`augmentworks target add`), never against this
+server. This text is not legal approval.
 
 ## What the two runtimes do
 

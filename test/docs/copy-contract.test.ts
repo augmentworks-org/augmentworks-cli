@@ -217,11 +217,12 @@ describe("customer-facing CLI copy", () => {
     for (const pattern of obsolete) {
       expect(content, pattern.source).not.toMatch(pattern);
     }
-    expect(content).toMatch(/release-disabled/u);
+    expect(content).not.toMatch(/release-disabled/u);
+    expect(content).toMatch(/regist\w+(?:,| and) verif/u);
     expect(content.toLowerCase()).toContain("synthetic");
   });
 
-  it("states gated real-data availability without claiming the release is on", async () => {
+  it("states how hosted real data works without overclaiming", async () => {
     const readme = (await readSurface("README.md")).replace(/\s+/gu, " ");
     const agentSetup = (await readSurface("docs/agent-setup.md")).replace(/\s+/gu, " ");
     const securityModel = (await readSurface("docs/security-model.md")).replace(/\s+/gu, " ");
@@ -229,8 +230,9 @@ describe("customer-facing CLI copy", () => {
 
     for (const content of [readme, agentSetup, securityModel]) {
       expect(content).toContain("Test your chatbot with your questions and business rules.");
-      expect(content).toContain("hosted real-data");
-      expect(content).toContain("release-disabled");
+      expect(content).toContain("Hosted real-data tests run only against a target your workspace registered and verified");
+      expect(content).toContain("EXECUTION_RELEASE_UNAVAILABLE");
+      expect(content).not.toContain("release-disabled");
       expect(content).toContain("This text is not legal approval");
       expect(content).not.toMatch(/real-data is (already )?enabled/iu);
       expect(content).not.toMatch(/\b(SOC\s*2|HIPAA)\b[^\n.]{0,80}\b(certified|compliant)\b/iu);
@@ -243,7 +245,7 @@ describe("customer-facing CLI copy", () => {
     expect(securityModel).toContain("Zero Data Retention");
     expect(troubleshooting).toContain("synthetic_only: false");
     expect(troubleshooting).toContain("aw-packet/0.1");
-    expect(initNextSteps()).toContain("hosted real-data stays release-disabled");
+    expect(initNextSteps()).toContain("real-data tests need a verified target and a scope");
     expect(initNextSteps()).not.toContain("isolated synthetic target values");
   });
 
@@ -252,7 +254,8 @@ describe("customer-facing CLI copy", () => {
     const localTest = await readSurface("src/commands/local-test.ts");
     expect(init).toContain("Add only the prepare, send, observe, and cleanup hooks required by the selected pattern.");
     expect(init).toContain("The packaged starter is fictional.");
-    expect(init).toContain("Hosted real-data quote and admission stay release-disabled");
+    expect(init).toContain("Hosted real-data tests need a target a workspace owner registered and verified");
+    expect(init).not.toContain("release-disabled");
     expect(init).toContain("Do not set \\`synthetic_only: true\\` on a live or authorized document");
     expect(init).not.toContain("Add only synthetic prepare, send, observe, and cleanup hooks");
     expect(init).not.toContain("Preview mappings with a synthetic JSON fixture");

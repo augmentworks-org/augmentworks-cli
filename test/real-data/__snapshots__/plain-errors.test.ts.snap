@@ -6,7 +6,7 @@ exports[`plain-language real-data errors (AUG-366) > budget exhausted 1`] = `"Er
 
 exports[`plain-language real-data errors (AUG-366) > machine key used for setup (CLI) 1`] = `"Error: Creating a test scope needs a workspace owner's login, and machine keys can't do it. Unset AUGMENTWORKS_API_KEY and run \`augmentworks login\` as an owner. (TARGET_OWNER_LOGIN_REQUIRED)"`;
 
-exports[`plain-language real-data errors (AUG-366) > machine key used for setup (server) 1`] = `"Error: Machine keys can't register targets or create scopes. Setup needs a workspace owner's login: unset AUGMENTWORKS_API_KEY and run \`augmentworks login\`. Machine keys can run tests once a scope exists. (TARGET_AUTHORITY_REQUIRED)"`;
+exports[`plain-language real-data errors (AUG-366) > machine key used for setup (server) 1`] = `"Error: Machine keys can't register targets or create scopes. Registering a target and creating a scope need a workspace owner's login: unset AUGMENTWORKS_API_KEY and run \`augmentworks login\`. (TARGET_AUTHORITY_REQUIRED)"`;
 
 exports[`plain-language real-data errors (AUG-366) > no workspace statement 1`] = `"Error: This workspace hasn't accepted the real-data statement, so it can't run real-data tests. A workspace owner accepts it once by running \`augmentworks target add\` in a terminal, or in Settings → Targets. (TARGET_AUTHORITY_REQUIRED)"`;
 

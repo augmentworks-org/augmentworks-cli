@@ -30,7 +30,8 @@ Supported connector limits for that pin are `/docs/quickstart` and
 `/docs/connectors/http`. There is no separate compatibility URL. Executable
 commands in this repository pin `@augmentworks/cli@0.3.9`. Do not run `@latest`.
 
-Hosted real-data quote and admission stay release-disabled.
+Hosted real-data tests need CLI 0.4.0 or newer and a verified target, as the
+prerequisites below describe.
 
 ## Versions and prerequisites
 
@@ -38,7 +39,7 @@ Hosted real-data quote and admission stay release-disabled.
 | --- | --- |
 | This package | `@augmentworks/cli@0.3.9` (published-line identity; executable npx pin matches this tarball) |
 | Immutable prior npm | `@augmentworks/cli@0.3.8` (AUG-272 consistency check; registry omitted gitHead), `@augmentworks/cli@0.3.7`, `@augmentworks/cli@0.3.6` (capabilities, no saved-suite `/2`), `@augmentworks/cli@0.3.5` (omits suite-selection capabilities), `@augmentworks/cli@0.3.4`, and `@augmentworks/cli@0.3.3` |
-| Node.js | 20 or newer |
+| Node.js | 22.12 or newer |
 | Local packet | `support-refunds-starter@0.1.0` |
 | Hosted packet | `support-refunds@0.1.0` |
 
@@ -47,12 +48,18 @@ Independent inspection of 0.3.5 is recorded in
 `docs/feature-readiness/published-registry-evidence.json`.
 
 Prerequisites: Node.js 22.12 or newer and either the packaged fictional demo or a target
-you are authorized to call. Test your chatbot with your questions and business
-rules. That hosted scope stays off until a compatible published release is
-enabled. Until then, hosted runs
-use an authorized, isolated synthetic or staging target and constructed test
-data. Hosted real-data quote and admission stay release-disabled. This text is
-not legal approval.
+you are authorized to call.
+
+Test your chatbot with your questions and business rules. Hosted real-data
+tests run only against a target your workspace registered and verified, under
+a test scope: a workspace owner runs `augmentworks target add` and
+`augmentworks target verify <name>`, then `augmentworks scope create` writes
+the scope into an `aw-suite/3` suite that `augmentworks test --suite` runs.
+Register only agents your workspace owns or operates, or has written
+permission to test. If the server isn't accepting real-data tests, the run
+stops with `EXECUTION_RELEASE_UNAVAILABLE` before anything is sent to your
+agent. Hosted runs without a scope use an authorized, isolated synthetic or
+staging target and constructed test data. This text is not legal approval.
 
 ## Canonical setup prompt
 
@@ -88,11 +95,10 @@ application's existing framework.
 
 Generate augmentworks.yaml and .env.example, and add only the minimum
 prepare/send/observe/cleanup hooks needed for the selected packet. Prefer the
-packaged fictional starter. While hosted real-data is release-disabled, use an
-authorized, isolated synthetic or staging target and constructed test data. Do
-not point a hosted run at a production system, and do not upload production,
-customer, or regulated records, until a compatible published release is
-enabled. Do not set synthetic_only: true on a live or authorized document,
+packaged fictional starter. Use an authorized, isolated synthetic or staging
+target and constructed test data unless a workspace owner has registered and
+verified the target and created a test scope for it; never register or
+verify a target yourself. Do not set synthetic_only: true on a live or authorized document,
 grant suite:write to a machine key, strip --max-credits, test a third party
 without authority, or send outreach. Never commit customer or private fixtures.
 Never put a secret value in YAML, source code, a command argument, chat, or a
@@ -117,8 +123,8 @@ insert credentials.
 ## Expected assistant workflow
 
 1. Confirm the approved repository root, existing tests, and a target the
-   customer is authorized to call. While hosted real-data is release-disabled,
-   that target is an isolated synthetic or staging environment.
+   customer is authorized to call. Without a test scope from a workspace
+   owner, that target is an isolated synthetic or staging environment.
 2. If the user wants a first assessment without an application target, and this
    is a clone of this repository with a build, run `node dist/index.js demo`.
    Otherwise start with `doctor --offline`.

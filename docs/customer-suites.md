@@ -12,21 +12,21 @@ offline validate/preview/preflight and hosted quote checks. Submitting an
 fail-closed behind `AUGMENTWORKS_LIVE_TARGET_PILOT_ALLOWLIST`. Do not relabel a
 live target as synthetic.
 
-`aw-suite/3` / `aw-customer-suite/3` bind a server-admitted
-`execution_scope` instead of `synthetic_only` / `live_target`. Offline
-validate, preview, and preflight accept that format. Hosted quote and create
-stay fail-closed with `EXECUTION_RELEASE_UNAVAILABLE` until the advertised
-server capability and release gate are verified. Hosted real-data quote and
-admission stay release-disabled; this document does not claim that release is
-enabled. Unknown schema versions fail closed and are never downgraded to
-synthetic. Local authorized packets use `aw-packet/local-authorized-1`, stay
-account-free, and cannot be presented as hosted authority.
+`aw-suite/3` / `aw-customer-suite/3` run hosted tests with real data. Instead
+of `synthetic_only` / `live_target`, the file names an `execution_scope` that
+the server created for a registered, verified target. Offline validate,
+preview, and preflight accept the format. Hosted quote and create need that
+scope; see [Real-data suites](#real-data-suites-aw-suite3) below. If the
+server isn't accepting real-data tests, the run stops with
+`EXECUTION_RELEASE_UNAVAILABLE` before anything is sent to your agent. Unknown
+schema versions fail closed and are never downgraded to synthetic. Local
+authorized packets use `aw-packet/local-authorized-1`, stay account-free, and
+cannot be presented as hosted authority.
 
 Older `aw-suite/1` / `aw-packet/0.1` files still work and remain synthetic.
 `aw-suite/2` live-informational files still require `synthetic_only: false`.
-The minimum published npm artifact for a later real-data release is decided by
-the publication gate; do not guess a version. Packaged examples in this
-document are fictional. This text is not legal approval. Do not set
+Real-data suites need CLI 0.4.0 or newer. Packaged examples in this document
+are fictional. This text is not legal approval. Do not set
 `synthetic_only: true` on a live or authorized document, grant `suite:write`
 to a machine key, or test a third party without authority.
 
@@ -74,6 +74,96 @@ file is relabeled and no live-target permission is implied by this adapter.
 Noninteractive admission still requires a finite `--max-credits` ceiling.
 `--yes` is not an unlimited budget. The CLI does not prompt, open a browser,
 or raise limits silently.
+
+## Real-data suites (`aw-suite/3`)
+
+A real-data suite runs against your own agent, with the data your test cases
+contain. Register only agents your workspace owns or operates, or has
+written permission to test. Setup is four commands, run once by a workspace
+owner from the directory that holds `augmentworks.yaml`. Machine keys
+(`AUGMENTWORKS_API_KEY`) can't do setup; unset the key and run
+`augmentworks login` first. Each step can also be done in the portal under
+Settings → Targets.
+
+```bash
+augmentworks target add --env production
+augmentworks target verify <name>
+augmentworks scope create --target <name> --suite refunds.suite.yaml
+augmentworks test --suite refunds.suite.yaml --max-credits 30 --yes
+```
+
+1. **`target add`** registers the agent in `augmentworks.yaml`: its name
+   (`target.name`), its address (`target.base_url`), and the endpoints its
+   operations call. It asks whose agent it is (`--attest owned`, or
+   `--attest written --permission-ref <ref>` for written permission). The
+   first time, it shows the workspace's real-data statement and needs a typed
+   `yes` from an owner; in CI it stops and points to Settings → Targets
+   instead. `--method https|dns` picks how the address is verified. The
+   method can't be changed after registration.
+2. **`target verify <name>`** prints a code to publish, either as a file at
+   `/.well-known/augmentworks-target` on the agent's address or as a DNS TXT
+   record at `_augmentworks-target.<host>`. It checks every 15 seconds and
+   finishes once the server confirms the code. Run it again to resume with
+   the same code. A private or loopback address is confirmed from your
+   machine with one connection check instead, recorded as your statement.
+   Verification lasts 90 days. Renewal opens 14 days before it ends; renew
+   with the same command.
+3. **`scope create`** creates a test scope for the verified target and writes
+   its id and revision into the suite file's `execution_scope` block. It
+   shows the data policy, data origin (`--data-origin
+   constructed|customer_records|mixed`), expiry (30 days by default, never
+   past the target's verification) and per-run budget first, and asks before
+   creating it. Only the scope id and revision in the file change.
+4. **`test --suite`** runs the suite under that scope with the usual quote
+   and `--max-credits` consent.
+
+`target list` shows each target's status, verification expiry and scopes,
+and warns when a scope expires within 7 days (`--suite <file>` checks the
+scope that file uses). `target pull <name>` brings a target someone added in
+the portal into `augmentworks.yaml`. It changes only the name, `base_url` and
+a missing `send` operation. A new file gets `FILL_IN` placeholders that
+`doctor` reports until you replace them.
+
+The scope block in the suite file looks like this:
+
+```yaml
+schema_version: aw-suite/3
+execution_scope:
+  schema_version: aw-execution-scope/1
+  scope_id: 77777777-7777-4777-8777-777777777777
+  revision: 1
+```
+
+### Rules the CLI enforces
+
+- `aw-suite/3` requires `execution_scope` and rejects `synthetic_only` and
+  `live_target`.
+- The scope is fetched from the server for every run. The CLI never builds
+  authority from the YAML, and a scope that is expired, revoked, or for a
+  different workspace stops the run before anything is sent.
+- `target.base_url` must point at the address the target was registered with.
+  A loopback address is transport only and can't stand in for a registered
+  public address.
+- Every configured operation must call a registered endpoint (same method
+  and path). An informational scope allows only `send` and `observe`; a
+  configured `prepare` or `cleanup` stops the run with
+  `ACTION_NOT_ALLOWED`.
+- Each run gets the scope's budget of messages, actions and commands. A run
+  that uses it up stops there and isn't retried, because a retry could
+  message your agent again.
+- **Local scopes** (`aw-packet/local-authorized-1`) carry only a target
+  boundary hash. The CLI rebuilds the boundary from `augmentworks.yaml` (the
+  `base_url` origin and each operation's method and path) and the result must
+  hash to exactly that value. Change the address or an operation, and the
+  packet stops with `TARGET_SCOPE_MISMATCH` until you restore them or get a
+  new packet.
+
+Every error in this flow says what happened, then what to do, with the code
+last: `Error: <message> (<CODE>)`.
+
+Controlled actions, runs started from the dashboard, and a standing
+`augmentworks connect` session are not available. Hosted `test` keeps the
+connector online only for the run it starts.
 
 ## Authoring format
 

@@ -68,7 +68,7 @@ const SUFFIX = {
   statementMissing:
     " A workspace owner accepts it once by running `augmentworks target add` in a terminal, or in Settings → Targets.",
   machineKeySetup:
-    " Setup needs a workspace owner's login: unset AUGMENTWORKS_API_KEY and run `augmentworks login`. Machine keys can run tests once a scope exists.",
+    " Registering a target and creating a scope need a workspace owner's login: unset AUGMENTWORKS_API_KEY and run `augmentworks login`.",
   notVerified: ` Check the target with \`augmentworks target list\`, finish verifying it with \`augmentworks target verify <name>\`, then create a scope with ${SCOPE_CREATE}.`,
   verificationExpired: ` Renew it with \`augmentworks target verify <name>\` (Settings → Targets shows when renewal opens), then create a new scope with ${SCOPE_CREATE}.`,
   challengeExpired: " Run `augmentworks target verify <name>` again to get a new code.",

@@ -9,12 +9,19 @@ during a run. In local mode no relay or AugmentWorks service is contacted.
 
 ## Data scope
 
-Test your chatbot with your questions and business rules. That hosted scope
-stays off until a compatible published release is enabled. Until then, hosted
-runs use an authorized,
-isolated synthetic or staging target and constructed test data. Hosted
-real-data quote and admission stay release-disabled. The lifecycle table below
-describes the fictional starter and that current hosted path. Offline
+Test your chatbot with your questions and business rules. Hosted real-data
+tests run only against a target your workspace registered and verified, under
+a test scope: a workspace owner runs `augmentworks target add` and
+`augmentworks target verify <name>`, then `augmentworks scope create` writes
+the scope into an `aw-suite/3` suite that `augmentworks test --suite` runs.
+Register only agents your workspace owns or operates, or has written
+permission to test. If the server isn't accepting real-data tests, the run
+stops with `EXECUTION_RELEASE_UNAVAILABLE` before anything is sent to your
+agent. Hosted runs without a scope use an authorized, isolated synthetic or
+staging target and constructed test data. The lifecycle table below
+describes the fictional starter. For a real-data target, `target.base_url`
+must be the registered address and every operation must call a registered
+endpoint; see `docs/customer-suites.md`. Offline
 `aw-packet/0.1` stays synthetic-only and account-free.
 `aw-packet/local-authorized-1` is a customer-declared local scope and is not
 hosted authority. Packaged examples remain fictional. This text is not legal

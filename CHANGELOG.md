@@ -123,6 +123,12 @@ All notable changes to this project are documented here. The format follows
   and the server not accepting real-data tests. The codes are unchanged, and
   `--json` output carries the same advice in `fix`. Other errors keep the
   `Error [CODE]: <message>` form.
+- The docs, agent resources, starters and `init` guidance no longer call
+  hosted real data release-disabled. They describe the real-data setup
+  (`target add`, `target verify`, `scope create`, then `test --suite`), and
+  `docs/customer-suites.md` documents the `aw-suite/3` rules, including how a
+  local scope's boundary is rebuilt from `augmentworks.yaml`.
+  `docs/troubleshooting.md` lists each real-data error and its fix.
 - Recorded the independent inspection of npm `@augmentworks/cli@0.3.9`.
   The published tarball is unchanged and still embeds the prior 0.3.8
   `LAST_VERIFIED` snapshot.

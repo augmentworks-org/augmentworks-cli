@@ -425,8 +425,8 @@ export function initNextSteps(
   const probeYes = formatCustomerCli(["probe", "-c", configDisplay, "--yes"]);
   const prefix =
     LOCAL_DISTRIBUTION === "npm"
-      ? `Next: edit .env for the authorized target, then run doctor. The packaged starter is an isolated synthetic fixture; hosted real-data stays release-disabled. This build created ${created}.`
-      : `Next: edit .env for the authorized target, then run doctor. The packaged starter is an isolated synthetic fixture; hosted real-data stays release-disabled. This source build created ${created}. Published ${NPM_PACKAGE}@${HOSTED_COMMAND_PIN} does not generate those assessment files.`;
+      ? `Next: edit .env for the authorized target, then run doctor. The packaged starter is an isolated synthetic fixture; real-data tests need a verified target and a scope (target add, target verify, scope create). This build created ${created}.`
+      : `Next: edit .env for the authorized target, then run doctor. The packaged starter is an isolated synthetic fixture; real-data tests need a verified target and a scope (target add, target verify, scope create). This source build created ${created}. Published ${NPM_PACKAGE}@${HOSTED_COMMAND_PIN} does not generate those assessment files.`;
   return `${prefix} Then ${preview}, ${probePlan} to read the bounded plan, and ${probeYes} only after that review. Hosted spending consent is --max-credits N; npm --yes is not a ceiling. Doctor and init never probe.`;
 }
 
