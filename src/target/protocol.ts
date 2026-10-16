@@ -115,3 +115,126 @@ export interface RegisterTargetRequest {
   readonly endpoints: ReadonlyArray<{ readonly method: string; readonly path: string }>;
   readonly attestation?: { readonly statementVersion: number; readonly statementHash: string };
 }
+
+export function targetDetailPath(workspaceId: string, targetId: string): string {
+  return `${workspaceTargetsPath(workspaceId)}/${encodeURIComponent(targetId)}`;
+}
+
+export function targetVerifyPath(workspaceId: string, targetId: string): string {
+  return `${targetDetailPath(workspaceId, targetId)}/verify`;
+}
+
+const VERIFICATION_METHODS = ["dns_txt", "https_challenge", "connector_challenge", "reviewed_permission"] as const;
+
+const StoredTargetSchema = z
+  .object({
+    targetId: z.string().uuid(),
+    name: z.string().min(1).max(TARGET_LIMITS.maxNameChars),
+    environment: z.enum(TARGET_ENVIRONMENTS),
+    transport: z.enum(["direct_http", "browser_bridge"]),
+    effectBoundary: z.enum(["no_tools", "read_only_enforced", "action_gateway"]),
+    assessedIdentity: z.string().min(1).max(253),
+    authorizationKind: z.enum(["owned_target", "written_permission"]),
+    permissionRef: z.string().min(1).max(TARGET_LIMITS.maxPermissionRefChars),
+    verificationMethod: z.enum(VERIFICATION_METHODS),
+    status: z.enum(["pending", "verified", "revoked"]),
+    currentRevision: z.number().int().positive(),
+    currentBoundaryHash: Sha256
+  })
+  .passthrough();
+
+export type StoredTarget = z.infer<typeof StoredTargetSchema>;
+
+export function parseTargetList(value: unknown): StoredTarget[] {
+  const parsed = z.array(StoredTargetSchema).max(500).safeParse(value);
+  if (!parsed.success) {
+    throw new AwError({
+      code: "INVALID_CLOUD_RESPONSE",
+      category: "protocol",
+      message: "AugmentWorks returned a target list the CLI can't read."
+    });
+  }
+  return parsed.data;
+}
+
+const ChallengeSchema = z
+  .object({
+    method: z.enum(VERIFICATION_METHODS),
+    nonce: z.string().min(1).max(512),
+    expiresAt: z.string().min(20).max(40)
+  })
+  .strict();
+
+export type TargetChallenge = z.infer<typeof ChallengeSchema>;
+
+const TargetDetailSchema = z
+  .object({
+    schemaVersion: z.literal("aw-target-detail/1"),
+    target: StoredTargetSchema,
+    endpoints: z
+      .array(
+        z.object({ method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]), path: z.string().min(1) }).strict()
+      )
+      .max(TARGET_LIMITS.maxEndpoints),
+    authority: z
+      .object({
+        authorityId: z.string().uuid(),
+        revision: z.number().int().positive(),
+        verificationStatus: z.string().min(1),
+        expiresAt: z.string().min(20).max(40),
+        renewalOpensAt: z.string().min(20).max(40)
+      })
+      .passthrough(),
+    challenge: ChallengeSchema.nullable()
+  })
+  .passthrough();
+
+export type TargetDetail = z.infer<typeof TargetDetailSchema>;
+
+export function parseTargetDetail(value: unknown, targetId: string): TargetDetail {
+  const parsed = TargetDetailSchema.safeParse(value);
+  if (!parsed.success || parsed.data.target.targetId !== targetId) {
+    throw new AwError({
+      code: "INVALID_CLOUD_RESPONSE",
+      category: "protocol",
+      message: "AugmentWorks returned target details that don't match aw-target-detail/1 for this target."
+    });
+  }
+  return parsed.data;
+}
+
+export interface VerifyTargetRequest {
+  readonly nonce: string;
+  readonly expectedRevision: number;
+  readonly connectorAttestation?: true;
+  readonly permissionAttestation?: {
+    readonly kind: "owner_written_permission" | "agency_written_permission";
+    readonly representedClientRef?: string;
+  };
+}
+
+const VerifyResponseSchema = z
+  .object({
+    targetId: z.string().uuid(),
+    authority: z
+      .object({
+        verificationStatus: z.string().min(1),
+        expiresAt: z.string().min(20).max(40)
+      })
+      .passthrough()
+  })
+  .passthrough();
+
+export type VerifyTargetResponse = z.infer<typeof VerifyResponseSchema>;
+
+export function parseVerifyResponse(value: unknown, targetId: string): VerifyTargetResponse {
+  const parsed = VerifyResponseSchema.safeParse(value);
+  if (!parsed.success || parsed.data.targetId !== targetId) {
+    throw new AwError({
+      code: "INVALID_CLOUD_RESPONSE",
+      category: "protocol",
+      message: "AugmentWorks returned a verification result for a different target, or one the CLI can't read."
+    });
+  }
+  return parsed.data;
+}

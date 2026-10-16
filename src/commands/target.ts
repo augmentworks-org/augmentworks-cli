@@ -23,7 +23,14 @@ import {
   type TargetRegistration,
   type VerificationMethod
 } from "../target/protocol.js";
-import { runDoctor, type DoctorReport } from "./doctor.js";
+import { loadTargetConfig, ownerLoginRequiredError, shellWord, type TargetDoctor } from "../target/common.js";
+import {
+  DEFAULT_VERIFY_TIMEOUT_MS,
+  selectTarget,
+  verifyTarget,
+  type VerifyTargetOutcome,
+  type VerifyWaitDependencies
+} from "../target/verify.js";
 import {
   authenticateHostedSession,
   isHeadlessEnvironment,
@@ -44,7 +51,7 @@ export interface TargetAddOptions extends HostedAuthOptions {
 }
 
 export interface TargetDependencies extends HostedAuthDependencies {
-  readonly doctor?: (options: Parameters<typeof runDoctor>[0]) => Promise<DoctorReport>;
+  readonly doctor?: TargetDoctor;
   readonly stdout?: Pick<NodeJS.WriteStream, "write">;
   readonly stderr?: Pick<NodeJS.WriteStream, "write">;
   readonly setExitCode?: (code: number) => void;
@@ -53,6 +60,9 @@ export interface TargetDependencies extends HostedAuthDependencies {
   /** Asks one question and returns the typed answer. */
   readonly ask?: (question: string) => Promise<string>;
   readonly newId?: () => string;
+  /** Local checks, waits and the private-address probe for `target verify`. */
+  readonly verify?: VerifyWaitDependencies;
+  readonly signals?: { on(event: "SIGINT", listener: () => void): unknown; off(event: "SIGINT", listener: () => void): unknown };
 }
 
 export interface TargetAddResult {
@@ -105,7 +115,184 @@ export function createTargetCommand(dependencies: TargetDependencies = {}): Comm
     const { env: environment, ...rest } = values;
     await executeTargetAdd({ ...rest, ...(environment === undefined ? {} : { environment }) }, dependencies);
   });
+  addWorkspaceOption(
+    target
+      .command("verify")
+      .description(
+        "Verify a target you added: wait for the published code on a public address, or confirm a private one from this machine. Needs a workspace owner's login"
+      )
+      .argument("<name>", "the target's name, as in augmentworks.yaml")
+      .addOption(new Option("--env <environment>", "which environment, when the name is in more than one").choices([...TARGET_ENVIRONMENTS]))
+      .addOption(
+        new Option("--method <method>", "check that the target was added for this method: https or dns").choices([
+          "https",
+          "dns"
+        ])
+      )
+      .option("--client-ref <ref>", "for a client's agent: the client the written permission covers")
+      .option("-c, --config <path>", "configuration that reaches a private address", "augmentworks.yaml")
+      .option("--timeout-ms <ms>", "how long to wait for the published code", String(DEFAULT_VERIFY_TIMEOUT_MS))
+      .option("--json", "write one machine-readable verification object to stdout")
+      .option(
+        "--allow-file-credentials",
+        "allow a warned mode-0600 credential file when OS credential storage is unavailable"
+      )
+  ).action(
+    async (
+      name: string,
+      values: Omit<TargetVerifyOptions, "env" | "environment" | "name" | "timeoutMs"> & { env?: string; timeoutMs?: string }
+    ) => {
+      const { env: environment, timeoutMs, ...rest } = values;
+      await executeTargetVerify(
+        {
+          ...rest,
+          name,
+          ...(environment === undefined ? {} : { environment }),
+          ...(timeoutMs === undefined ? {} : { timeoutMs: parseTimeout(timeoutMs) })
+        },
+        dependencies
+      );
+    }
+  );
   return target;
+}
+
+export interface TargetVerifyOptions extends HostedAuthOptions {
+  readonly name: string;
+  readonly environment?: string;
+  readonly method?: "https" | "dns";
+  readonly clientRef?: string;
+  readonly config?: string;
+  readonly timeoutMs?: number;
+  readonly json?: boolean;
+  readonly handleSignals?: boolean;
+}
+
+export interface TargetVerifyResult extends VerifyTargetOutcome {
+  readonly next?: string;
+}
+
+function parseTimeout(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new AwError({
+      code: "INVALID_TIMEOUT",
+      category: "config",
+      message: "--timeout-ms must be a whole number of milliseconds, 0 or more."
+    });
+  }
+  return parsed;
+}
+
+async function executeTargetVerify(options: TargetVerifyOptions, dependencies: TargetDependencies): Promise<void> {
+  const stdout = dependencies.stdout ?? process.stdout;
+  const stderr = dependencies.stderr ?? process.stderr;
+  const json = options.json === true;
+  const setExitCode =
+    dependencies.setExitCode ??
+    ((code: number) => {
+      process.exitCode = code;
+    });
+  try {
+    const result = await runTargetVerify(options, dependencies);
+    stdout.write(json ? `${JSON.stringify(targetVerifyJson(result))}\n` : formatTargetVerifyHuman(result));
+  } catch (error) {
+    const awError =
+      error instanceof AwError
+        ? error
+        : new AwError({ code: "INTERNAL", category: "local", message: "The target could not be verified." });
+    if (!json) throw awError;
+    stdout.write(
+      `${JSON.stringify({ ok: false, error: { code: awError.code, message: awError.message }, exitCode: exitCodeFor(awError) })}\n`
+    );
+    stderr.write(`${sanitizeTerminal(awError.message)}\n`);
+    setExitCode(exitCodeFor(awError));
+  }
+}
+
+/**
+ * `target verify <name>`: answers the open challenge of a target this
+ * workspace added. Running it again resumes with the same code, read back
+ * from the target's detail.
+ */
+export async function runTargetVerify(
+  options: TargetVerifyOptions,
+  dependencies: TargetDependencies = {}
+): Promise<TargetVerifyResult> {
+  const env = options.env ?? process.env;
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const stderr = dependencies.stderr ?? process.stderr;
+  const environment = options.environment === undefined ? undefined : parseEnvironment(options.environment);
+  if (inspectCredentialEnvironment(env).mode === "api_key") throw ownerLoginRequiredError("Verifying a target");
+  const session = await authenticateHostedSession(options, { ...dependencies, stderr });
+  if (session.identity.principalKind === "machine" || session.source === "api_key") {
+    throw ownerLoginRequiredError("Verifying a target");
+  }
+  const workspaceId = session.identity.workspaceId;
+  const controller = new AbortController();
+  const signal = options.signal === undefined ? controller.signal : AbortSignal.any([options.signal, controller.signal]);
+  const onInterrupt = () => controller.abort();
+  const signals = dependencies.signals ?? process;
+  if (options.handleSignals !== false) signals.on("SIGINT", onInterrupt);
+  let selectedName = options.name;
+  try {
+    const targets = await session.cloud.listTargets(workspaceId, signal);
+    const selected = selectTarget(targets, options.name, environment);
+    selectedName = selected.name;
+    const detail = await session.cloud.getTargetDetail(workspaceId, selected.targetId, signal);
+    const outcome = await verifyTarget(
+      {
+        cloud: session.cloud,
+        workspaceId,
+        detail,
+        ...(options.method === undefined ? {} : { requestedMethod: options.method }),
+        ...(options.clientRef === undefined ? {} : { clientRef: options.clientRef }),
+        loadConfig: async () => await loadTargetConfig(options.config ?? "augmentworks.yaml", cwd, env, dependencies.doctor),
+        timeoutMs: options.timeoutMs ?? DEFAULT_VERIFY_TIMEOUT_MS,
+        signal,
+        report: (line) => {
+          stderr.write(`${line}\n`);
+        }
+      },
+      dependencies.verify ?? {}
+    );
+    return outcome;
+  } catch (error) {
+    if (controller.signal.aborted && error instanceof AwError && error.code === "RELAY_REQUEST_CANCELLED") {
+      throw new AwError({
+        code: "INTERRUPTED",
+        category: "local",
+        message: `Stopped. Run \`augmentworks target verify ${shellWord(selectedName)}\` again to keep checking with the same code.`
+      });
+    }
+    throw error;
+  } finally {
+    if (options.handleSignals !== false) signals.off("SIGINT", onInterrupt);
+  }
+}
+
+export function formatTargetVerifyHuman(result: TargetVerifyResult): string {
+  const name = sanitizeTerminal(result.target.name);
+  if (result.alreadyVerified) return `${name} is already verified until ${result.expiresAt}.\n`;
+  return [
+    ...(result.ownerStatement ? ["Confirmed from this machine. Recorded as your statement, not a hosted check."] : []),
+    `${name} is verified until ${result.expiresAt}.`,
+    ""
+  ].join("\n");
+}
+
+export function targetVerifyJson(result: TargetVerifyResult): Record<string, unknown> {
+  return {
+    ok: true,
+    targetId: result.target.targetId,
+    name: result.target.name,
+    environment: result.target.environment,
+    verificationMethod: result.method,
+    verified: true,
+    alreadyVerified: result.alreadyVerified,
+    ownerStatement: result.ownerStatement,
+    expiresAt: result.expiresAt
+  };
 }
 
 async function executeTargetAdd(options: TargetAddOptions, dependencies: TargetDependencies): Promise<void> {
@@ -153,7 +340,7 @@ export async function runTargetAdd(
   const stderr = dependencies.stderr ?? process.stderr;
   const environment = parseEnvironment(options.environment);
   const flagAttestation = parseAttestFlags(options);
-  const resolved = await loadTargetConfig(options.config ?? "augmentworks.yaml", cwd, env, dependencies);
+  const resolved = await loadTargetConfig(options.config ?? "augmentworks.yaml", cwd, env, dependencies.doctor);
   const boundary = boundaryFromConfig(resolved);
   const privateAddress = boundary.privateAddress;
   if (privateAddress && options.method === "dns") {
@@ -358,24 +545,6 @@ async function acceptStatement(
   return true;
 }
 
-async function loadTargetConfig(
-  config: string,
-  cwd: string,
-  env: NodeJS.ProcessEnv,
-  dependencies: TargetDependencies
-): Promise<ResolvedConfig> {
-  const report = await (dependencies.doctor ?? runDoctor)({ config, cwd, processEnv: env, offline: true });
-  if (!report.ok || report.resolvedConfig === undefined) {
-    const error = report.diagnostics.find((diagnostic) => diagnostic.level === "error");
-    throw new AwError({
-      code: error?.code ?? "DOCTOR_FAILED",
-      category: "config",
-      message: error?.message ?? "augmentworks.yaml has errors. Run `augmentworks doctor --offline` to see them."
-    });
-  }
-  return report.resolvedConfig;
-}
-
 interface ConfigBoundary {
   readonly name: string;
   readonly assessedIdentity: string;
@@ -430,15 +599,6 @@ function boundaryHash(targetId: string, boundary: ConfigBoundary): string {
   ).boundaryHash;
 }
 
-function ownerLoginRequiredError(): AwError {
-  return new AwError({
-    code: "TARGET_OWNER_LOGIN_REQUIRED",
-    category: "auth",
-    message:
-      "Registering a target needs a workspace owner's login. Machine keys can't register targets. Unset AUGMENTWORKS_API_KEY and run `augmentworks login` as an owner."
-  });
-}
-
 function registrationError(error: unknown, portalUrl: string): unknown {
   if (!(error instanceof AwError)) return error;
   if (error.code === "TARGET_AUTHORITY_REQUIRED" && /statement/iu.test(error.message)) {
@@ -459,10 +619,6 @@ function registrationError(error: unknown, portalUrl: string): unknown {
     });
   }
   return error;
-}
-
-function shellWord(value: string): string {
-  return /^[A-Za-z0-9._@%+=:,/-]+$/u.test(value) ? value : `'${value.replace(/'/gu, "'\\''")}'`;
 }
 
 const METHOD_DESCRIPTION: Record<VerificationMethod, string> = {

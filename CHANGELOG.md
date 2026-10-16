@@ -78,6 +78,17 @@ All notable changes to this project are documented here. The format follows
   `--attest written --permission-ref <ref>`, and accept the statement in the
   portal first; `--yes` never answers either. It needs a workspace owner's
   login, refuses machine keys, and ends with `augmentworks target verify <name>`.
+- `target verify <name>` verifies a target you added. For a public address
+  it prints the value to serve at `/.well-known/augmentworks-target` (or the
+  TXT record for `_augmentworks-target.<host>` when the target was added with
+  `--method dns`) and when the code expires, checks for it every 15 seconds,
+  and prints "verified until …". The server is asked at the start, as soon as
+  the CLI first sees the code, and then at most every few minutes, so waiting
+  stays inside its attempt limits. Ctrl+C stops it, and running it again
+  resumes with the same code; an expired code is replaced. A private address
+  is confirmed from this machine with one connection probe (no credits) and
+  recorded as the owner's statement. A client's agent records the written
+  permission (`--client-ref` names the client). Needs an owner's login.
 
 ### Changed
 

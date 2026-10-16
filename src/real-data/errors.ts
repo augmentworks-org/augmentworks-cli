@@ -35,6 +35,15 @@ export function realDataRecoveryCopy(code: RealDataErrorCode, message: string): 
   return `${message}${suffix}`;
 }
 
+/** The server's own words, without the recovery advice the CLI appended to them. */
+export function withoutRecoverySuffix(message: string): string {
+  for (const code of REAL_DATA_ERROR_CODES) {
+    const suffix = recoverySuffix(code);
+    if (suffix !== "" && message.endsWith(suffix)) return message.slice(0, -suffix.length);
+  }
+  return message;
+}
+
 function recoverySuffix(code: RealDataErrorCode): string {
   switch (code) {
     case "UNSUPPORTED_EXECUTION_SCOPE":

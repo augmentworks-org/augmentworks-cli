@@ -95,12 +95,21 @@ import {
 import { DISABLED_REAL_DATA_CAPABILITIES } from "../real-data/capabilities.js";
 import {
   parseRealDataStatement,
+  parseTargetDetail,
+  parseTargetList,
   parseTargetRegistration,
+  parseVerifyResponse,
   realDataStatementPath,
+  targetDetailPath,
+  targetVerifyPath,
   workspaceTargetsPath,
   type RealDataStatement,
   type RegisterTargetRequest,
-  type TargetRegistration
+  type StoredTarget,
+  type TargetDetail,
+  type TargetRegistration,
+  type VerifyTargetRequest,
+  type VerifyTargetResponse
 } from "../target/protocol.js";
 import {
   looksLikeExecutionScopeResponse,
@@ -773,6 +782,27 @@ export class CloudClient {
       { "Idempotency-Key": idempotencyKey }
     );
     return parseTargetRegistration(value);
+  }
+
+  async listTargets(workspaceId: string, signal?: AbortSignal): Promise<StoredTarget[]> {
+    const value = await this.#request("GET", workspaceTargetsPath(workspaceId), undefined, signal);
+    return parseTargetList(value);
+  }
+
+  async getTargetDetail(workspaceId: string, targetId: string, signal?: AbortSignal): Promise<TargetDetail> {
+    const value = await this.#request("GET", targetDetailPath(workspaceId, targetId), undefined, signal);
+    return parseTargetDetail(value, targetId);
+  }
+
+  /** Answers the target's open challenge. The server does the HTTPS or DNS check itself. */
+  async verifyTarget(
+    workspaceId: string,
+    targetId: string,
+    request: VerifyTargetRequest,
+    signal?: AbortSignal
+  ): Promise<VerifyTargetResponse> {
+    const value = await this.#request("POST", targetVerifyPath(workspaceId, targetId), request, signal);
+    return parseVerifyResponse(value, targetId);
   }
 
   async getRunExecutionScope(
