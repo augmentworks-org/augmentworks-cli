@@ -408,6 +408,8 @@ export const ExecutionScopeBindingSchema = z
     admitted: z.union([ExecutionScopeSchema, LocalExecutionScopeSchema]),
     dataPolicy: DataPolicySchema.optional(),
     redactionProfile: RedactionProfileSchema.optional(),
+    /** The admitted boundary: the server's for hosted, the one rebuilt from augmentworks.yaml for local. */
+    targetBoundary: TargetBoundarySchema.optional(),
     availability: z.enum(SCOPE_AVAILABILITY),
     fetchedAt: UtcZSchema
   })

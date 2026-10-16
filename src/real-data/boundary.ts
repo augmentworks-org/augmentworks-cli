@@ -76,33 +76,46 @@ export function configuredEndpoints(
   });
 }
 
+/**
+ * The rules a scope's boundary sets on augmentworks.yaml, checked before any
+ * call: direct HTTP only, the registered origin, every configured operation a
+ * registered endpoint, and for informational scopes only send and observe.
+ */
 export function assertBoundaryMatchesConfig(
   boundary: TargetBoundary,
   resolved: ResolvedConfig,
-  options: { readonly allowPrivate?: boolean } = {}
+  options: { readonly allowPrivate?: boolean; readonly effects?: Effect } = {}
 ): void {
   if (boundary.transport !== "direct_http") {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      `The admitted target uses ${boundary.transport} transport. This CLI can only call direct_http targets.`
+      `This target is registered with ${boundary.transport} transport, and the CLI can only call direct_http targets. Register it again with direct HTTP in Settings → Targets.`
     );
   }
   const allowPrivate = options.allowPrivate === true;
   const assessed = assessedIdentityOrigin(boundary, { allowPrivate });
-  if (assessed !== canonicalAssessedOrigin(resolved.baseUrl.origin, { allowPrivate })) {
+  const configured = canonicalAssessedOrigin(resolved.baseUrl.origin, { allowPrivate });
+  if (assessed !== configured) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      `Configured target origin ${resolved.baseUrl.origin} is not the assessed origin ${assessed}. Loopback is transport only.`
+      `target.base_url in augmentworks.yaml points at ${configured}, but this scope's target is registered at ${assessed}. Set base_url to ${assessed}, or register ${configured} as its own target. A loopback address is transport only and can't stand in for a registered public address.`
     );
   }
+  const registered = boundary.endpoints.map((allowed) => `${allowed.method} ${allowed.path}`).join(", ");
   for (const endpoint of configuredEndpoints(resolved)) {
+    if (options.effects !== undefined && !operationPermittedByEffects(endpoint.kind, options.effects)) {
+      throw realDataError(
+        "ACTION_NOT_ALLOWED",
+        `augmentworks.yaml configures a ${endpoint.kind} operation, but this scope is informational and allows only send and observe. Remove target.operations.${endpoint.kind}, or use a scope that allows actions.`
+      );
+    }
     const listed = boundary.endpoints.some(
       (allowed) => allowed.method === endpoint.method && pathsEqual(allowed.path, endpoint.path)
     );
     if (!listed) {
       throw realDataError(
         "TARGET_SCOPE_MISMATCH",
-        `Configured ${endpoint.kind} operation ${endpoint.method} ${endpoint.path} is not one of the admitted target's endpoints.`
+        `The ${endpoint.kind} operation in augmentworks.yaml calls ${endpoint.method} ${endpoint.path}, which isn't a registered endpoint of this target (${registered}). Change the operation to a registered endpoint, or add the endpoint to the target and create a new scope.`
       );
     }
   }
@@ -134,9 +147,10 @@ export function localTargetBoundary(scope: LocalExecutionScope, resolved: Resolv
     );
     if (boundary.boundaryHash === scope.targetBoundaryHash) return boundary;
   }
+  const configured = endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`).join(", ");
   throw realDataError(
     "TARGET_SCOPE_MISMATCH",
-    "Your augmentworks.yaml doesn't match the target boundary this local scope declares."
+    `augmentworks.yaml (${assessedIdentity}: ${configured}) doesn't match the target boundary this local scope was issued for. Restore the base_url and operations the scope was created with, or issue a new local scope for this configuration.`
   );
 }
 

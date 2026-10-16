@@ -8,7 +8,8 @@ import {
   type ExecutionScope,
   type LocalExecutionScope,
   type DataPolicy,
-  type RedactionProfile
+  type RedactionProfile,
+  type TargetBoundary
 } from "./documents.js";
 import { realDataError } from "./errors.js";
 import { EXECUTION_SCOPE_BINDING_SCHEMA_VERSION } from "./constants.js";
@@ -89,6 +90,7 @@ export function hostedBinding(options: {
   readonly contentHash?: string;
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
+  readonly boundary?: TargetBoundary;
 }): ExecutionScopeBinding {
   return {
     schemaVersion: EXECUTION_SCOPE_BINDING_SCHEMA_VERSION,
@@ -108,6 +110,7 @@ export function hostedBinding(options: {
     admitted: options.scope,
     ...(options.dataPolicy === undefined ? {} : { dataPolicy: options.dataPolicy }),
     ...(options.redactionProfile === undefined ? {} : { redactionProfile: options.redactionProfile }),
+    ...(options.boundary === undefined ? {} : { targetBoundary: options.boundary }),
     availability: "ready",
     fetchedAt: new Date().toISOString().replace(/\.\d+Z$/u, "Z")
   };
@@ -119,6 +122,8 @@ export function localBinding(options: {
   readonly scope: LocalExecutionScope;
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
+  /** The boundary rebuilt from augmentworks.yaml that matched the scope's hash. */
+  readonly boundary?: TargetBoundary;
 }): ExecutionScopeBinding {
   return {
     schemaVersion: EXECUTION_SCOPE_BINDING_SCHEMA_VERSION,
@@ -133,6 +138,7 @@ export function localBinding(options: {
     admitted: options.scope,
     ...(options.dataPolicy === undefined ? {} : { dataPolicy: options.dataPolicy }),
     ...(options.redactionProfile === undefined ? {} : { redactionProfile: options.redactionProfile }),
+    ...(options.boundary === undefined ? {} : { targetBoundary: options.boundary }),
     availability: "ready",
     fetchedAt: new Date().toISOString().replace(/\.\d+Z$/u, "Z")
   };

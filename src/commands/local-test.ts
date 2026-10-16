@@ -24,7 +24,7 @@ import { LOCAL_TRUST_LABEL, isLocalAuthorizedPacket, type LocalRunResult } from 
 import { runDoctor, type DoctorReport } from "./doctor.js";
 import { persistExecutionScopeBinding, localBinding } from "../real-data/scope-store.js";
 import { loadRevokedLocalScopeIds } from "../real-data/local-revoke.js";
-import { assertLocalScopeNotRevoked } from "../real-data/boundary.js";
+import { assertLocalScopeNotRevoked, localTargetBoundary } from "../real-data/boundary.js";
 import { privacyContextFromDocuments } from "../real-data/r06-service.js";
 
 export interface LocalTestOptions {
@@ -138,6 +138,7 @@ export async function runLocalTest(
         runId: runner.runId,
         configSha256: report.resolvedConfig.configDigest,
         scope: loaded.manifest.execution_scope,
+        boundary: localTargetBoundary(loaded.manifest.execution_scope, report.resolvedConfig),
         dataPolicy: loaded.manifest.data_policy,
         redactionProfile: loaded.manifest.redaction_profile
       }),

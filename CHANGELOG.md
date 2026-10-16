@@ -35,6 +35,12 @@ All notable changes to this project are documented here. The format follows
   disabled. Configured operations must be endpoints of the admitted target
   boundary, and a local scope's boundary is rebuilt from `augmentworks.yaml`
   and checked against its `targetBoundaryHash`.
+- Before any call, an authorized run checks `augmentworks.yaml` against the
+  scope's target boundary: direct HTTP only, `base_url` at the registered
+  origin, every configured operation a registered endpoint, and only `send`
+  and `observe` for informational scopes. Each failure names the origin,
+  endpoint or operation that didn't match and what to change. The admitted
+  boundary is saved with the run, so a resumed run checks against it.
 
 ### Changed
 

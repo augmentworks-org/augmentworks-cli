@@ -11,7 +11,9 @@ import {
 } from "./policy.js";
 import {
   parseLocalExecutionScope,
+  parseTargetBoundary,
   SuiteExecutionScopeRefSchema,
+  type ExecutionScopeBinding,
   type ExecutionScopeResponse,
   type LocalExecutionScope,
   type SuiteExecutionScopeRef,
@@ -77,7 +79,9 @@ export async function assertHostedScopeUsable(
   assertScopeNotExpired(response.scope.expiresAt, options.now ?? Date.now());
   assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now());
   if (options.resolved !== undefined) {
-    assertBoundaryMatchesConfig(response.targetBoundary, options.resolved);
+    assertBoundaryMatchesConfig(response.targetBoundary, options.resolved, {
+      effects: response.scope.effects
+    });
   }
 }
 
@@ -135,6 +139,7 @@ export async function persistHostedScopeForRun(options: {
       configSha256: options.configSha256,
       workspaceId: options.workspaceId,
       scope: options.response.scope,
+      boundary: options.response.targetBoundary,
       dataPolicy: options.response.dataPolicy,
       redactionProfile: options.response.redactionProfile,
       ...(options.quoteId === undefined ? {} : { quoteId: options.quoteId }),
@@ -169,14 +174,18 @@ export async function loadPersistedDispatchPolicy(options: {
     const scope = parseLocalExecutionScope(binding.admitted);
     return authorizedDispatchPolicy({
       scope,
-      boundary: persistedLocalBoundary(scope, options.resolved),
+      boundary: persistedLocalBoundary(binding, scope, options.resolved),
       ...(binding.dataPolicy === undefined ? {} : { dataPolicy: binding.dataPolicy }),
       ...(binding.redactionProfile === undefined ? {} : { redactionProfile: binding.redactionProfile })
     });
   }
   if (options.resolved !== undefined && binding.bindingKind === "hosted") {
-    // Boundary enforcement uses current config vs persisted hash.
-    if (targetBoundarySha256(options.resolved) !== binding.targetBoundaryHash) {
+    if (binding.targetBoundary !== undefined) {
+      assertBoundaryMatchesConfig(storedBoundary(binding), options.resolved, {
+        effects: binding.admitted.effects
+      });
+    } else if (targetBoundarySha256(options.resolved) !== binding.targetBoundaryHash) {
+      // Bindings written before the boundary was stored compare the config hash.
       throw realDataError(
         "TARGET_SCOPE_MISMATCH",
         "Current target configuration does not match the persisted admitted boundary."
@@ -186,10 +195,30 @@ export async function loadPersistedDispatchPolicy(options: {
   return undefined;
 }
 
+/** The persisted boundary, checked against the hash the admitted scope names. */
+function storedBoundary(binding: ExecutionScopeBinding): TargetBoundary {
+  const boundary = parseTargetBoundary(binding.targetBoundary);
+  if (boundary.boundaryHash !== binding.targetBoundaryHash) {
+    throw realDataError(
+      "TARGET_SCOPE_MISMATCH",
+      "The saved target boundary for this run doesn't match its execution scope. Start a new run instead of resuming this one."
+    );
+  }
+  return boundary;
+}
+
 function persistedLocalBoundary(
+  binding: ExecutionScopeBinding,
   scope: LocalExecutionScope,
   resolved: ResolvedConfig | undefined
 ): TargetBoundary {
+  if (binding.targetBoundary !== undefined) {
+    const boundary = storedBoundary(binding);
+    if (resolved !== undefined) {
+      assertBoundaryMatchesConfig(boundary, resolved, { allowPrivate: true, effects: scope.effects });
+    }
+    return boundary;
+  }
   if (resolved === undefined) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
@@ -246,7 +275,7 @@ export async function resolveDispatchPolicyForBinding(options: {
       const scope = parseLocalExecutionScope(persisted.admitted);
       return authorizedDispatchPolicy({
         scope,
-        boundary: persistedLocalBoundary(scope, options.resolved),
+        boundary: persistedLocalBoundary(persisted, scope, options.resolved),
         ...(persisted.dataPolicy === undefined ? {} : { dataPolicy: persisted.dataPolicy }),
         ...(persisted.redactionProfile === undefined ? {} : { redactionProfile: persisted.redactionProfile })
       });

@@ -85,7 +85,8 @@ export function assertDispatchReadyForQuote(
     return;
   }
   assertBoundaryMatchesConfig(policy.boundary, resolved, {
-    allowPrivate: policy.local
+    allowPrivate: policy.local,
+    effects: policy.effects
   });
 }
 

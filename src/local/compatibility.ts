@@ -106,7 +106,10 @@ export function assertLocalPacketCompatible(
 ): void {
   if (isLocalAuthorizedPacket(packet)) {
     const boundary = localTargetBoundary(packet.execution_scope, resolved);
-    assertBoundaryMatchesConfig(boundary, resolved, { allowPrivate: true });
+    assertBoundaryMatchesConfig(boundary, resolved, {
+      allowPrivate: true,
+      effects: packet.execution_scope.effects
+    });
     if (
       packet.required_capabilities.cleanup &&
       !operationPermittedByEffects("cleanup", packet.execution_scope.effects)
