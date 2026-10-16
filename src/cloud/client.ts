@@ -94,6 +94,15 @@ import {
 } from "../real-data/constants.js";
 import { DISABLED_REAL_DATA_CAPABILITIES } from "../real-data/capabilities.js";
 import {
+  parseRealDataStatement,
+  parseTargetRegistration,
+  realDataStatementPath,
+  workspaceTargetsPath,
+  type RealDataStatement,
+  type RegisterTargetRequest,
+  type TargetRegistration
+} from "../target/protocol.js";
+import {
   looksLikeExecutionScopeResponse,
   parseCapabilities,
   parseExecutionScopeResponse,
@@ -739,6 +748,31 @@ export class CloudClient {
       signal
     );
     return parseExecutionScopeResponse(value);
+  }
+
+  /** The workspace real-data statement an owner accepts once per version (AUG-358). */
+  async getRealDataStatement(workspaceId: string, signal?: AbortSignal): Promise<RealDataStatement> {
+    const value = await this.#request("GET", realDataStatementPath(workspaceId), undefined, signal);
+    return parseRealDataStatement(value);
+  }
+
+  /** Registers a target from augmentworks.yaml. The idempotency key makes a retried call safe. */
+  async registerTarget(
+    workspaceId: string,
+    request: RegisterTargetRequest,
+    idempotencyKey: string,
+    signal?: AbortSignal
+  ): Promise<TargetRegistration> {
+    const value = await this.#request(
+      "POST",
+      workspaceTargetsPath(workspaceId),
+      request,
+      signal,
+      this.requestTimeoutMs,
+      false,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return parseTargetRegistration(value);
   }
 
   async getRunExecutionScope(

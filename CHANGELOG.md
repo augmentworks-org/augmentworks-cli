@@ -67,6 +67,18 @@ All notable changes to this project are documented here. The format follows
   endpoint or operation that didn't match and what to change. The admitted
   boundary is saved with the run, so a resumed run checks against it.
 
+### Added
+
+- `target add --env <environment>` registers the agent in `augmentworks.yaml`
+  (its name, `base_url` and every operation) as a workspace target, so the
+  address and endpoints are never typed twice. It asks whether the agent is
+  yours or a client's (with a written-permission reference), and shows the
+  workspace real-data statement once for a typed `yes` if the workspace hasn't
+  accepted it. In CI there's no prompt: pass `--attest owned` or
+  `--attest written --permission-ref <ref>`, and accept the statement in the
+  portal first; `--yes` never answers either. It needs a workspace owner's
+  login, refuses machine keys, and ends with `augmentworks target verify <name>`.
+
 ### Changed
 
 - On Node.js older than 22.12, the CLI prints a one-line warning to stderr
