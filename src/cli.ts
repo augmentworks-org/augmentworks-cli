@@ -19,6 +19,7 @@ import { createCompareCommand } from "./commands/compare.js";
 import { createGateCommand } from "./commands/gate.js";
 import { createBaselineCommand } from "./commands/baseline.js";
 import { createTargetCommand } from "./commands/target.js";
+import { createScopeCommand } from "./commands/scope.js";
 import { createInvestigationCommand } from "./commands/investigation.js";
 import { createUsageCommand } from "./commands/usage.js";
 import { createBillingCommand } from "./commands/billing.js";
@@ -85,6 +86,7 @@ export function createCli(io: CliIo = {}): Command {
   program.addCommand(createGateCommand({ stdout, stderr, setExitCode: requestExitCode }));
   program.addCommand(createBaselineCommand({ stdout, stderr, setExitCode: requestExitCode }));
   program.addCommand(createTargetCommand({ stdout, stderr, setExitCode: requestExitCode }));
+  program.addCommand(createScopeCommand({ stdout, stderr, setExitCode: requestExitCode }));
   program.addCommand(
     createInvestigationCommand({ stdout, stderr, setExitCode: requestExitCode })
   );

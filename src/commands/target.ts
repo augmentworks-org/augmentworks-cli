@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
-import { createInterface } from "node:readline";
 
 import { Command, Option } from "commander";
 
@@ -23,7 +22,14 @@ import {
   type TargetRegistration,
   type VerificationMethod
 } from "../target/protocol.js";
-import { loadTargetConfig, ownerLoginRequiredError, shellWord, type TargetDoctor } from "../target/common.js";
+import {
+  askOnTerminal,
+  loadTargetConfig,
+  ownerLoginRequiredError,
+  parseEnvironment,
+  shellWord,
+  type TargetDoctor
+} from "../target/common.js";
 import {
   DEFAULT_VERIFY_TIMEOUT_MS,
   selectTarget,
@@ -277,6 +283,7 @@ export function formatTargetVerifyHuman(result: TargetVerifyResult): string {
   return [
     ...(result.ownerStatement ? ["Confirmed from this machine. Recorded as your statement, not a hosted check."] : []),
     `${name} is verified until ${result.expiresAt}.`,
+    `Next: augmentworks scope create --target ${shellWord(result.target.name)} --suite <your aw-suite/3 file>`,
     ""
   ].join("\n");
 }
@@ -414,24 +421,6 @@ export async function runTargetAdd(
     statementAccepted: acceptsStatement,
     next: `augmentworks target verify ${shellWord(boundary.name)}`
   };
-}
-
-function parseEnvironment(value: string | undefined): TargetEnvironment {
-  if (value === undefined) {
-    throw new AwError({
-      code: "TARGET_ENVIRONMENT_REQUIRED",
-      category: "config",
-      message: "Pass --env development, --env staging or --env production to say which environment of the agent this is."
-    });
-  }
-  if (!(TARGET_ENVIRONMENTS as readonly string[]).includes(value)) {
-    throw new AwError({
-      code: "TARGET_ENVIRONMENT_REQUIRED",
-      category: "config",
-      message: "--env must be development, staging or production."
-    });
-  }
-  return value as TargetEnvironment;
 }
 
 function parseAttestFlags(options: TargetAddOptions): Attestation | undefined {
@@ -653,15 +642,3 @@ export function targetAddJson(result: TargetAddResult): Record<string, unknown> 
     next: result.next
   };
 }
-
-async function askOnTerminal(question: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stderr });
-  try {
-    return await new Promise<string>((resolveAnswer) => {
-      rl.question(question, resolveAnswer);
-    });
-  } finally {
-    rl.close();
-  }
-}
-

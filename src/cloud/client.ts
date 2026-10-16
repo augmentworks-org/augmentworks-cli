@@ -94,6 +94,9 @@ import {
 } from "../real-data/constants.js";
 import { DISABLED_REAL_DATA_CAPABILITIES } from "../real-data/capabilities.js";
 import {
+  dataPoliciesPath,
+  executionScopesPath,
+  parseDataPolicies,
   parseRealDataStatement,
   parseTargetDetail,
   parseTargetList,
@@ -103,6 +106,8 @@ import {
   targetDetailPath,
   targetVerifyPath,
   workspaceTargetsPath,
+  type CreateScopeRequest,
+  type DataPolicySummary,
   type RealDataStatement,
   type RegisterTargetRequest,
   type StoredTarget,
@@ -114,7 +119,9 @@ import {
 import {
   looksLikeExecutionScopeResponse,
   parseCapabilities,
+  parseExecutionScope,
   parseExecutionScopeResponse,
+  type ExecutionScope,
   type ExecutionScopeResponse,
   type RealDataCapabilities
 } from "../real-data/documents.js";
@@ -803,6 +810,21 @@ export class CloudClient {
   ): Promise<VerifyTargetResponse> {
     const value = await this.#request("POST", targetVerifyPath(workspaceId, targetId), request, signal);
     return parseVerifyResponse(value, targetId);
+  }
+
+  async listDataPolicies(workspaceId: string, signal?: AbortSignal): Promise<DataPolicySummary[]> {
+    const value = await this.#request("GET", dataPoliciesPath(workspaceId), undefined, signal);
+    return parseDataPolicies(value);
+  }
+
+  /** Creates a test scope for a verified target. The response is the sealed scope document. */
+  async createExecutionScope(
+    workspaceId: string,
+    request: CreateScopeRequest,
+    signal?: AbortSignal
+  ): Promise<ExecutionScope> {
+    const value = await this.#request("POST", executionScopesPath(workspaceId), request, signal);
+    return parseExecutionScope(value);
   }
 
   async getRunExecutionScope(

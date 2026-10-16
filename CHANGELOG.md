@@ -89,6 +89,16 @@ All notable changes to this project are documented here. The format follows
   is confirmed from this machine with one connection probe (no credits) and
   recorded as the owner's statement. A client's agent records the written
   permission (`--client-ref` names the client). Needs an owner's login.
+- `scope create --target <name> --suite <file>` creates a test scope for a
+  verified target and writes its id into the `aw-suite/3` file, changing only
+  `execution_scope.scope_id` and `revision` (comments and formatting stay as
+  they were). It uses the workspace's current data policy unless `--policy`
+  is given, and shows the policy, data origin (`--data-origin`, default
+  `constructed`), expiry (30 days, or when the target's verification ends;
+  `--expires` to choose) and budget before asking, or `--yes` in CI. A
+  workspace without the real-data statement, or an unverified target, stops
+  with the step that's missing. Needs an owner's login. Ends with
+  `augmentworks test --suite <file>`.
 
 ### Changed
 

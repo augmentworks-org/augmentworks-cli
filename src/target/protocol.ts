@@ -238,3 +238,76 @@ export function parseVerifyResponse(value: unknown, targetId: string): VerifyTar
   }
   return parsed.data;
 }
+
+export function dataPoliciesPath(workspaceId: string): string {
+  return `/api/workspaces/${encodeURIComponent(workspaceId)}/data-policies`;
+}
+
+export function executionScopesPath(workspaceId: string): string {
+  return `/api/workspaces/${encodeURIComponent(workspaceId)}/execution-scopes`;
+}
+
+export function portalDataPolicyUrl(apiOrigin: URL): string {
+  return new URL("/portal/settings/data-policy", apiOrigin).toString();
+}
+
+const PolicySummarySchema = z
+  .object({
+    policyId: z.string().uuid(),
+    revision: z.number().int().positive(),
+    dataClass: z.string().min(1).max(40),
+    retentionDays: z.number().int().positive()
+  })
+  .passthrough();
+
+export type DataPolicySummary = z.infer<typeof PolicySummarySchema>;
+
+/** The workspace's data policies, newest revision first, as the portal lists them. */
+export function parseDataPolicies(value: unknown): DataPolicySummary[] {
+  const parsed = z
+    .object({ policies: z.array(z.object({ policy: PolicySummarySchema }).passthrough()).max(500) })
+    .passthrough()
+    .safeParse(value);
+  if (!parsed.success) {
+    throw new AwError({
+      code: "INVALID_CLOUD_RESPONSE",
+      category: "protocol",
+      message: "AugmentWorks returned a data-policy list the CLI can't read."
+    });
+  }
+  return parsed.data.policies.map((bundle) => bundle.policy).sort((left, right) => right.revision - left.revision);
+}
+
+export interface ScopeBudget {
+  readonly maxMessages: number;
+  readonly maxActions: number;
+  readonly maxCommands: number;
+  readonly maxRuntimeSeconds: number;
+  readonly maxCredits: number;
+}
+
+/** The production defaults the portal sends for a new test scope. */
+export const DEFAULT_SCOPE_BUDGET: ScopeBudget = {
+  maxMessages: 3,
+  maxActions: 0,
+  maxCommands: 60,
+  maxRuntimeSeconds: 600,
+  maxCredits: 6
+};
+
+export const DATA_ORIGIN_CHOICES = ["constructed", "customer_records", "mixed"] as const;
+export type DataOrigin = (typeof DATA_ORIGIN_CHOICES)[number];
+
+export interface CreateScopeRequest {
+  readonly targetId: string;
+  readonly authorityId: string;
+  readonly authorityRevision: number;
+  readonly dataPolicyId: string;
+  readonly dataPolicyRevision: number;
+  readonly environment: TargetEnvironment;
+  readonly dataOrigin: DataOrigin;
+  readonly effects: "informational";
+  readonly actionPolicyId: null;
+  readonly budget: ScopeBudget;
+  readonly expiresAt: string;
+}
