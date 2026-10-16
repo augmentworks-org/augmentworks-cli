@@ -58,6 +58,7 @@ import {
 } from "../suite/protocol.js";
 import { mapReleasePolicyError } from "../baseline/errors.js";
 import { RELEASE_POLICY_PATHS } from "../baseline/schema.js";
+import { reportPath, RunReportSchema, type RunReport } from "../report/schema.js";
 import {
   EvaluateComparisonRequestSchema,
   EvaluateReleaseRequestSchema,
@@ -664,6 +665,23 @@ export class CloudClient {
       signal
     );
     return parseBillingQuoteResponse(value);
+  }
+
+  /**
+   * The first page of the run's `aw-run-report/1`, for its grading state and
+   * outcome. `run report` reads every page; this reads only the summary.
+   */
+  async getRunReportSummary(runId: string, signal?: AbortSignal): Promise<RunReport> {
+    const value = await this.#request("GET", reportPath(runId), undefined, signal);
+    const parsed = RunReportSchema.safeParse(value);
+    if (!parsed.success || parsed.data.runId !== runId) {
+      throw new AwError({
+        code: "INVALID_CLOUD_RESPONSE",
+        category: "protocol",
+        message: "AugmentWorks returned a run report that does not match aw-run-report/1 for this run."
+      });
+    }
+    return parsed.data;
   }
 
   async getBillingRunStatus(runId: string, signal?: AbortSignal): Promise<BillingRunStatus> {

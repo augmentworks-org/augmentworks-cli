@@ -352,15 +352,19 @@ polling while target execution is nonterminal even when evaluation is
 `absent`. A successful HTTP status query is not a passing assessment: wait
 and release gates must use process exit `0` only after an explicit resolved
 `passed` outcome with complete required grading and known coverage. A
-completed run with a null outcome exits `11`, never `0`. Timed-out waits stay
+completed run with a null outcome exits `11`, never `0`. `test` and `run
+wait` take the graded outcome from the run report (`/v1/relay/runs/{runId}/report`)
+once grading settles; until the report is ready they exit `11`. Timed-out waits stay
 read-only and never create another quote, reservation, or run. Retry guidance
 names the original run ID.
 
 `compare` / `gate --run` POST `/v1/comparisons/evaluate` or
 `/v1/release-gates/evaluate` for an explicit `--run` and `--baseline`.
-They never quote, create, or retry a run. HTTP 200 with `decision: block`
-exits `10` even when aggregate pass rates match. Pending judging, missing
-coverage, and unknown server decisions exit `11`. Evaluator error exits
+They never quote, create, or retry a run. `gate` reads the server's
+decision: `decision: block` exits `10` even when aggregate pass rates match.
+`compare` only reports changes and exits `0` once both runs are graded.
+Pending judging, missing required coverage, and unknown server decisions
+exit `11`. Evaluator error exits
 `12`. A missing pin exits `2`. Auth failures exit `3`. `--json` keeps
 diagnostics on stderr. After an interrupt, re-query the original run ID;
 do not substitute a newer run or auto-promote. `baseline promote` requires

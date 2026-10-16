@@ -18,6 +18,7 @@ import { targetBoundarySha256 } from "../config/boundary.js";
 import { HttpConnector } from "../connector/http.js";
 import { AwError, EXIT, exitCodeFor, sanitizeTerminal } from "../errors.js";
 import { classifyHostedOutcome } from "../outcome/classify.js";
+import { gradedRunStatus, waitForGradedReport } from "../outcome/graded.js";
 import {
   loadAssessmentFile,
   packetRequiresMultiTurn,
@@ -236,6 +237,8 @@ export interface TestDependencies extends HostedAuthDependencies {
   readonly local?: LocalTestDependencies;
   readonly isInteractive?: () => boolean;
   readonly confirm?: (prompt: string) => Promise<boolean>;
+  readonly now?: () => number;
+  readonly sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 
 export async function runTest(
@@ -434,7 +437,13 @@ async function executeHostedSelection(
     }
 
     if (isTerminal(binding.status)) {
-      const run = await session.cloud.getRunStatus(binding.run_id, options.signal);
+      const run = await settleGradedRun(
+        session,
+        await session.cloud.getRunStatus(binding.run_id, options.signal),
+        dependencies,
+        stderr,
+        options.signal
+      );
       await releaseTerminalIfSafe(recovery, binding, run);
       await emitSelectionCheckpoint(options, {
         phase: "server_terminal",
@@ -489,8 +498,9 @@ async function executeHostedSelection(
             stderr
           });
     try {
-      const run = await runner.run();
-      await releaseTerminalIfSafe(recovery, binding, run);
+      const finished = await runner.run();
+      await releaseTerminalIfSafe(recovery, binding, finished);
+      const run = await settleGradedRun(session, finished, dependencies, stderr, options.signal);
       await emitSelectionCheckpoint(options, {
         phase: "server_terminal",
         runId: run.run_id,
@@ -507,6 +517,34 @@ async function executeHostedSelection(
   } finally {
     await intentStore.close();
   }
+}
+
+const GRADING_WAIT_MS = 15 * 60 * 1000;
+
+/**
+ * The relay's `outcome` says the target finished, not that grading passed, so
+ * a completed run takes its result from the graded run report.
+ */
+async function settleGradedRun(
+  session: Awaited<ReturnType<typeof authenticateHostedSession>>,
+  run: RunStatusResponse,
+  dependencies: TestDependencies,
+  stderr: Pick<NodeJS.WriteStream, "write">,
+  signal: AbortSignal | undefined
+): Promise<RunStatusResponse> {
+  if (run.status !== "completed" || run.evaluation_status !== undefined) return run;
+  const now = dependencies.now ?? Date.now;
+  const report = await waitForGradedReport({
+    cloud: session.cloud,
+    runId: run.run_id,
+    workspaceId: session.identity.workspaceId,
+    deadline: now() + GRADING_WAIT_MS,
+    now,
+    ...(dependencies.sleep === undefined ? {} : { sleep: dependencies.sleep }),
+    ...(signal === undefined ? {} : { signal }),
+    onWaiting: () => writeLine(stderr, "The target finished. Waiting for grading before reporting a result.")
+  });
+  return gradedRunStatus(run, report);
 }
 
 async function emitSelectionCheckpoint(

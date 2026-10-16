@@ -462,7 +462,10 @@ report with `run report <run-id> --json` (JSON stdout only;
 `aw-run-report-export/1`). Exit `0` means the assessment passed with complete
 required grading and known coverage. A successful status query of unfinished
 work is not a pass (`ok: true` with `assessment: "incomplete"` and exit `11`).
-A completed run with a null outcome never exits `0`. An expected failing
+A completed run with a null outcome never exits `0`. After the target
+finishes, `test` and `run wait` wait for grading and take pass or fail from
+the graded run report, so a run whose target finished but whose required
+checks failed exits `10`, not `0`. An expected failing
 negative-control report exits `10` and still includes mapped responses and
 criterion documents. A new required semantic regression also exits `10` even
 when aggregate pass rates match and the comparison HTTP request succeeded.
@@ -472,8 +475,10 @@ assertion failure. Account-free `demo`, `test --local`, offline `doctor`, and
 `schema` still make no billing calls. `doctor` is offline validation only; it
 does not check AugmentWorks authentication or fetch a hosted report.
 
-`compare`, `gate`, and `baseline status` consume the hosted
-`aw-release-policy/1` decision. They do not create a run, reserve credits,
+`gate` and `baseline status` consume the hosted `aw-release-policy/1`
+decision. `compare` reports what changed between the run and the pin
+(regressions, fixes, coverage) and exits `0` once both are graded; only
+`gate` decides the release. They do not create a run, reserve credits,
 call the target, or promote a pin. `gate --wait` re-queries the original run
 ID through `run wait` semantics, then evaluates that same ID. Promotion is an
 explicit `baseline promote --expected-revision` and is never automatic. A new

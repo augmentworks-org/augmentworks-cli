@@ -74,10 +74,11 @@ export const CreateBaselineRequestSchema = z
 
 export type CreateBaselineRequest = z.infer<typeof CreateBaselineRequestSchema>;
 
+// The server sends an empty label and a null commit when no build was given.
 const buildSchema = z
   .object({
-    label: z.string().min(1).max(200).optional(),
-    gitCommit: z.string().min(1).max(64).optional(),
+    label: z.string().max(200).optional(),
+    gitCommit: z.string().min(1).max(64).nullable().optional(),
     createdAt: z.string().min(1).max(64).optional()
   })
   .passthrough();
@@ -413,9 +414,72 @@ export function normalizeReleasePolicyDocument(
   };
 }
 
+// The server answers `/v1/release-gates/evaluate` with an
+// `aw-release-gate-read/1` envelope whose `document` is the release-policy
+// result, and `/v1/comparisons/evaluate` with an
+// `aw-semantic-comparison-read/1` envelope whose `comparison` carries no
+// decision (main `src/lib/baselines/types.ts`). Both name the baseline's
+// revisions in `inputRevisions`.
+const COMPARISON_READ_SCHEMA_VERSION = "aw-semantic-comparison-read/1";
+
+function unwrapServerEnvelope(record: Record<string, unknown>): Record<string, unknown> {
+  const body =
+    normalizeRecord(record["document"]) ??
+    (record["schemaVersion"] === COMPARISON_READ_SCHEMA_VERSION ? normalizeRecord(record["comparison"]) : undefined);
+  if (body === undefined) return record;
+  const createsBillableRun =
+    record["createsBillableRun"] === true ||
+    record["creates_billable_run"] === true ||
+    body["createsBillableRun"] === true;
+  const inputs = normalizeRecord(record["inputRevisions"]) ?? {};
+  const candidateSnapshotHash = body["candidateSnapshotHash"] ?? inputs["candidateSnapshotHash"];
+  return {
+    ...body,
+    candidateSnapshotHash: typeof candidateSnapshotHash === "string" ? candidateSnapshotHash : undefined,
+    selectedBaseline: body["selectedBaseline"] ?? baselineFromInputRevisions(inputs),
+    createsBillableRun
+  };
+}
+
+function baselineFromInputRevisions(inputs: Record<string, unknown>): Record<string, unknown> {
+  const pick = (key: string, value: unknown) => (value === null || value === undefined ? {} : { [key]: value });
+  return {
+    ...pick("baselineId", inputs["baselineId"]),
+    ...pick("runId", inputs["baselineRunId"]),
+    ...pick("evaluationId", inputs["baselineEvaluationId"]),
+    ...pick("evaluationRevision", inputs["baselineEvaluationRevision"]),
+    ...pick("snapshotHash", inputs["baselineSnapshotHash"]),
+    ...pick("promotionRevision", inputs["promotionRevision"])
+  };
+}
+
+// The server reports compared cases with a failure category, not the CLI's
+// change groups.
+const CATEGORY_GROUPS: Readonly<Record<string, ComparisonChangeGroup>> = {
+  new_required_failure: "new_required_regressions",
+  fixed_required_failure: "fixes",
+  persistent_required_failure: "persistent_failures",
+  newly_verified: "newly_verified",
+  added_case: "coverage_changes",
+  removed_case: "coverage_changes"
+};
+
+function groupsFromComparedCases(value: unknown): Record<string, unknown[]> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const groups: Record<string, unknown[]> = {};
+  for (const entry of value) {
+    const category = normalizeRecord(entry)?.["category"];
+    const group = typeof category === "string" ? CATEGORY_GROUPS[category] : undefined;
+    if (group === undefined) continue;
+    (groups[group] ??= []).push(entry);
+  }
+  return groups;
+}
+
 export function normalizePolicyIdentity(value: unknown): unknown {
-  const record = normalizeRecord(value);
-  if (record === undefined) return value;
+  const envelope = normalizeRecord(value);
+  if (envelope === undefined) return value;
+  const record = unwrapServerEnvelope(envelope);
   const selected = normalizeRecord(record["selectedBaseline"] ?? record["selected_baseline"]);
   return {
     ...record,
@@ -439,6 +503,7 @@ export function normalizePolicyIdentity(value: unknown): unknown {
     evaluationStatus: record["evaluationStatus"] ?? record["evaluation_status"],
     reasonCodes: record["reasonCodes"] ?? record["reason_codes"],
     selectedBaseline: selected === undefined ? record["selectedBaseline"] : selected,
+    groups: record["groups"] ?? groupsFromComparedCases(record["comparedCases"]),
     portalUrl: record["portalUrl"] ?? record["portal_url"]
   };
 }

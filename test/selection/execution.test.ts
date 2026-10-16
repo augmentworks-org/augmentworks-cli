@@ -46,6 +46,7 @@ import {
   type SuiteSelectionManifest
 } from "../../src/selection/schema.js";
 import { CANONICAL_HASH, SUITE_ID, SUITE_REVISION, savedSuiteManifest } from "./saved-suite-fixtures.js";
+import { gradedReport, reportPathFor } from "../util/graded-report.js";
 
 const projectRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const fixtures = JSON.parse(
@@ -1194,6 +1195,9 @@ describe("selection execution tenant pinning", () => {
         const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
         return Response.json(createRunJson(request, "run-shard-0", apiOrigin));
       }
+      if (url.pathname === reportPathFor("run-shard-0")) {
+        return Response.json(gradedReport("run-shard-0", FIXTURE_WORKSPACE));
+      }
       if (url.pathname === "/v1/relay/runs/run-shard-0") {
         workspaceId = OTHER_WORKSPACE;
         return Response.json(runStatusJson("run-shard-0", apiOrigin));
@@ -1293,9 +1297,13 @@ describe("selection execution tenant pinning", () => {
         const runId = counts.create === 1 ? "run-rot-0" : "run-rot-1";
         return Response.json(createRunJson(request, runId, apiOrigin));
       }
+      if (url.pathname.startsWith("/v1/relay/runs/run-rot-") && url.pathname.endsWith("/report")) {
+        // The connector switches once shard 1's graded result has been read.
+        connectorId = "connector-other";
+        return Response.json(gradedReport(url.pathname.split("/")[4]!, FIXTURE_WORKSPACE));
+      }
       if (url.pathname.startsWith("/v1/relay/runs/run-rot-")) {
         const runId = url.pathname.split("/").pop()!;
-        connectorId = "connector-other";
         return Response.json(runStatusJson(runId, apiOrigin));
       }
       throw new Error(`unexpected ${url.pathname}`);

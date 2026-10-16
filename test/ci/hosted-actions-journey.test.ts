@@ -261,34 +261,7 @@ function extractStepScript(yaml: string, stepName: string): string {
   return `${body.join("\n")}\n`;
 }
 
-function extractGradingReadyProgram(script: string): string {
-  const marker = "// aw-hosted-ci-grading-ready";
-  const start = script.indexOf(marker);
-  if (start < 0) throw new Error("recipe is missing the completed-grading wait predicate");
-  const end = script.indexOf('")', start);
-  if (end < 0) throw new Error("completed-grading wait predicate is not terminated");
-  return script.slice(start, end).trim();
-}
-
-function assertWait11ReachesGate(script: string): void {
-  const marker = script.indexOf("// aw-hosted-ci-grading-ready");
-  const unfinished = script.indexOf("Wait did not finish");
-  const exitUnfinished = script.indexOf('exit "$wait_code"', unfinished);
-  expect(marker).toBeGreaterThan(-1);
-  expect(unfinished).toBeGreaterThan(marker);
-  expect(exitUnfinished).toBeGreaterThan(unfinished);
-  const decision = script.slice(marker, exitUnfinished);
-  expect(decision).toContain('"$wait_code" -ne 0');
-  expect(decision).toContain('"$wait_code" -ne 10');
-  expect(decision).toContain('"$grading_ready" != "1"');
-  const gateAt = ["gate --run", "dist/index.js gate"]
-    .map((token) => script.indexOf(token, exitUnfinished))
-    .filter((index) => index >= 0);
-  expect(gateAt.length).toBeGreaterThan(0);
-  expect(Math.min(...gateAt)).toBeGreaterThan(exitUnfinished);
-}
-
-function omittedOutcomeWait(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function waitJson(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     ok: true,
     observation: "succeeded",
@@ -323,22 +296,6 @@ function captureChild(child: ReturnType<typeof spawn>): Promise<{ exitCode: numb
       resolve({ exitCode: code ?? 1, stdout, stderr });
     });
   });
-}
-
-async function predicateStdout(program: string, body: string): Promise<string> {
-  const cwd = await mkdtemp(join(tmpdir(), "aw-cli-grading-ready-"));
-  temporaryDirectories.push(cwd);
-  await mkdir(join(cwd, ".augmentworks", "ci"), { recursive: true });
-  await writeFile(join(cwd, ".augmentworks", "ci", "wait.json"), body, "utf8");
-  const result = await captureChild(
-    spawn(process.execPath, ["-e", program], {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true
-    })
-  );
-  expect(result.exitCode, result.stderr).toBe(0);
-  return result.stdout;
 }
 
 let bashProbe: Promise<boolean> | undefined;
@@ -983,7 +940,7 @@ describe("hosted GitHub Actions recipe", () => {
   });
 
   it(
-    "gates completed grading when billing outcome is null and still skips unfinished grading",
+    "gates only a run that run wait graded, and stops while grading is unfinished (AUG-384)",
     { timeout: 60_000 },
     async () => {
       const scripts = await Promise.all(
@@ -992,31 +949,8 @@ describe("hosted GitHub Actions recipe", () => {
       const hostedScript = scripts[0];
       const gateScript = scripts[1];
       if (hostedScript === undefined || gateScript === undefined) throw new Error("missing recipe script");
-      assertWait11ReachesGate(hostedScript);
-      assertWait11ReachesGate(gateScript);
-      const hostedProgram = extractGradingReadyProgram(hostedScript);
-      const gateProgram = extractGradingReadyProgram(gateScript);
-      expect(hostedProgram).toBe(gateProgram);
-
-      const ready = omittedOutcomeWait();
-      const omittedKey = omittedOutcomeWait();
-      delete omittedKey["outcome"];
-      const cases: Array<{ body: string; ready: string }> = [
-        { body: `${JSON.stringify(ready)}\n`, ready: "1" },
-        { body: `${JSON.stringify(omittedKey)}\n`, ready: "1" },
-        { body: `${JSON.stringify(omittedOutcomeWait({ outcome: "" }))}\n`, ready: "1" },
-        { body: `${JSON.stringify(omittedOutcomeWait({ evaluationStatus: "pending" }))}\n`, ready: "0" },
-        { body: `${JSON.stringify(omittedOutcomeWait({ evaluationStatus: "partial" }))}\n`, ready: "0" },
-        { body: `${JSON.stringify(omittedOutcomeWait({ outcome: "florb", assessment: "unknown" }))}\n`, ready: "0" },
-        { body: `${JSON.stringify(omittedOutcomeWait({ work: "in_progress", executionStatus: "running" }))}\n`, ready: "0" },
-        {
-          body: `${JSON.stringify({ ok: false, code: "EVALUATION_INCOMPLETE", exit_code: 11 })}\n`,
-          ready: "0"
-        },
-        { body: "not-json\n", ready: "0" }
-      ];
-      for (const entry of cases) {
-        expect(await predicateStdout(hostedProgram, entry.body)).toBe(entry.ready);
+      for (const script of [hostedScript, gateScript]) {
+        expect(script).not.toContain("grading_ready");
       }
 
       if (!(await bashAvailable())) {
@@ -1037,70 +971,18 @@ describe("hosted GitHub Actions recipe", () => {
         });
         expect(checked.exitCode, checked.stderr).toBe(0);
 
-        const graded = await executeRecipe(script, {
-          waitBody: `${JSON.stringify(ready)}\n`,
-          waitCode: 11,
-          gateCode: 0
-        });
-        expect(graded.exitCode, `${graded.stderr}\n${graded.stdout}`).toBe(0);
-        expect(graded.stderr).not.toContain("Wait did not finish");
-        expect(graded.stderr).toContain("Continuing to the release gate");
-        expect(graded.stderr).toContain("is not a pass");
-        expect(gateInvocation(graded.log)).toEqual([
-          "gate",
-          "--run",
-          RUN_ID,
-          "--baseline",
-          BASELINE_ID,
-          "--json"
-        ]);
-
-        const blocked = await executeRecipe(script, {
-          waitBody: `${JSON.stringify(ready)}\n`,
-          waitCode: 11,
-          gateCode: 10
-        });
-        expect(blocked.exitCode, blocked.stderr).toBe(EXIT.ASSESSMENT_FAILED);
-        expect(blocked.exitCode).not.toBe(EXIT.OK);
-        expect(gateInvocation(blocked.log)).toBeDefined();
-        expect(blocked.stderr).not.toContain("Wait did not finish");
-
-        const pending = await executeRecipe(script, {
-          waitBody: `${JSON.stringify({
-            ok: false,
-            code: "EVALUATION_INCOMPLETE",
-            category: "relay",
-            safe_message: "Grading is still pending",
-            retryable: false,
-            exit_code: 11
-          })}\n`,
-          waitCode: 11,
-          gateCode: 0
-        });
-        expect(pending.exitCode, pending.stderr).toBe(EXIT.EVALUATION_INCOMPLETE);
-        expect(pending.stderr).toContain("Wait did not finish");
-        expect(gateInvocation(pending.log)).toBeUndefined();
-
-        const partial = await executeRecipe(script, {
-          waitBody: `${JSON.stringify(omittedOutcomeWait({ evaluationStatus: "partial" }))}\n`,
-          waitCode: 11,
-          gateCode: 0
-        });
-        expect(partial.exitCode, partial.stderr).toBe(EXIT.EVALUATION_INCOMPLETE);
-        expect(partial.stderr).toContain("Wait did not finish");
-        expect(gateInvocation(partial.log)).toBeUndefined();
-
         const passed = await executeRecipe(script, {
-          waitBody: `${JSON.stringify(omittedOutcomeWait({ assessment: "passed", outcome: "passed", exit_code: 0 }))}\n`,
+          waitBody: `${JSON.stringify(waitJson({ assessment: "passed", outcome: "passed", exit_code: 0 }))}\n`,
           waitCode: 0,
           gateCode: 0
         });
         expect(passed.exitCode, passed.stderr).toBe(EXIT.OK);
         expect(passed.stderr).not.toContain("Wait did not finish");
-        expect(gateInvocation(passed.log)).toBeDefined();
+        expect(gateInvocation(passed.log)).toEqual(["gate", "--run", RUN_ID, "--baseline", BASELINE_ID, "--json"]);
 
+        // A graded failure still reaches the gate, which compares it with the pin.
         const failed = await executeRecipe(script, {
-          waitBody: `${JSON.stringify(omittedOutcomeWait({ assessment: "failed", outcome: "failed", exit_code: 10 }))}\n`,
+          waitBody: `${JSON.stringify(waitJson({ assessment: "failed", outcome: "failed", exit_code: 10 }))}\n`,
           waitCode: 10,
           gateCode: 10
         });
@@ -1108,24 +990,29 @@ describe("hosted GitHub Actions recipe", () => {
         expect(failed.stderr).not.toContain("Wait did not finish");
         expect(gateInvocation(failed.log)).toBeDefined();
 
-        const evaluatorError = await executeRecipe(script, {
-          waitBody: `${JSON.stringify(omittedOutcomeWait({ assessment: "evaluator_error", evaluationStatus: "error", exit_code: 12 }))}\n`,
-          waitCode: 12,
-          gateCode: 0
-        });
-        expect(evaluatorError.exitCode, evaluatorError.stderr).toBe(EXIT.EVALUATION_ERROR);
-        expect(evaluatorError.stderr).toContain("Wait did not finish");
-        expect(gateInvocation(evaluatorError.log)).toBeUndefined();
+        for (const [body, code] of [
+          [waitJson(), EXIT.EVALUATION_INCOMPLETE],
+          [waitJson({ evaluationStatus: "partial" }), EXIT.EVALUATION_INCOMPLETE],
+          [{ ok: false, code: "EVALUATION_INCOMPLETE", exit_code: 11 }, EXIT.EVALUATION_INCOMPLETE],
+          [waitJson({ assessment: "evaluator_error", evaluationStatus: "error", exit_code: 12 }), EXIT.EVALUATION_ERROR]
+        ] as const) {
+          const stopped = await executeRecipe(script, {
+            waitBody: `${JSON.stringify(body)}\n`,
+            waitCode: code,
+            gateCode: 0
+          });
+          expect(stopped.exitCode, stopped.stderr).toBe(code);
+          expect(stopped.stderr).toContain("Wait did not finish");
+          expect(gateInvocation(stopped.log)).toBeUndefined();
+        }
       }
 
       const hostedGraded = await executeRecipe(hostedScript, {
-        waitBody: `${JSON.stringify(ready)}\n`,
-        waitCode: 11,
+        waitBody: `${JSON.stringify(waitJson({ assessment: "passed", outcome: "passed", exit_code: 0 }))}\n`,
+        waitCode: 0,
         gateCode: 0
       });
-      expect(hostedGraded.summary).toContain("release gate still ran");
       expect(hostedGraded.summary).toContain("pending or partial evaluation never reaches this step");
-      expect(hostedGraded.summary).not.toContain("Wait did not finish");
       expect(invocations(hostedGraded.log).some((args) => args[0] === "recover")).toBe(false);
     });
 });

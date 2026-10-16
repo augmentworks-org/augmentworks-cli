@@ -18,6 +18,19 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `gate` reads the server's decision from the `aw-release-gate-read/1`
+  `document`, so it no longer answers `unknown_evaluation_state` (exit 11)
+  for every graded run. The CLI accepts the server's coverage-change values,
+  the `running` and `cancelled` evaluation statuses, and a null build commit.
+  Only a removed required case counts as missing coverage.
+- `compare` reads the server's `aw-semantic-comparison-read/1` comparison
+  and reports regressions, fixes and coverage without deciding the release;
+  it exits `0` once both runs are graded. Use `gate` for the decision.
+- `test` and `run wait` wait for grading after the target finishes and take
+  pass or fail from the run report. Until now `test` said "passed" when the
+  target finished even if required checks failed, and `run wait` could never
+  exit `0` or `10` because the server's run status has no outcome. The hosted
+  GitHub Actions examples drop their null-outcome workaround.
 - `baseline promote` sends `runId`, as the server's promote route reads it,
   and refuses an `--expected-revision` below 1 before calling the server.
   Until now production rejected every promote with "runId must be a UUID".

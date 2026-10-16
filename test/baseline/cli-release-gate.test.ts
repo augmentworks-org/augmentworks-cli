@@ -123,7 +123,7 @@ function assertObservationOnly(paths: readonly string[]): void {
 }
 
 describe("packed augmentworks compare/gate/baseline", () => {
-  it("exits 10 for a new required regression when pass rates match and HTTP succeeds", async () => {
+  it("compare reports a new required regression without deciding the release", async () => {
     const cwd = await emptyCwd();
     const blocked = fixture("blocked_equal_pass_rate");
     const { server, paths } = await startMock(async (request, response, url) => {
@@ -147,29 +147,33 @@ describe("packed augmentworks compare/gate/baseline", () => {
       { cwd, env: runEnv(server.baseUrl) }
     );
 
-    expect(result.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+    expect(result.exitCode).toBe(EXIT.OK);
     const payload = JSON.parse(result.stdout) as {
       ok: boolean;
       assessment: string;
       exit_code: number;
-      decision: string;
+      decision: string | null;
       candidateRunId: string;
       baselineId: string;
       policyVersion: string;
       candidateEvaluationRevision: number;
       baselinePromotionRevision: number;
+      reasonCodes: string[];
+      groups: { new_required_regressions: number };
     };
     expect(payload.ok).toBe(true);
-    expect(payload.assessment).toBe("blocked");
-    expect(payload.decision).toBe("block");
-    expect(payload.exit_code).toBe(10);
+    expect(payload.assessment).toBe("reported");
+    expect(payload.decision).toBeNull();
+    expect(payload.exit_code).toBe(0);
+    expect(payload.groups.new_required_regressions).toBe(1);
+    expect(payload.reasonCodes).toContain("new_required_regression");
     expect(payload.candidateRunId).toBe(RUN_ID);
     expect(payload.baselineId).toBe(BASELINE_ID);
     expect(payload.policyVersion).toBe("aw-release-policy/1");
     expect(payload.candidateEvaluationRevision).toBe(4);
     expect(payload.baselinePromotionRevision).toBe(2);
     expect(result.stdout.trim().split("\n")).toHaveLength(1);
-    expect(result.stderr).toContain("not a passing release");
+    expect(result.stderr).toContain(`does not decide the release. Run: augmentworks gate --run ${RUN_ID}`);
     expect(result.stderr).not.toMatch(/^\s*\{/m);
     assertObservationOnly(paths);
     expect(paths).toContain("POST /v1/comparisons/evaluate");

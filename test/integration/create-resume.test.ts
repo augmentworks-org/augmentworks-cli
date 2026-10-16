@@ -8,6 +8,7 @@ import { expect, test } from "vitest";
 import { canonicalize, sha256 } from "../../src/util/canonical.js";
 import { readJsonBody, sendJson, listenLoopback } from "../util/http-server.js";
 import { runSourceCli } from "../util/cli-process.js";
+import { gradedReport, reportPathFor } from "../util/graded-report.js";
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -109,6 +110,10 @@ test("a lost create response is resumed with one durable request and reservation
       sendJson(response, 404, {
         error: { code: "NOT_FOUND", message: "Not found" }
       });
+      return;
+    }
+    if (request.method === "GET" && path === reportPathFor("run-resume-1")) {
+      sendJson(response, 200, gradedReport("run-resume-1", "workspace-integration"));
       return;
     }
     if (request.method === "GET" && path === "/v1/relay/runs/run-resume-1") {
