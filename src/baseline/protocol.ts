@@ -47,16 +47,32 @@ export const EvaluateComparisonRequestSchema = z
 
 export type EvaluateComparisonRequest = z.infer<typeof EvaluateComparisonRequestSchema>;
 
+// The server's promote route reads `runId` and a revision of 1 or more
+// (main `src/lib/baselines/http.ts`, `parsePromoteBody`).
 export const PromoteBaselineRequestSchema = z
   .object({
     schemaVersion: z.literal(RELEASE_POLICY_SCHEMA_VERSION),
     packageVersion: z.literal(FEATURE_PACKAGE_VERSION),
-    candidateRunId: identifier,
-    expectedPromotionRevision: revision
+    runId: identifier,
+    expectedPromotionRevision: revision.min(1)
   })
   .strict();
 
 export type PromoteBaselineRequest = z.infer<typeof PromoteBaselineRequestSchema>;
+
+// Mirrors main `src/lib/baselines/http.ts` `parseCreateBody`.
+export const CreateBaselineRequestSchema = z
+  .object({
+    schemaVersion: z.literal(RELEASE_POLICY_SCHEMA_VERSION),
+    packageVersion: z.literal(FEATURE_PACKAGE_VERSION),
+    name: z.string().trim().min(1).max(200),
+    applicationName: z.string().trim().min(1).max(200),
+    environmentName: z.string().trim().min(1).max(80),
+    runId: identifier
+  })
+  .strict();
+
+export type CreateBaselineRequest = z.infer<typeof CreateBaselineRequestSchema>;
 
 const buildSchema = z
   .object({
@@ -428,7 +444,17 @@ export function normalizePolicyIdentity(value: unknown): unknown {
 }
 
 export function normalizePromoteResponse(value: unknown): PromoteBaselineResponse {
-  const record = normalizeRecord(value) ?? {};
+  const envelope = normalizeRecord(value) ?? {};
+  // Create and promote answer `{ ok, record, createsBillableRun }`, where
+  // `record` is the saved baseline (main `src/lib/baselines/service.ts`).
+  const saved = normalizeRecord(envelope["record"]);
+  const record =
+    saved === undefined
+      ? envelope
+      : {
+          ...saved,
+          createsBillableRun: envelope["createsBillableRun"] ?? envelope["creates_billable_run"]
+        };
   const normalized = {
     ...record,
     schemaVersion: record["schemaVersion"] ?? record["schema_version"],

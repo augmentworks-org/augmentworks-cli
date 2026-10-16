@@ -364,7 +364,10 @@ coverage, and unknown server decisions exit `11`. Evaluator error exits
 `12`. A missing pin exits `2`. Auth failures exit `3`. `--json` keeps
 diagnostics on stderr. After an interrupt, re-query the original run ID;
 do not substitute a newer run or auto-promote. `baseline promote` requires
-`--expected-revision` and `baseline:promote`; a stale pin exits `4`.
+`--expected-revision` (1 or more) and `baseline:promote`; a stale pin exits `4`.
+If the workspace has no pin yet, create one with `baseline create --run <run-id>
+--name <name> --application <name> --environment <name>`, which needs
+`baseline:create`.
 
 `gate --manifest-file` POSTs identity-only
 `aw-manifest-release-gate-request/2` to `/v1/release-gates/evaluate-manifest`.

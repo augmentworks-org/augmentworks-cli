@@ -337,8 +337,9 @@ describe("packed augmentworks compare/gate/baseline", () => {
       }
       if (request.method === "POST" && url.pathname === `/v1/baselines/${BASELINE_ID}/promote`) {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
-        expect(body["candidateRunId"]).toBe(RUN_ID);
+        expect(body["runId"]).toBe(RUN_ID);
         expect(body["expectedPromotionRevision"]).toBe(2);
+        expect(body).not.toHaveProperty("candidateRunId");
         send(response, conflict.status, conflict.response);
         return true;
       }
@@ -364,6 +365,110 @@ describe("packed augmentworks compare/gate/baseline", () => {
     expect(JSON.parse(result.stdout).code).toBe("PROMOTION_CONFLICT");
     expect(paths).toContain(`POST /v1/baselines/${BASELINE_ID}/promote`);
     assertObservationOnly(paths);
+  });
+
+  it("creates the first baseline and promotes a newer run with CLI commands only (AUG-383)", async () => {
+    const cwd = await emptyCwd();
+    const producer = JSON.parse(
+      await readFile(resolve(projectRoot, "contracts/aw-feature-v1.producer.fixtures.json"), "utf8")
+    ) as { fixtures: Record<string, { document: Record<string, unknown> }> };
+    const NEXT_RUN = "99999999-9999-4999-8999-999999999990";
+    let promotionRevision = 0;
+    let pinnedRun = "";
+    const { server, paths } = await startMock(async (request, response, url) => {
+      if (request.method === "GET" && url.pathname === "/api/v1/cli/auth/me") {
+        send(response, 200, identity({ actions: ["baseline:promote", "baseline:create"], principal_kind: "user" }));
+        return true;
+      }
+      const record = () => ({
+        ok: true,
+        createsBillableRun: false,
+        record: {
+          ...producer.fixtures["baseline_record"]?.document,
+          baselineId: BASELINE_ID,
+          runId: pinnedRun,
+          promotionRevision
+        }
+      });
+      // Mirrors the server's parseCreateBody and parsePromoteBody.
+      if (request.method === "POST" && url.pathname === "/v1/baselines") {
+        const body = (await readJsonBody(request)) as Record<string, unknown>;
+        expect(body).toMatchObject({
+          name: "main",
+          applicationName: "support-bot",
+          environmentName: "production",
+          runId: RUN_ID
+        });
+        pinnedRun = RUN_ID;
+        promotionRevision = 1;
+        send(response, 201, record());
+        return true;
+      }
+      if (request.method === "POST" && url.pathname === `/v1/baselines/${BASELINE_ID}/promote`) {
+        const body = (await readJsonBody(request)) as Record<string, unknown>;
+        if (typeof body["runId"] !== "string") {
+          send(response, 400, { error: { code: "invalid_request", message: "runId must be a UUID." } });
+          return true;
+        }
+        if (body["expectedPromotionRevision"] !== promotionRevision) {
+          send(response, 409, { error: { code: "promotion_conflict", message: "stale revision" } });
+          return true;
+        }
+        pinnedRun = body["runId"];
+        promotionRevision += 1;
+        send(response, 200, record());
+        return true;
+      }
+      return false;
+    });
+
+    const created = await runPackedCli(
+      [
+        "baseline",
+        "create",
+        "--run",
+        RUN_ID,
+        "--name",
+        "main",
+        "--application",
+        "support-bot",
+        "--environment",
+        "production",
+        "--json"
+      ],
+      { cwd, env: runEnv(server.baseUrl) }
+    );
+    expect(created.exitCode).toBe(EXIT.OK);
+    const createdJson = JSON.parse(created.stdout) as Record<string, unknown>;
+    expect(createdJson).toMatchObject({ ok: true, assessment: "created", createsBillableRun: false });
+
+    const human = await runPackedCli(
+      ["baseline", "promote", "--run", NEXT_RUN, "--baseline", BASELINE_ID, "--expected-revision", "1"],
+      { cwd, env: runEnv(server.baseUrl) }
+    );
+    expect(human.exitCode).toBe(EXIT.OK);
+    expect(human.stdout).toContain(`Promoted ${BASELINE_ID}`);
+    expect(pinnedRun).toBe(NEXT_RUN);
+    expect(promotionRevision).toBe(2);
+    assertObservationOnly(paths.filter((path) => path !== "POST /v1/baselines"));
+  });
+
+  it("refuses an expected revision of 0 before calling the server", async () => {
+    const cwd = await emptyCwd();
+    const { server, paths } = await startMock((request, response, url) => {
+      if (request.method === "GET" && url.pathname === "/api/v1/cli/auth/me") {
+        send(response, 200, identity({ actions: ["baseline:promote"], principal_kind: "user" }));
+        return true;
+      }
+      return false;
+    });
+    const result = await runPackedCli(
+      ["baseline", "promote", "--run", RUN_ID, "--baseline", BASELINE_ID, "--expected-revision", "0", "--json"],
+      { cwd, env: runEnv(server.baseUrl) }
+    );
+    expect(result.exitCode).toBe(EXIT.CONFIG);
+    expect(JSON.parse(result.stdout).code).toBe("INVALID_PROMOTION_REVISION");
+    expect(paths.some((path) => path.includes("/promote"))).toBe(false);
   });
 
   it("refuses machine promotion locally and lists baselines without admission", async () => {

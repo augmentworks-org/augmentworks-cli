@@ -115,11 +115,14 @@ export function formatReleasePolicyHuman(
   return `${lines.join("\n")}\n`;
 }
 
-export function promotionSuccessJson(result: PromoteBaselineResponse): string {
+export function promotionSuccessJson(
+  result: PromoteBaselineResponse,
+  assessment: "promoted" | "created" = "promoted"
+): string {
   return `${JSON.stringify({
     ok: true,
     observation: "succeeded",
-    assessment: "promoted",
+    assessment,
     exit_code: 0,
     schemaVersion: result.schemaVersion ?? RELEASE_POLICY_SCHEMA_VERSION,
     createsBillableRun: result.createsBillableRun ?? false,
@@ -137,6 +140,18 @@ export function formatPromotionHuman(result: PromoteBaselineResponse): string {
   const revision =
     result.promotionRevision === undefined ? "" : ` (promotion revision ${String(result.promotionRevision)})`;
   return `Promoted ${baseline}${revision}. This did not start a test or consume credits.\n`;
+}
+
+export function formatCreatedHuman(result: PromoteBaselineResponse): string {
+  const baseline = result.baselineId === undefined ? "a baseline" : sanitizeTerminal(result.baselineId);
+  const lines = [`Created baseline ${baseline}. This did not start a test or consume credits.`];
+  if (result.baselineId !== undefined && result.promotionRevision !== undefined) {
+    lines.push(
+      `Gate later runs with: augmentworks gate --run <run-id> --baseline ${baseline}`,
+      `Promote a newer run with: augmentworks baseline promote --run <run-id> --baseline ${baseline} --expected-revision ${String(result.promotionRevision)}`
+    );
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 export function portalCompareUrl(apiOrigin: URL, runId: string, baselineId: string): string {

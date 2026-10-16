@@ -61,9 +61,11 @@ import { RELEASE_POLICY_PATHS } from "../baseline/schema.js";
 import {
   EvaluateComparisonRequestSchema,
   EvaluateReleaseRequestSchema,
+  CreateBaselineRequestSchema,
   PromoteBaselineRequestSchema,
   type EvaluateComparisonRequest,
   type EvaluateReleaseRequest,
+  type CreateBaselineRequest,
   type PromoteBaselineRequest
 } from "../baseline/protocol.js";
 import {
@@ -608,6 +610,22 @@ export class CloudClient {
       }
     }
     throw lastError;
+  }
+
+  async createBaseline(request: CreateBaselineRequest, signal?: AbortSignal): Promise<unknown> {
+    const validated = CreateBaselineRequestSchema.safeParse(request);
+    if (!validated.success) {
+      throw new AwError({
+        code: "INVALID_COMPARISON_REQUEST",
+        category: "config",
+        message: "The baseline create request does not match aw-release-policy/1."
+      });
+    }
+    try {
+      return await this.#request("POST", RELEASE_POLICY_PATHS.baselines, validated.data, signal);
+    } catch (error) {
+      throw mapReleasePolicyError(error);
+    }
   }
 
   async promoteBaseline(

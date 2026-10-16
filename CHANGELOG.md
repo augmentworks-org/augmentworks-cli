@@ -18,6 +18,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `baseline promote` sends `runId`, as the server's promote route reads it,
+  and refuses an `--expected-revision` below 1 before calling the server.
+  Until now production rejected every promote with "runId must be a UUID".
+  New `baseline create --run <run-id> --name <name> --application <name>
+  --environment <name>` creates a workspace's first pin, so a new workspace
+  no longer needs a direct `POST /v1/baselines` call.
 - Authorized hosted runs (`--suite` with an execution scope, a saved
   revision that names one, and investigation reruns) now quote and create
   with the scope's registered boundary hash, so admission accepts them. The

@@ -476,7 +476,9 @@ does not check AugmentWorks authentication or fetch a hosted report.
 `aw-release-policy/1` decision. They do not create a run, reserve credits,
 call the target, or promote a pin. `gate --wait` re-queries the original run
 ID through `run wait` semantics, then evaluates that same ID. Promotion is an
-explicit `baseline promote --expected-revision` and is never automatic.
+explicit `baseline promote --expected-revision` and is never automatic. A new
+workspace starts with `baseline create --run <run-id>`, which pins that run at
+revision 1.
 Machine credentials typically cannot promote. The complete hosted GitHub
 Actions recipe is `docs/examples/github-actions-hosted.yml` (scoped
 `AUGMENTWORKS_API_KEY`, isolated synthetic target, `--headless`, quoted
@@ -840,7 +842,7 @@ See `examples/response-agent/` for a synthetic FAQ assessment file.
 | `compare --run <run-id> --baseline <baseline-id> [--json]` | Compare a candidate run against an explicit pinned baseline | Read-only. Does not start a test, reserve credits, or consume credits. Rejects missing identities; does not invent a pin |
 | `gate --run <run-id> --baseline <baseline-id> [--wait] [--timeout-ms n] [--json]` | Evaluate the hosted `aw-release-policy/1` release decision | Transport success is not a pass. `--wait` re-queries the original run ID only. A finalized machine-principal `gate` is the CI provenance record. See `docs/examples/github-actions-hosted.yml` |
 | `gate --manifest-file path --declared-shards path [--wait] [--json]` | Evaluate the hosted whole-suite `aw-manifest-release-policy/2` receipt | Exit 0 only for a server-authoritative exact-coverage pass. Empty, non-executable, or incomplete declarations never reach the network. Legacy v1 receipts fail closed. |
-| `baseline status [--json]` / `baseline promote --run <run-id> --baseline <id> --expected-revision <n> [--json]` | List pins, or explicitly promote a candidate onto a pin | Status is read-only. Promote is never automatic, requires `--expected-revision`, and stays off the machine allowlist unless the server grants `baseline:promote` |
+| `baseline status [--json]` / `baseline create --run <run-id> --name <name> --application <name> --environment <name> [--json]` / `baseline promote --run <run-id> --baseline <id> --expected-revision <n> [--json]` | List pins, create the first pin from a finished run, or explicitly promote a candidate onto a pin | Status is read-only. Create needs `baseline:create`; a new pin starts at revision 1. Promote is never automatic, requires `--expected-revision` (1 or more), and stays off the machine allowlist unless the server grants `baseline:promote`. Neither starts a test or consumes credits |
 | `recover [-c path] [--retire \| --resume \| --cancel] [--json]` | Inspect or recover a hosted assessment | Does not create a new run. Default inspection only; `--retire`, `--resume`, and `--cancel` are mutually exclusive. Do not delete journals when admission is unknown |
 | `action recover --state-dir path [--origin url] [--json]` | Retry a durable controlled-action receipt without rerunning the customer tool | Public controlled actions stay unavailable. Offline mode makes no hosted call and claims no platform signature. A rejected receipt stays pending. See `docs/action-gate.md` |
 | `demo [--json] [--open] [--output-dir path] [--mode full\|faulty\|corrected]` | Packaged loopback refund demonstration | Contacts only an isolated 127.0.0.1 target owned by this command |
