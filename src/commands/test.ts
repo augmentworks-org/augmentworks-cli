@@ -102,6 +102,7 @@ import {
   resolveDispatchPolicyForBinding,
   executionScopeRefFromNativeDocument
 } from "../real-data/hosted.js";
+import type { ExecutionScopeResponse, SuiteExecutionScopeRef } from "../real-data/documents.js";
 import type { DispatchPolicy } from "../real-data/policy.js";
 import { liveDispatchPolicyFromSuite } from "../real-data/policy.js";
 import { classifyRealDataFailure, hostedOutcomeFailureClass } from "../real-data/classify.js";
@@ -313,7 +314,14 @@ async function executeHostedSelection(
   assertMachineHostedAdmission(session.identity, {
     suite: selection.kind === "suite" || selection.kind === "shard"
   });
-  const target = hostedTargetBinding(report.resolvedConfig);
+  const admittedScope = await admittedScopeForSelection({
+    selection,
+    session,
+    resolved: report.resolvedConfig,
+    cwd,
+    ...(options.signal === undefined ? {} : { signal: options.signal })
+  });
+  const target = hostedTargetBinding(report.resolvedConfig, admittedScope);
   const stderr = dependencies.stderr ?? process.stderr;
   const stateDirectory = options.stateDirectory ?? getStateDirectory(env);
   const intentStore =
@@ -641,6 +649,14 @@ async function runCompiledSelectionEstimate(
   writeLine(stderr, formatSelectionHuman(manifest).trimEnd());
   const shard = selectShard(manifest, options.shard);
   const hosted = shardSelectionForContext(shard, context.selection, manifest);
+  const admittedScope = await admittedScopeForSelection({
+    selection: hosted,
+    session,
+    resolved: context.report.resolvedConfig,
+    cwd: context.cwd,
+    ...(options.signal === undefined ? {} : { signal: options.signal })
+  });
+  const target = hostedTargetBinding(context.report.resolvedConfig, admittedScope);
   const prepared = await prepareQuotedAssessment({
     selection: hosted,
     session,
@@ -652,14 +668,14 @@ async function runCompiledSelectionEstimate(
     assessment: prepared.assessment,
     packet: hosted.packet,
     configSha256: context.report.resolvedConfig.configDigest,
-    target: hostedTargetBinding(context.report.resolvedConfig),
+    target,
     ...(options.signal === undefined ? {} : { signal: options.signal })
   });
   return {
     quote,
     localPlanHash: prepared.localPlanHash,
     workspaceLabel: formatWorkspaceLabel(session.identity),
-    advertisedCapabilities: hostedTargetBinding(context.report.resolvedConfig).capabilities,
+    advertisedCapabilities: target.capabilities,
     apiOrigin: session.apiOrigin
   };
 }
@@ -1209,7 +1225,14 @@ export async function runEstimate(
   }
   const session = await authenticateHostedSession(options, dependencies);
   assertMachineHostedAdmission(session.identity, { suite: selection.kind === "suite" });
-  const target = hostedTargetBinding(report.resolvedConfig);
+  const admittedScope = await admittedScopeForSelection({
+    selection,
+    session,
+    resolved: report.resolvedConfig,
+    cwd,
+    ...(options.signal === undefined ? {} : { signal: options.signal })
+  });
+  const target = hostedTargetBinding(report.resolvedConfig, admittedScope);
   const prepared = await prepareQuotedAssessment({
     selection,
     session,
@@ -1347,12 +1370,6 @@ async function pinCustomerSuite(options: {
 }> {
   if (options.session.identity.principalKind === "machine") {
     throw suiteError("SUITE_WRITE_REQUIRES_USER", "Uploading --suite requires a user connector grant. Machine keys may execute an existing immutable revision using --assessment with selection.suite_revision_id, or --manifest. No suite, quote, or run was created.");
-  }
-  if (isAuthorizedCustomerSuite(options.suite.document)) {
-    await requireHostedAuthorizedScope(options.session.cloud, options.suite.document.executionScope, {
-      workspaceId: options.session.identity.workspaceId,
-      ...(options.signal === undefined ? {} : { signal: options.signal })
-    });
   }
   const nativeDocument = nativeSuiteSource(options.suite);
   const nativeHash = nativeSuiteContentHash(nativeDocument);
@@ -1766,12 +1783,67 @@ async function requestHostedQuote(options: {
   return quote;
 }
 
-function hostedTargetBinding(resolved: ResolvedConfig): CreateRunRequest["target"] {
+/**
+ * An authorized run is admitted against its execution scope's registered boundary, so
+ * the quote and the run carry that hash. Other runs carry the hash of augmentworks.yaml.
+ */
+function hostedTargetBinding(
+  resolved: ResolvedConfig,
+  admittedScope?: ExecutionScopeResponse
+): CreateRunRequest["target"] {
   return {
     name: resolved.config.target.name,
-    boundary_sha256: targetBoundarySha256(resolved),
+    boundary_sha256: admittedScope?.scope.targetBoundaryHash ?? targetBoundarySha256(resolved),
     capabilities: advertisedTargetCapabilities(resolved)
   };
+}
+
+/**
+ * Checks an authorized selection's execution scope, and augmentworks.yaml against its
+ * boundary, before anything is uploaded, quoted or created.
+ */
+async function admittedScopeForSelection(options: {
+  readonly selection: HostedSelection;
+  readonly session: Awaited<ReturnType<typeof authenticateHostedSession>>;
+  readonly resolved: ResolvedConfig;
+  readonly cwd: string;
+  readonly signal?: AbortSignal;
+}): Promise<ExecutionScopeResponse | undefined> {
+  const ref = await executionScopeRefForSelection(options.selection, options.session, options.cwd, options.signal);
+  if (ref === undefined) return undefined;
+  return requireHostedAuthorizedScope(options.session.cloud, ref, {
+    workspaceId: options.session.identity.workspaceId,
+    resolved: options.resolved,
+    ...(options.signal === undefined ? {} : { signal: options.signal })
+  });
+}
+
+async function executionScopeRefForSelection(
+  selection: HostedSelection,
+  session: Awaited<ReturnType<typeof authenticateHostedSession>>,
+  cwd: string,
+  signal: AbortSignal | undefined
+): Promise<SuiteExecutionScopeRef | undefined> {
+  const cloud = session.cloud;
+  if (selection.kind === "suite") {
+    return isAuthorizedCustomerSuite(selection.suite.document) ? selection.suite.document.executionScope : undefined;
+  }
+  if (selection.kind === "investigation") {
+    if (selection.investigation.document.workspaceId !== session.identity.workspaceId) {
+      throw crossWorkspaceInvestigationError();
+    }
+    const pinned = await resolvePinnedInvestigationSelection({
+      document: selection.investigation.document,
+      cloud: session.cloud,
+      cwd,
+      ...(signal === undefined ? {} : { signal })
+    });
+    return isAuthorizedCustomerSuite(pinned.loaded.document) ? pinned.loaded.document.executionScope : undefined;
+  }
+  const pin = suitePinFromHostedSelection(selection);
+  if (pin === undefined) return undefined;
+  const revision = await cloud.getSuiteRevision(pin.suiteId, pin.revisionId, signal);
+  return executionScopeRefFromNativeDocument(revision.canonicalDocument);
 }
 
 async function assertHostedConversationAdmission(

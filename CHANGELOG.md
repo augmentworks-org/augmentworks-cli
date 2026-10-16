@@ -18,6 +18,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Authorized hosted runs (`--suite` with an execution scope, a saved
+  revision that names one, and investigation reruns) now quote and create
+  with the scope's registered boundary hash, so admission accepts them. The
+  scope is fetched and `augmentworks.yaml` is checked against its boundary
+  before the suite is uploaded or quoted. `recover --resume` and
+  `recover --cancel` accept the scope's hash recorded for such a run.
 - Windows file-identity checks work on Node.js 22.12.0 through 22.16.x
   (and 24.0.0 through 24.1.x). Those releases ship a libuv that reports
   `dev: 0` from path `stat`/`lstat` and the volume serial from `fstat`, so

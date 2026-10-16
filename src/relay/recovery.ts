@@ -20,6 +20,7 @@ import {
 } from "./run-intent.js";
 import { RelayRunner, type RelayProgressEvent } from "./runner.js";
 import { packetRequiresHostedScope, resolveDispatchPolicyForBinding } from "../real-data/hosted.js";
+import { loadExecutionScopeBinding } from "../real-data/scope-store.js";
 
 export type RecoveryAction = "inspect" | "retire" | "resume" | "cancel";
 
@@ -138,7 +139,7 @@ export async function resumeRecovery(
         "There is no bound assessment to resume. Run recover without flags to inspect the pending create, or recover --retire after the server proves it was never created."
     });
   }
-  assertLocalConfigBinding(intent, context.resolvedConfig, "resume");
+  await assertLocalConfigBinding(intent, context, "resume");
   const binding = intent.binding;
   const status = await readBoundStatus(context, binding);
   if (isTargetExecutionTerminal(status.status)) {
@@ -186,7 +187,7 @@ export async function cancelRecovery(
   }
   const binding = intent.binding;
   if (context.resolvedConfig !== undefined) {
-    assertLocalConfigBinding(intent, context.resolvedConfig, "cancel");
+    await assertLocalConfigBinding(intent, context, "cancel");
   }
   if (context.connector !== undefined && context.resolvedConfig !== undefined) {
     const runner = await createRunner(context, binding, context.connector);
@@ -766,11 +767,12 @@ function requireIntent(store: RunIntentStore, action: string): RunIntent {
   return intent;
 }
 
-function assertLocalConfigBinding(
+async function assertLocalConfigBinding(
   intent: RunIntent,
-  resolvedConfig: ResolvedConfig | undefined,
+  context: ExecutionRecoveryContext,
   action: "resume" | "cancel"
-): void {
+): Promise<void> {
+  const resolvedConfig = context.resolvedConfig;
   if (resolvedConfig === undefined) {
     if (action === "resume") {
       throw new AwError({
@@ -782,10 +784,9 @@ function assertLocalConfigBinding(
     }
     return;
   }
-  const boundary = targetBoundarySha256(resolvedConfig);
   if (
     intent.request.config_sha256 !== resolvedConfig.configDigest ||
-    intent.request.target.boundary_sha256 !== boundary
+    !(await recordedBoundaryMatches(intent, resolvedConfig, context.stateDirectory))
   ) {
     throw new AwError({
       code: "ACTIVE_RUN_EXISTS",
@@ -794,6 +795,23 @@ function assertLocalConfigBinding(
         "The recorded assessment uses a different target configuration. recover --resume and recover --cancel execute only that recorded assessment. Inspect it with recover, or restore the original configuration."
     });
   }
+}
+
+/**
+ * An authorized run records its execution scope's boundary hash, not the config's. The
+ * runner checks augmentworks.yaml against that scope's boundary before any target call.
+ */
+async function recordedBoundaryMatches(
+  intent: RunIntent,
+  resolvedConfig: ResolvedConfig,
+  stateDirectory: string
+): Promise<boolean> {
+  const recorded = intent.request.target.boundary_sha256;
+  if (recorded === targetBoundarySha256(resolvedConfig)) return true;
+  const runId = intent.binding?.run_id;
+  const scope = runId === undefined ? undefined : await loadExecutionScopeBinding(runId, { stateDirectory });
+  if (scope !== undefined) return scope.bindingKind === "hosted" && scope.targetBoundaryHash === recorded;
+  return packetRequiresHostedScope(intent.request.packet);
 }
 
 function requireConnector(
