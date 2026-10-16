@@ -2,21 +2,27 @@ import {
   AUTHORIZED_PACKET_SCHEMA_VERSION,
   AUTHORIZED_REPORT_SCOPE,
   CAPABILITIES_PATH,
+  CONTROLLED_ACTIONS_UNAVAILABLE_REASON,
   DATA_POLICY_SCHEMA_VERSION,
   EXECUTION_SCOPE_SCHEMA_VERSION,
+  REAL_DATA_CONTRACT_REVISION,
   SUITE_SCHEMA_VERSION_V3
 } from "./constants.js";
-import { parseCapabilities, type RealDataCapabilities } from "./documents.js";
+import type { RealDataCapabilities } from "./documents.js";
 import { realDataError } from "./errors.js";
 
+/** Used only when the server has no /v1/capabilities route (404). */
 export const DISABLED_REAL_DATA_CAPABILITIES: RealDataCapabilities = {
   schemaVersion: "aw-capabilities/1",
+  contractRevision: REAL_DATA_CONTRACT_REVISION,
   executionScopes: [],
   suiteSchemas: ["aw-suite/1", "aw-suite/2"],
   packetSchemas: ["aw-packet/0.1", "aw-packet/live-informational-1"],
   reportScopes: [],
   dataPolicies: [],
+  supportedEffects: [],
   enabledEffects: [],
+  controlledActions: { available: false, reason: CONTROLLED_ACTIONS_UNAVAILABLE_REASON },
   runtimeEnforced: false,
   releaseEnabled: false
 };
@@ -59,14 +65,6 @@ export function assertAuthorizedReportScope(capabilities: RealDataCapabilities):
       "UNSUPPORTED_EXECUTION_SCOPE",
       "This server does not advertise the authorized-1 report overlay."
     );
-  }
-}
-
-export function parseOrDisabledCapabilities(value: unknown): RealDataCapabilities {
-  try {
-    return parseCapabilities(value);
-  } catch {
-    return DISABLED_REAL_DATA_CAPABILITIES;
   }
 }
 

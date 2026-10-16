@@ -2,23 +2,23 @@
   "schemaVersion": "aw-real-data/1",
   "algorithm": "sha256",
   "imported": true,
-  "releaseEnabled": false,
-  "runtimeEnforced": false,
+  "releaseEnabled": true,
+  "runtimeEnforced": true,
   "source": {
     "repository": "https://github.com/augmentworks-org/augmentworks.git",
-    "commit": "b198906188bab2dac9ae2a1ad539405807e46e1e",
+    "commit": "4c27409a557d3ec2fc9370f765f0dd72953a1722",
     "schema": "docs/contracts/aw-real-data-1.schema.json",
     "fixtures": "docs/contracts/aw-real-data-1.fixtures.json",
     "checksums": "docs/contracts/aw-real-data-1.checksums.json",
     "spec": "docs/contracts/aw-real-data-1.md"
   },
   "expected": {
-    "schema": "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121",
-    "fixtures": "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230"
+    "schema": "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4",
+    "fixtures": "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b"
   },
   "files": {
-    "contracts/aw-real-data-1.schema.json": "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121",
-    "contracts/aw-real-data-1.fixtures.json": "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230"
+    "contracts/aw-real-data-1.schema.json": "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4",
+    "contracts/aw-real-data-1.fixtures.json": "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b"
   },
   "contract": {
     "revision": 1,

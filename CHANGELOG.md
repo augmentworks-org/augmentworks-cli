@@ -24,6 +24,17 @@ All notable changes to this project are documented here. The format follows
   opening a config, packet, lock, or journal looked like the file had been
   replaced. The file index still has to match. Two nonzero device ids still
   have to match.
+- The CLI reads the server's real-data documents as `aw-real-data/1`
+  defines them: `aw-capabilities/1`, `aw-execution-scope-response/1`,
+  `aw-target-boundary/1`, the `authorized-1` report and
+  `aw-local-execution-scope/1`. Until now every hosted real-data run failed
+  before any target call. The vendored contract is re-pinned to
+  `augmentworks-org/augmentworks@4c27409`, with `releaseEnabled` and
+  `runtimeEnforced` true. A `/v1/capabilities` response that doesn't parse
+  is now an error, not a silent "real data disabled"; a 404 still means
+  disabled. Configured operations must be endpoints of the admitted target
+  boundary, and a local scope's boundary is rebuilt from `augmentworks.yaml`
+  and checked against its `targetBoundaryHash`.
 
 ### Changed
 

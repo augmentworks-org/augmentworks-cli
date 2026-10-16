@@ -2,7 +2,7 @@
   "schemaVersion": "aw-real-data/1",
   "algorithm": "sha256",
   "files": {
-    "docs/contracts/aw-real-data-1.schema.json": "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121",
-    "docs/contracts/aw-real-data-1.fixtures.json": "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230"
+    "docs/contracts/aw-real-data-1.schema.json": "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4",
+    "docs/contracts/aw-real-data-1.fixtures.json": "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b"
   }
 }

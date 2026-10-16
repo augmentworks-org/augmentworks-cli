@@ -130,8 +130,8 @@ const lock = {
   schemaVersion: "aw-real-data/1",
   algorithm: "sha256",
   imported: true,
-  releaseEnabled: false,
-  runtimeEnforced: false,
+  releaseEnabled: true,
+  runtimeEnforced: true,
   source: {
     repository: "https://github.com/augmentworks-org/augmentworks.git",
     commit: SOURCE_COMMIT,
@@ -169,5 +169,5 @@ const lock = {
 await writeFile(LOCK_PATH, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
 await writeFile(GENERATED_PATH, generatedContractSource(lock), "utf8");
 process.stdout.write(
-  `Imported aw-real-data/1 from ${commit}\nschema=${schemaHash}\nfixtures=${fixturesHash}\nreleaseEnabled=false\n`
+  `Imported aw-real-data/1 from ${commit}\nschema=${schemaHash}\nfixtures=${fixturesHash}\nreleaseEnabled=true\n`
 );

@@ -89,12 +89,10 @@ import {
   CAPABILITIES_PATH,
   EXECUTION_SCOPE_PATH_TEMPLATE
 } from "../real-data/constants.js";
-import {
-  DISABLED_REAL_DATA_CAPABILITIES,
-  parseOrDisabledCapabilities
-} from "../real-data/capabilities.js";
+import { DISABLED_REAL_DATA_CAPABILITIES } from "../real-data/capabilities.js";
 import {
   looksLikeExecutionScopeResponse,
+  parseCapabilities,
   parseExecutionScopeResponse,
   type ExecutionScopeResponse,
   type RealDataCapabilities
@@ -681,9 +679,9 @@ export class CloudClient {
   }
 
   async getRealDataCapabilities(signal?: AbortSignal): Promise<RealDataCapabilities> {
+    let value: unknown;
     try {
-      const value = await this.#request("GET", CAPABILITIES_PATH, undefined, signal);
-      return parseOrDisabledCapabilities(value);
+      value = await this.#request("GET", CAPABILITIES_PATH, undefined, signal);
     } catch (error) {
       if (
         error instanceof AwError &&
@@ -693,6 +691,8 @@ export class CloudClient {
       }
       throw error;
     }
+    // A capabilities document that doesn't parse is an error, never "disabled".
+    return parseCapabilities(value);
   }
 
   async getExecutionScope(scopeId: string, signal?: AbortSignal): Promise<ExecutionScopeResponse> {

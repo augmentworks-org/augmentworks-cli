@@ -25,8 +25,10 @@ if (result.imported === true) {
   if (retrieval.imported !== true || retrieval.verified !== true) {
     throw new Error("retrieval record must claim imported/verified when lock.imported is true");
   }
-  if (retrieval.source?.access?.kind !== "linear_attachment") {
-    throw new Error("imported R01 receipt must record Linear attachment provenance");
+  const access = retrieval.source?.access;
+  const githubAtLock = access?.kind === "github" && access.ref === result.lock.source.commit;
+  if (access?.kind !== "linear_attachment" && !githubAtLock) {
+    throw new Error("imported R01 receipt must record Linear attachment or GitHub provenance at the locked commit");
   }
 } else {
   if (retrieval.imported === true || retrieval.verified === true) {
@@ -36,6 +38,6 @@ if (result.imported === true) {
 
 const imported = result.imported ? "imported" : "parsers-only (R01 bytes not vendored in this clone)";
 process.stdout.write(
-  `CLI real-data contract ok: aw-real-data/1 from ${result.lock.source.commit} ${imported} expected schema=${result.lock.expected.schema} fixtures=${result.lock.expected.fixtures} releaseEnabled=false\n`
+  `CLI real-data contract ok: aw-real-data/1 from ${result.lock.source.commit} ${imported} expected schema=${result.lock.expected.schema} fixtures=${result.lock.expected.fixtures} releaseEnabled=true\n`
 );
 

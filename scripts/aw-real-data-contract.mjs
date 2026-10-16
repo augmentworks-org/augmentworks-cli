@@ -11,12 +11,12 @@ export const FIXTURES_PATH = resolve(root, "contracts/aw-real-data-1.fixtures.js
 export const CHECKSUMS_PATH = resolve(root, "contracts/aw-real-data-1.checksums.json");
 
 export const EXPECTED_SCHEMA_SHA256 =
-  "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121";
+  "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4";
 export const EXPECTED_FIXTURES_SHA256 =
-  "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230";
+  "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b";
 export const EXPECTED_CHECKSUMS_SHA256 =
-  "df6c3be22fcf22efd5ac540dee83ac63a3a1e72e335d0f728dd55fcddd9fb20d";
-export const SOURCE_COMMIT = "b198906188bab2dac9ae2a1ad539405807e46e1e";
+  "be06536416d4ef849fe1159fc6231ddc7017a391f32ed362b4780e29c8be3695";
+export const SOURCE_COMMIT = "4c27409a557d3ec2fc9370f765f0dd72953a1722";
 
 export function canonicalLfText(value) {
   return String(value).replace(/\r\n/gu, "\n").replace(/\r/gu, "\n");
@@ -72,8 +72,8 @@ export async function assertVendoredContract() {
   if (lock.expected?.fixtures !== EXPECTED_FIXTURES_SHA256) {
     errors.push(`lock expected fixtures hash mismatch`);
   }
-  if (lock.releaseEnabled === true || lock.runtimeEnforced === true) {
-    errors.push("lock must keep releaseEnabled and runtimeEnforced false until R14/R15 verify hosted enablement");
+  if (lock.releaseEnabled !== true || lock.runtimeEnforced !== true) {
+    errors.push("lock must set releaseEnabled and runtimeEnforced to true, as the server's aw-capabilities/1 does");
   }
   const generated = generatedContractSource(lock);
   const committed = canonicalLfText(await readFile(GENERATED_PATH, "utf8"));

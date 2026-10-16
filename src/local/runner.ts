@@ -22,7 +22,7 @@ import type {
   PacketScenario
 } from "./types.js";
 import { isLocalAuthorizedPacket } from "./types.js";
-import { assertScopeNotExpired } from "../real-data/boundary.js";
+import { assertScopeNotExpired, operationPermittedByEffects } from "../real-data/boundary.js";
 import { realDataError } from "../real-data/errors.js";
 
 const CLEANUP_RETRY_DELAYS_MS = [100, 250] as const;
@@ -469,7 +469,7 @@ export class LocalRunner {
         `Local target runtime exceeded maxRuntimeSeconds (${String(scope.budget.maxRuntimeSeconds)}). Grading of already-recorded attempts can continue; do not replay the send.`
       );
     }
-    if (!scope.targetBoundary.allowedOperations.includes(kind)) {
+    if (!operationPermittedByEffects(kind, scope.effects)) {
       throw realDataError("ACTION_NOT_ALLOWED", `Local authorized scope does not permit ${kind} operations.`);
     }
     const next = {

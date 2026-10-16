@@ -4,10 +4,15 @@ import type { RelayCommand } from "../cloud/protocol.js";
 import type { OperationKind } from "../errors.js";
 import type { ResolvedConfig } from "../config/types.js";
 import { isLocalOrPrivateHost } from "../config/resolve.js";
-import { targetBoundarySha256 } from "../config/boundary.js";
 import { canonicalHttpsOrigin } from "../suite/live-target.js";
+import { sealDocumentHash } from "./canonical.js";
+import { EFFECT_BOUNDARIES, TARGET_BOUNDARY_SCHEMA_VERSION, type EFFECTS } from "./constants.js";
 import type { LocalExecutionScope, TargetBoundary } from "./documents.js";
 import { realDataError } from "./errors.js";
+
+type Effect = (typeof EFFECTS)[number];
+
+const OPERATION_ORDER = ["prepare", "send", "observe", "cleanup"] as const;
 
 export type AssessedOriginMode = "public_https" | "customer_private";
 
@@ -49,48 +54,90 @@ export function canonicalAssessedOrigin(
   return `${url.protocol}//${hostname}${port}`;
 }
 
+/** An assessed identity without a scheme is an https origin, as on the server. */
+export function assessedIdentityOrigin(
+  boundary: TargetBoundary,
+  options: { readonly allowPrivate: boolean }
+): string {
+  const identity = boundary.assessedIdentity.includes("://")
+    ? boundary.assessedIdentity
+    : `https://${boundary.assessedIdentity}`;
+  return canonicalAssessedOrigin(identity, options);
+}
+
+/** The method and path each configured operation calls, resolved as the HTTP connector does. */
+export function configuredEndpoints(
+  resolved: ResolvedConfig
+): Array<{ readonly kind: OperationKind; readonly method: string; readonly path: string }> {
+  return OPERATION_ORDER.flatMap((kind) => {
+    const operation = resolved.config.target.operations[kind];
+    if (operation === undefined) return [];
+    return [{ kind, method: operation.method, path: new URL(operation.path, resolved.baseUrl).pathname }];
+  });
+}
+
 export function assertBoundaryMatchesConfig(
   boundary: TargetBoundary,
-  resolved: ResolvedConfig
+  resolved: ResolvedConfig,
+  options: { readonly allowPrivate?: boolean } = {}
 ): void {
-  const allowPrivate = boundary.allowPrivateEndpoints === true;
-  const assessed = canonicalAssessedOrigin(boundary.assessedOrigin, { allowPrivate });
+  if (boundary.transport !== "direct_http") {
+    throw realDataError(
+      "TARGET_SCOPE_MISMATCH",
+      `The admitted target uses ${boundary.transport} transport. This CLI can only call direct_http targets.`
+    );
+  }
+  const allowPrivate = options.allowPrivate === true;
+  const assessed = assessedIdentityOrigin(boundary, { allowPrivate });
   if (assessed !== canonicalAssessedOrigin(resolved.baseUrl.origin, { allowPrivate })) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
       `Configured target origin ${resolved.baseUrl.origin} is not the assessed origin ${assessed}. Loopback is transport only.`
     );
   }
-  if (targetBoundarySha256(resolved) !== boundary.boundaryHash && !operationsMatch(boundary, resolved)) {
-    throw realDataError(
-      "TARGET_SCOPE_MISMATCH",
-      "Configured target methods and paths are not the admitted operation boundary."
+  for (const endpoint of configuredEndpoints(resolved)) {
+    const listed = boundary.endpoints.some(
+      (allowed) => allowed.method === endpoint.method && pathsEqual(allowed.path, endpoint.path)
     );
-  }
-  for (const kind of ["prepare", "observe", "cleanup"] as const) {
-    const configured = resolved.config.target.operations[kind] !== undefined;
-    const allowed = boundary.allowedOperations.includes(kind);
-    if (configured && !allowed) {
+    if (!listed) {
       throw realDataError(
-        "ACTION_NOT_ALLOWED",
-        `Operation ${kind} is configured locally but is not in the admitted allowed-operation boundary.`
+        "TARGET_SCOPE_MISMATCH",
+        `Configured ${endpoint.kind} operation ${endpoint.method} ${endpoint.path} is not one of the admitted target's endpoints.`
       );
     }
   }
 }
 
-function operationsMatch(boundary: TargetBoundary, resolved: ResolvedConfig): boolean {
-  return boundary.allowedOperations.every((kind) => {
-    const operation = resolved.config.target.operations[kind];
-    if (operation === undefined) return kind === "send" ? false : true;
-    return boundary.endpoints.some(
-      (endpoint) =>
-        endpoint.method === operation.method &&
-        pathsEqual(endpoint.path, operation.path) &&
-        canonicalAssessedOrigin(endpoint.origin, { allowPrivate: boundary.allowPrivateEndpoints }) ===
-          canonicalAssessedOrigin(resolved.baseUrl.origin, { allowPrivate: boundary.allowPrivateEndpoints })
+/**
+ * Local scopes carry only targetBoundaryHash, so the boundary is rebuilt from
+ * the configuration and must hash to exactly that value.
+ */
+export function localTargetBoundary(scope: LocalExecutionScope, resolved: ResolvedConfig): TargetBoundary {
+  const assessedIdentity = canonicalAssessedOrigin(resolved.baseUrl.origin, { allowPrivate: true });
+  const endpoints = configuredEndpoints(resolved).map((endpoint) => ({
+    method: endpoint.method as TargetBoundary["endpoints"][number]["method"],
+    path: endpoint.path
+  }));
+  for (const effectBoundary of EFFECT_BOUNDARIES) {
+    const boundary = sealDocumentHash(
+      {
+        schemaVersion: TARGET_BOUNDARY_SCHEMA_VERSION,
+        targetId: scope.targetId,
+        revision: scope.targetRevision,
+        boundaryHash: "0".repeat(64),
+        transport: "direct_http",
+        effectBoundary,
+        assessedIdentity,
+        endpoints
+      } satisfies TargetBoundary,
+      "boundaryHash"
     );
-  });
+    if (boundary.boundaryHash === scope.targetBoundaryHash) return boundary;
+  }
+  throw realDataError(
+    "TARGET_SCOPE_MISMATCH",
+    "Your augmentworks.yaml doesn't match the target boundary this local scope declares."
+  );
 }
 
 function pathsEqual(left: string, right: string): boolean {
@@ -98,16 +145,15 @@ function pathsEqual(left: string, right: string): boolean {
   return normalize(left) === normalize(right);
 }
 
-export function assertCommandWithinBoundary(
-  command: RelayCommand,
-  boundary: TargetBoundary
-): void {
+/** Informational scopes allow only send and observe, as the server does for authorized packets. */
+export function operationPermittedByEffects(kind: OperationKind, effects: Effect): boolean {
+  return effects !== "informational" || kind === "send" || kind === "observe";
+}
+
+export function assertCommandWithinBoundary(command: RelayCommand, effects: Effect): void {
   const kind = command.kind as OperationKind;
-  if (!boundary.allowedOperations.includes(kind)) {
-    throw realDataError(
-      kind === "cleanup" ? "ACTION_NOT_ALLOWED" : "ACTION_NOT_ALLOWED",
-      `Admitted scope does not permit ${kind} operations.`
-    );
+  if (!operationPermittedByEffects(kind, effects)) {
+    throw realDataError("ACTION_NOT_ALLOWED", `Admitted scope does not permit ${kind} operations.`);
   }
 }
 

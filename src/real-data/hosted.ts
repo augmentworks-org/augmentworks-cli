@@ -13,11 +13,13 @@ import {
   parseLocalExecutionScope,
   SuiteExecutionScopeRefSchema,
   type ExecutionScopeResponse,
-  type SuiteExecutionScopeRef
+  type LocalExecutionScope,
+  type SuiteExecutionScopeRef,
+  type TargetBoundary
 } from "./documents.js";
 import { EXECUTION_SCOPE_SCHEMA_VERSION } from "./constants.js";
 import { realDataError } from "./errors.js";
-import { assertBoundaryMatchesConfig, assertScopeNotExpired } from "./boundary.js";
+import { assertBoundaryMatchesConfig, assertScopeNotExpired, localTargetBoundary } from "./boundary.js";
 import {
   hostedBinding,
   persistExecutionScopeBinding,
@@ -167,7 +169,7 @@ export async function loadPersistedDispatchPolicy(options: {
     const scope = parseLocalExecutionScope(binding.admitted);
     return authorizedDispatchPolicy({
       scope,
-      boundary: scope.targetBoundary,
+      boundary: persistedLocalBoundary(scope, options.resolved),
       ...(binding.dataPolicy === undefined ? {} : { dataPolicy: binding.dataPolicy }),
       ...(binding.redactionProfile === undefined ? {} : { redactionProfile: binding.redactionProfile })
     });
@@ -182,6 +184,19 @@ export async function loadPersistedDispatchPolicy(options: {
     }
   }
   return undefined;
+}
+
+function persistedLocalBoundary(
+  scope: LocalExecutionScope,
+  resolved: ResolvedConfig | undefined
+): TargetBoundary {
+  if (resolved === undefined) {
+    throw realDataError(
+      "TARGET_SCOPE_MISMATCH",
+      "A local scope's target boundary is rebuilt from augmentworks.yaml. Run this from the original configuration."
+    );
+  }
+  return localTargetBoundary(scope, resolved);
 }
 
 export function suiteNeedsHostedScope(suite: CustomerSuite): boolean {
@@ -231,7 +246,7 @@ export async function resolveDispatchPolicyForBinding(options: {
       const scope = parseLocalExecutionScope(persisted.admitted);
       return authorizedDispatchPolicy({
         scope,
-        boundary: scope.targetBoundary,
+        boundary: persistedLocalBoundary(scope, options.resolved),
         ...(persisted.dataPolicy === undefined ? {} : { dataPolicy: persisted.dataPolicy }),
         ...(persisted.redactionProfile === undefined ? {} : { redactionProfile: persisted.redactionProfile })
       });
