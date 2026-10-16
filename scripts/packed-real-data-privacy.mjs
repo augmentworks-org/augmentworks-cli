@@ -195,16 +195,16 @@ function canaryPolicy(profile, dataClass, contentHandling) {
 function authorizedPacket(origin, policy, profile) {
   const boundary = seal(
     {
+      // aw-target-boundary/1 as the contract defines it. A local scope carries only
+      // its hash, which the CLI rebuilds from augmentworks.yaml (AUG-355).
       schemaVersion: "aw-target-boundary/1",
       targetId: UUID_A,
-      targetRevision: 1,
+      revision: 1,
       boundaryHash: "0".repeat(64),
       transport: "direct_http",
-      assessedOrigin: origin,
-      endpoints: [{ method: "POST", path: "/chat", origin }],
-      allowedOperations: ["send"],
-      allowPrivateEndpoints: true,
-      redirectMode: "manual"
+      effectBoundary: "no_tools",
+      assessedIdentity: new URL(origin).origin,
+      endpoints: [{ method: "POST", path: "/chat" }]
     },
     "boundaryHash"
   );
@@ -215,12 +215,11 @@ function authorizedPacket(origin, policy, profile) {
       revision: 1,
       scopeHash: "0".repeat(64),
       targetId: boundary.targetId,
-      targetRevision: boundary.targetRevision,
+      targetRevision: boundary.revision,
       targetBoundaryHash: boundary.boundaryHash,
       environment: "development",
       dataOrigin: "constructed",
       effects: "informational",
-      verification: "customer_declared_local",
       authority: {
         id: UUID_B,
         revision: 1,
@@ -236,9 +235,7 @@ function authorizedPacket(origin, policy, profile) {
         maxRuntimeSeconds: 600,
         maxCredits: 0
       },
-      expiresAt: FUTURE,
-      targetBoundary: boundary,
-      revocation: { localOnly: true, remoteRevocationWhileOffline: "not_observed" }
+      expiresAt: FUTURE
     },
     "scopeHash"
   );
