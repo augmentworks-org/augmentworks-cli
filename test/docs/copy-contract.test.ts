@@ -62,6 +62,7 @@ const documentedSurfaces = [
   "docs/investigation.md",
   "docs/discovery-handoff.md",
   "docs/distribution-runbook.md",
+  "docs/command-examples.md",
   "docs/stabilization-implementation.md",
   "docs/stabilization-rollout.md",
   "docs/examples/github-actions-hosted.yml",
@@ -112,8 +113,9 @@ describe("customer-facing CLI copy", () => {
     }
   });
 
-  it("leads with the source demo, then verified published local and hosted paths", async () => {
+  it("leads with install, then the local, hosted and real-data paths", async () => {
     const readme = await readSurface("README.md");
+    const examples = await readSurface("docs/command-examples.md");
 
     expect(readme).toContain(HOSTED_COMMANDS.login);
     expect(readme).toContain(HOSTED_COMMANDS.test);
@@ -129,41 +131,42 @@ describe("customer-facing CLI copy", () => {
         new RegExp(`npx(?:\\s+(?:--yes|-y))?\\s+@augmentworks/cli@${SOURCE_PACKAGE_VERSION}\\b`, "u")
       );
     }
-    expect(readme).toContain(SOURCE_ASSESSMENT_COMMANDS.doctor);
-    expect(readme).toContain(SOURCE_ASSESSMENT_COMMANDS.testQuick);
-    expect(readme).toContain(SOURCE_ASSESSMENT_COMMANDS.testFull);
-    expect(readme).toContain(SOURCE_USAGE_COMMAND);
-    expect(readme).toContain(SOURCE_USAGE_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_BILLING_COMMAND);
-    expect(readme).toContain(SOURCE_BILLING_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_BILLING_PRINT_COMMAND);
-    expect(readme).toContain(SOURCE_ESTIMATE_COMMAND);
-    expect(readme).toContain(SOURCE_ESTIMATE_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_INIT_COMMAND);
-    expect(readme).toContain(SOURCE_INIT_WORKFLOW_COMMAND);
     expect(readme).toContain(PUBLISHED_LOCAL_COMMANDS.demo);
-    expect(readme).toContain(SOURCE_PREVIEW_MAPPING_COMMAND);
-    expect(readme).toContain(SOURCE_PREVIEW_MAPPING_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_PROBE_COMMAND);
-    expect(readme).toContain(SOURCE_PROBE_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_PROBE_YES_COMMAND);
-    expect(readme).toContain(SOURCE_RUN_STATUS_COMMAND);
-    expect(readme).toContain(SOURCE_RUN_WAIT_COMMAND);
-    expect(readme).toContain(SOURCE_RUN_REPORT_COMMAND);
-    expect(readme).toContain(SOURCE_COMPARE_COMMAND);
-    expect(readme).toContain(SOURCE_GATE_COMMAND);
-    expect(readme).toContain(SOURCE_GATE_WAIT_COMMAND);
-    expect(readme).toContain(SOURCE_BASELINE_STATUS_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_INSPECT_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_INSPECT_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_FETCH_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_EXPORT_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_TEST_COMMAND);
-    expect(readme).toContain(SOURCE_CATALOG_LIST_COMMAND);
-    expect(readme).toContain(SOURCE_CATALOG_SHOW_COMMAND);
-    expect(readme).toContain(SOURCE_SELECTION_COMPILE_COMMAND);
-    expect(readme).toContain(SOURCE_TEST_SHARD_COMMAND);
-    expect(readme).toContain(SOURCE_GATE_MANIFEST_COMMAND);
+    // Source-build invocations live in docs/command-examples.md, not the user README.
+    expect(examples).toContain(SOURCE_ASSESSMENT_COMMANDS.doctor);
+    expect(examples).toContain(SOURCE_ASSESSMENT_COMMANDS.testQuick);
+    expect(examples).toContain(SOURCE_ASSESSMENT_COMMANDS.testFull);
+    expect(examples).toContain(SOURCE_USAGE_COMMAND);
+    expect(examples).toContain(SOURCE_USAGE_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_BILLING_COMMAND);
+    expect(examples).toContain(SOURCE_BILLING_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_BILLING_PRINT_COMMAND);
+    expect(examples).toContain(SOURCE_ESTIMATE_COMMAND);
+    expect(examples).toContain(SOURCE_ESTIMATE_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_INIT_COMMAND);
+    expect(examples).toContain(SOURCE_INIT_WORKFLOW_COMMAND);
+    expect(examples).toContain(SOURCE_PREVIEW_MAPPING_COMMAND);
+    expect(examples).toContain(SOURCE_PREVIEW_MAPPING_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_PROBE_COMMAND);
+    expect(examples).toContain(SOURCE_PROBE_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_PROBE_YES_COMMAND);
+    expect(examples).toContain(SOURCE_RUN_STATUS_COMMAND);
+    expect(examples).toContain(SOURCE_RUN_WAIT_COMMAND);
+    expect(examples).toContain(SOURCE_RUN_REPORT_COMMAND);
+    expect(examples).toContain(SOURCE_COMPARE_COMMAND);
+    expect(examples).toContain(SOURCE_GATE_COMMAND);
+    expect(examples).toContain(SOURCE_GATE_WAIT_COMMAND);
+    expect(examples).toContain(SOURCE_BASELINE_STATUS_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_INSPECT_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_INSPECT_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_FETCH_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_EXPORT_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_TEST_COMMAND);
+    expect(examples).toContain(SOURCE_CATALOG_LIST_COMMAND);
+    expect(examples).toContain(SOURCE_CATALOG_SHOW_COMMAND);
+    expect(examples).toContain(SOURCE_SELECTION_COMPILE_COMMAND);
+    expect(examples).toContain(SOURCE_TEST_SHARD_COMMAND);
+    expect(examples).toContain(SOURCE_GATE_MANIFEST_COMMAND);
     expect(HOSTED_COMMANDS.test).toContain("--assessment");
 
     const demoAt = readme.indexOf(LOCAL_COMMANDS.demo);
@@ -172,6 +175,16 @@ describe("customer-facing CLI copy", () => {
     expect(demoAt).toBeGreaterThan(-1);
     expect(publishedLocalAt).toBeGreaterThan(demoAt);
     expect(hostedTestAt).toBeGreaterThan(demoAt);
+    const sections = ["## Install", "## First local test", "## First hosted test", "## Real-data test", "## Commands", "## Troubleshooting"].map(
+      (heading) => readme.indexOf(heading)
+    );
+    expect(sections.every((at, index) => at > -1 && (index === 0 || at > (sections[index - 1] ?? -1)))).toBe(true);
+    expect(readme).toContain("https://augmentworks.ai/docs/real-data");
+    expect(readme).toContain("Node.js 22.12 or newer");
+    expect(readme).toContain("Older versions aren't supported.");
+    expect(readme).not.toMatch(/Do not (?:run|use) [`]?(?:npx )?@?(?:augmentworks\/cli@)?latest/u);
+    expect(readme).not.toMatch(/gitHead|integrity `sha512|Do not overwrite/u);
+    expect(publishedLocalAt).toBeLessThan(hostedTestAt);
     const tick = String.fromCharCode(96);
     for (const command of ["login", "logout", "whoami", "usage", "billing", "init", "doctor", "preview-mapping", "probe", "demo", "catalog", "selection", "test", "suite", "investigation", "run", "compare", "gate", "baseline", "recover", "action", "schema"]) {
       expect(readme).toContain("| " + tick + command);

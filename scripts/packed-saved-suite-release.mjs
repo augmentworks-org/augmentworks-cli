@@ -409,6 +409,16 @@ function startServer(billing, reports, producer) {
         send(response, 200, billing.fixtures.eligible_trial.response);
         return;
       }
+      if (request.method === "GET" && url.pathname === `/v1/suites/${SUITE_ID}/revisions/${SUITE_REVISION}`) {
+        // A synthetic aw-customer-suite/1 revision: no execution scope, so the run stays synthetic (AUG-356).
+        send(response, 200, {
+          suiteId: SUITE_ID,
+          revisionId: SUITE_REVISION,
+          contentHash: CANONICAL_HASH,
+          canonicalDocument: { schemaVersion: "aw-customer-suite/1", suiteId: SUITE_ID }
+        });
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/v1/suite-selections/compile") {
         const prepare = body?.capabilities?.prepare === true;
         send(response, 200, prepare ? executableManifest : incompatibleManifest);

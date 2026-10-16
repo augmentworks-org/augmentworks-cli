@@ -129,6 +129,12 @@ All notable changes to this project are documented here. The format follows
   `docs/customer-suites.md` documents the `aw-suite/3` rules, including how a
   local scope's boundary is rebuilt from `augmentworks.yaml`.
   `docs/troubleshooting.md` lists each real-data error and its fix.
+- The README is rewritten for users: install, first local test, first hosted
+  test, real-data test, commands, troubleshooting. It pins one version and
+  states the Node.js 22.12 minimum. The version history, integrity hashes,
+  gitHeads and publishing rules moved to `docs/distribution-runbook.md`, and
+  the `node dist/index.js` source-build commands to
+  `docs/command-examples.md`.
 - Recorded the independent inspection of npm `@augmentworks/cli@0.3.9`.
   The published tarball is unchanged and still embeds the prior 0.3.8
   `LAST_VERIFIED` snapshot.
