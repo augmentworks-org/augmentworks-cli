@@ -358,6 +358,7 @@ async function executeHostedSelection(
       configSha256: report.resolvedConfig.configDigest,
       target,
       existing: intentStore.intent,
+      ...(admittedScope === undefined ? {} : { admittedScope }),
       maxCredits,
       yes: options.yes === true,
       session,
@@ -699,6 +700,7 @@ async function runCompiledSelectionEstimate(
     selection: hosted,
     session,
     cwd: context.cwd,
+    ...(admittedScope === undefined ? {} : { admittedScope }),
     ...(options.signal === undefined ? {} : { signal: options.signal })
   });
   const quote = await requestHostedQuote({
@@ -1275,6 +1277,7 @@ export async function runEstimate(
     selection,
     session,
     cwd,
+    ...(admittedScope === undefined ? {} : { admittedScope }),
     ...(options.signal === undefined ? {} : { signal: options.signal })
   });
   const quote = await requestHostedQuote({
@@ -1400,6 +1403,7 @@ async function pinCustomerSuite(options: {
   readonly suite: LoadedCustomerSuite;
   readonly session: Awaited<ReturnType<typeof authenticateHostedSession>>;
   readonly cwd: string;
+  readonly admittedScope?: ExecutionScopeResponse;
   readonly signal?: AbortSignal;
 }): Promise<{
   assessment: import("../cloud/protocol.js").CreateRunAssessment;
@@ -1409,7 +1413,7 @@ async function pinCustomerSuite(options: {
   if (options.session.identity.principalKind === "machine") {
     throw suiteError("SUITE_WRITE_REQUIRES_USER", "Uploading --suite requires a user connector grant. Machine keys may execute an existing immutable revision using --assessment with selection.suite_revision_id, or --manifest. No suite, quote, or run was created.");
   }
-  const nativeDocument = nativeSuiteSource(options.suite);
+  const nativeDocument = nativeSuiteSource(options.suite, options.admittedScope?.scope);
   const nativeHash = nativeSuiteContentHash(nativeDocument);
   const created = await options.session.cloud.createSuiteRevision(
     {
@@ -1568,6 +1572,7 @@ async function prepareQuotedAssessment(options: {
   readonly selection: HostedSelection;
   readonly session: Awaited<ReturnType<typeof authenticateHostedSession>>;
   readonly cwd: string;
+  readonly admittedScope?: ExecutionScopeResponse;
   readonly signal?: AbortSignal;
 }): Promise<{
   assessment: import("../cloud/protocol.js").CreateRunAssessment;
@@ -1604,6 +1609,7 @@ async function prepareQuotedAssessment(options: {
     suite: options.selection.suite,
     session: options.session,
     cwd: options.cwd,
+    ...(options.admittedScope === undefined ? {} : { admittedScope: options.admittedScope }),
     ...(options.signal === undefined ? {} : { signal: options.signal })
   });
   return { assessment: pinned.assessment, localPlanHash: pinned.localPlanHash };
@@ -1614,6 +1620,7 @@ async function resolveHostedCreateRequest(options: {
   readonly configSha256: string;
   readonly target: CreateRunRequest["target"];
   readonly existing: RunIntent | undefined;
+  readonly admittedScope?: ExecutionScopeResponse;
   readonly maxCredits: number | undefined;
   readonly yes: boolean;
   readonly session: Awaited<ReturnType<typeof authenticateHostedSession>>;
@@ -1673,6 +1680,7 @@ async function resolveHostedCreateRequest(options: {
           suite: options.selection.suite,
           session: options.session,
           cwd: options.cwd,
+          ...(options.admittedScope === undefined ? {} : { admittedScope: options.admittedScope }),
           ...(options.signal === undefined ? {} : { signal: options.signal })
         })
       : options.selection.kind === "investigation"

@@ -80,11 +80,16 @@ function resolvedFor(baseUrl: string): ResolvedConfig {
   return inspection.resolvedConfig;
 }
 
-type Recorded = { paths: string[]; quotes: Array<Record<string, unknown>>; creates: Array<Record<string, unknown>> };
+type Recorded = {
+  paths: string[];
+  quotes: Array<Record<string, unknown>>;
+  creates: Array<Record<string, unknown>>;
+  suites: Array<Record<string, unknown>>;
+};
 
 /** A server that admits only the boundary the execution scope registered, as hosted admission does. */
 function admittingServer(cwd: string) {
-  const recorded: Recorded = { paths: [], quotes: [], creates: [] };
+  const recorded: Recorded = { paths: [], quotes: [], creates: [], suites: [] };
   const mismatch = () =>
     Response.json(
       {
@@ -105,11 +110,12 @@ function admittingServer(cwd: string) {
     if (url.pathname === "/v1/capabilities") return Response.json(contractResponse("get_capabilities"));
     if (url.pathname === `/v1/execution-scopes/${scopeResponse.scope.scopeId}`) return Response.json(scopeResponse);
     if (url.pathname === "/v1/suites") {
+      recorded.suites.push(body ?? {});
       const loaded = await loadCustomerSuiteFile("authorized.yaml", cwd);
       return Response.json({
         suiteId: loaded.document.suiteId,
         suiteRevisionId: SUITE_REVISION,
-        canonicalHash: nativeSuiteContentHash(nativeSuiteSource(loaded)),
+        canonicalHash: nativeSuiteContentHash(nativeSuiteSource(loaded, scopeResponse.scope)),
         schemaVersion: "aw-customer-suite/3"
       });
     }
@@ -235,6 +241,11 @@ describe("authorized hosted admission (AUG-356)", () => {
     }
     expect(recorded.quotes).toHaveLength(2);
     expect(recorded.creates).toHaveLength(1);
+    expect(recorded.suites.length).toBeGreaterThan(0);
+    for (const upload of recorded.suites) {
+      expect(upload["executionScope"]).toEqual(scopeResponse.scope);
+      expect(upload).not.toHaveProperty("packetOverlay");
+    }
     expect(policies[0]?.kind).toBe("authorized");
     const binding = await loadExecutionScopeBinding(RUN_ID, { stateDirectory: cwd });
     expect(binding?.targetBoundary).toEqual(scopeResponse.targetBoundary);
