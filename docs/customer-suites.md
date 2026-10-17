@@ -152,8 +152,9 @@ execution_scope:
   and path). Real-data runs check replies only: `scope create` refuses a
   suite whose cases declare `observations`, and a configured `prepare` or
   `cleanup` stops the run with `ACTION_NOT_ALLOWED`.
-- Each run gets the scope's budget of messages, commands, time and credits.
-  A run whose plan needs more is refused before anything is sent. A run that
+- Each run gets the scope's budget of messages, commands and time. A run
+  whose plan needs more is refused before anything is sent. Spending is set
+  per run by the quote and `--max-credits`, as for any hosted test. A run that
   stops partway isn't retried, because a retry could message your agent
   again.
 - **Local scopes** (`aw-packet/local-authorized-1`) carry only a target
