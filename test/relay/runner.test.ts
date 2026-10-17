@@ -19,7 +19,7 @@ import type { LiveExecutionPolicy } from "../../src/suite/live-policy.js";
 import { LIMITS } from "../../src/util/limits.js";
 import { packet, relayCommand, resultFor } from "./helpers.js";
 import { authorizedDispatchPolicy } from "../../src/real-data/policy.js";
-import { canaryRedactionPolicy, hostedScopeResponse } from "../real-data/helpers.js";
+import { canaryRedactionPolicy, hostedScopeResponse, serverDefaultRedactionPolicy } from "../real-data/helpers.js";
 import { CANARIES } from "../data-policy/helpers.js";
 
 const temporaryDirectories: string[] = [];
@@ -837,6 +837,61 @@ describe("authorized dispatch policy", () => {
     expect(uploaded).not.toContain(CANARIES.apiKey);
     expect(uploaded).toContain("Weekday hours are 9");
     expect(cloud.failures).toHaveLength(0);
+  });
+
+  it("keeps the reply under the server's default minimized profile (AUG-357)", async () => {
+    const command = sendRelayCommand();
+    const cloud = new MockCloud([command]);
+    const raw = {
+      protocol_version: "aw-target/0.1" as const,
+      turn_id: command.input.turn_id,
+      message: {
+        role: "assistant" as const,
+        content: `Weekday support hours are 9:00-17:00 UTC. api_key=${CANARIES.apiKey}`,
+        finish_reason: "stop"
+      },
+      events: [
+        {
+          event_id: "event-1",
+          type: "tool_call" as const,
+          tool_name: "lookup_hours",
+          call_id: "call-1",
+          arguments: { region: "EU", token: CANARIES.token }
+        }
+      ],
+      finished: true,
+      metadata: { model: "stub" }
+    };
+    const connector = { execute: vi.fn(async () => raw), isIdempotent: () => false };
+    const response = hostedScopeResponse();
+    const { policy, profile } = serverDefaultRedactionPolicy();
+    await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector,
+      binding: binding(),
+      stateDirectory: await temporaryDirectory(),
+      dispatchPolicy: authorizedDispatchPolicy({
+        scope: response.scope,
+        boundary: response.targetBoundary,
+        dataPolicy: policy,
+        redactionProfile: profile
+      }),
+      pollWaitMs: 0
+    }).run();
+    expect(cloud.failures).toHaveLength(0);
+    expect(cloud.completions).toHaveLength(1);
+    const uploaded = cloud.completions[0]?.result as Record<string, unknown>;
+    expect(uploaded).toMatchObject({
+      protocol_version: "aw-target/0.1",
+      turn_id: command.input.turn_id,
+      finished: true,
+      metadata: { model: "stub" },
+      message: { role: "assistant", finish_reason: "stop" },
+      events: [{ type: "tool_call", tool_name: "lookup_hours", arguments: { region: "EU" } }]
+    });
+    expect(JSON.stringify(uploaded)).toContain("Weekday support hours are 9:00-17:00 UTC.");
+    expect(JSON.stringify(uploaded)).not.toContain(CANARIES.apiKey);
+    expect(JSON.stringify(uploaded)).not.toContain(CANARIES.token);
   });
 
   it("excludes credentials in verbatim mode without dropping declared business text", async () => {

@@ -360,7 +360,7 @@ describe("mapping preview service", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const profile = makeProfile({
-      rules: [{ id: "mask-email", selector: "/message/content", action: "mask", detector: "email" }]
+      rules: [{ id: "mask-email", selector: "/content/content", action: "mask", detector: "email" }]
     });
     const policy = makePolicy(profile, { dataClass: "public" });
     const report = previewMapping({

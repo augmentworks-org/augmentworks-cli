@@ -225,7 +225,7 @@ describe("RelayJournal", () => {
     const command = relayCommand("send");
     const turnId = command.kind === "send" ? command.input.turn_id : "turn-1";
     const context = makeContext("public", "minimized", [
-      { id: "mask-content", selector: "/message/content", action: "mask", detector: "email" }
+      { id: "mask-content", selector: "/content/content", action: "mask", detector: "email" }
     ]);
     const journal = await new RelayJournal({
       runId: command.run_id,
@@ -262,7 +262,7 @@ describe("RelayJournal", () => {
     const command = relayCommand("send");
     const turnId = command.kind === "send" ? command.input.turn_id : "turn-1";
     const context = makeContext("business", "minimized", [
-      { id: "block-content", selector: "/message/content", action: "block", detector: "field" }
+      { id: "block-content", selector: "/content/content", action: "block", detector: "field" }
     ]);
     const journal = await new RelayJournal({
       runId: command.run_id,

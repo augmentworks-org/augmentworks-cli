@@ -10,7 +10,7 @@ import {
 } from "../cloud/protocol.js";
 import { LIMITS } from "../util/limits.js";
 import { redactSecrets, selectResponse } from "./mapping.js";
-import { inspectOutbound, dataPolicyError, type DataPolicyContext } from "../data-policy/index.js";
+import { inspectRelayResult, dataPolicyError, type DataPolicyContext } from "../data-policy/index.js";
 import type {
   CleanupConnectorResult,
   ConnectorExecutionContext,
@@ -106,12 +106,16 @@ export function normalizeConnectorResult(options: {
   const projected =
     options.dataPolicy === undefined
       ? redacted
-      : projectNormalizedResult(redacted, options.dataPolicy);
+      : projectNormalizedResult(options.kind, redacted, options.dataPolicy);
   return parseRelayResult(options.kind, projected) as ConnectorResult;
 }
 
-function projectNormalizedResult(result: ConnectorResult, context: DataPolicyContext): ConnectorResult {
-  const inspected = inspectOutbound(result, context.policy, context.profile, context.localSecrets);
+function projectNormalizedResult(
+  kind: OperationKind,
+  result: ConnectorResult,
+  context: DataPolicyContext
+): ConnectorResult {
+  const inspected = inspectRelayResult(kind, result, context);
   if (inspected.receipt.outcome === "blocked" || inspected.blockedPaths.length > 0) {
     throw dataPolicyError("DATA_POLICY_BLOCKED", "The target response was blocked by the data policy.");
   }

@@ -195,12 +195,12 @@ describe("privacy fail-closed default", () => {
       applyRedactionProfile(
         {
           document: {
-            protocol_version: "aw-target/0.1",
-            turn_id: "turn-1",
-            message: { role: "assistant", content: "Hours 9. Contact canary.user@example.test" },
-            events: [],
-            finished: true,
-            metadata: { api_key: "sk-syntheticCanaryKey12" }
+            path: "relay.answer",
+            content: {
+              role: "assistant",
+              content: "Hours 9. Contact canary.user@example.test",
+              api_key: "sk-syntheticCanaryKey12"
+            }
           }
         },
         profile,

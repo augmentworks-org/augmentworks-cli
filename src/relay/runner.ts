@@ -26,6 +26,8 @@ import {
   requireAuthorizedPrivacyDocuments
 } from "../real-data/privacy.js";
 import { dispatchPolicyPrivacyContext } from "../real-data/r06-service.js";
+import { relayContentParts } from "../data-policy/index.js";
+import type { JsonValue } from "../config/types.js";
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 const CLEANUP_RETRY_DELAYS_MS = [100, 250] as const;
@@ -302,7 +304,7 @@ export class RelayRunner {
         try {
           const raw = await this.#executeConnectorCommand(command, idempotent);
           connectorReturned = true;
-          const result = parseRelayResult(command.kind, await this.#minimizeUploadedResult(raw));
+          const result = parseRelayResult(command.kind, await this.#minimizeUploadedResult(command.kind, raw));
           validateResultCorrelation(command, result);
           state = {
             ...state,
@@ -388,16 +390,21 @@ export class RelayRunner {
     return this.#connector.isIdempotent?.(kind) ?? false;
   }
 
-  async #minimizeUploadedResult(raw: unknown): Promise<unknown> {
+  async #minimizeUploadedResult(kind: RelayCommand["kind"], raw: unknown): Promise<unknown> {
     const documents = requireAuthorizedPrivacyDocuments(this.#dispatchPolicy);
     if (documents === undefined) return raw;
-    const minimized = await minimizeForUpload(
-      { document: raw, secrets: this.#secrets },
-      documents.redactionProfile,
-      documents.dataPolicy,
-      this.#secrets
-    );
-    return minimized.representation;
+    const { parts, assemble } = relayContentParts(kind, raw);
+    const representations: JsonValue[] = [];
+    for (const part of parts) {
+      const minimized = await minimizeForUpload(
+        { document: part.document, secrets: this.#secrets },
+        documents.redactionProfile,
+        documents.dataPolicy,
+        this.#secrets
+      );
+      representations.push(minimized.representation as JsonValue);
+    }
+    return assemble(representations);
   }
 
   async #acknowledge(command: RelayCommand, completion: JournalCompletion): Promise<void> {

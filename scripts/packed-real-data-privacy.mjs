@@ -151,8 +151,9 @@ function canaryProfile() {
       profileHash: "0".repeat(64),
       allowedContentFields: [],
       rules: [
-        { id: "mask-email-message", selector: "/message/content", action: "mask", detector: "email" },
-        { id: "mask-phone-message", selector: "/message/content", action: "mask", detector: "phone" },
+        // Relay replies reach the profile as the ingress document { path, content: message }.
+        { id: "mask-email-message", selector: "/content/content", action: "mask", detector: "email" },
+        { id: "mask-phone-message", selector: "/content/content", action: "mask", detector: "phone" },
         {
           id: "mask-email-assistant",
           selector: "/attempts/*/turns/*/assistant_content",

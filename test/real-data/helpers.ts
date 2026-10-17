@@ -222,8 +222,9 @@ export function canaryRedactionPolicy(
       profileHash: "0".repeat(64),
       allowedContentFields: [],
       rules: [
-        { id: "mask-email-message", selector: "/message/content", action: "mask" as const, detector: "email" as const },
-        { id: "mask-phone-message", selector: "/message/content", action: "mask" as const, detector: "phone" as const },
+        // Relay replies reach the profile as the ingress document { path, content: message }.
+        { id: "mask-email-message", selector: "/content/content", action: "mask" as const, detector: "email" as const },
+        { id: "mask-phone-message", selector: "/content/content", action: "mask" as const, detector: "phone" as const },
         {
           id: "mask-email-assistant",
           selector: "/attempts/*/turns/*/assistant_content",
@@ -250,6 +251,54 @@ export function canaryRedactionPolicy(
       policyHash: "0".repeat(64),
       dataClass: options.dataClass ?? "business",
       contentHandling: options.contentHandling ?? "minimized",
+      redactionProfileId: profile.profileId,
+      redactionProfileHash: profile.profileHash,
+      retentionDays: 30,
+      externalSharing: "disabled" as const,
+      providerProcessing: "openai_standard" as const
+    },
+    "policyHash"
+  );
+  return { policy, profile };
+}
+
+/**
+ * The server's default redaction profile (augmentworks default-profile.ts): it
+ * keeps /path and /content of each ingress document and masks /content.
+ */
+export function serverDefaultRedactionPolicy(): { policy: DataPolicy; profile: RedactionProfile } {
+  const profile = sealDocumentHash(
+    {
+      schemaVersion: "aw-redaction-profile/1" as const,
+      profileId: UUID_E,
+      revision: 1,
+      profileHash: "0".repeat(64),
+      allowedContentFields: ["/path", "/content"],
+      rules: [
+        { id: "mask-credential-content", selector: "/content", action: "mask" as const, detector: "credential" as const },
+        { id: "mask-email-content", selector: "/content", action: "mask" as const, detector: "email" as const },
+        { id: "mask-phone-content", selector: "/content", action: "mask" as const, detector: "phone" as const },
+        {
+          id: "mask-local-secret-content",
+          selector: "/content",
+          action: "mask" as const,
+          detector: "exact_local_secret" as const
+        },
+        { id: "drop-internal-notes", selector: "/internalNotes", action: "drop" as const, detector: "field" as const }
+      ],
+      maxDocumentBytes: 65_536,
+      maxTextChars: 8_000
+    },
+    "profileHash"
+  );
+  const policy = sealDocumentHash(
+    {
+      schemaVersion: "aw-data-policy/1" as const,
+      policyId: UUID_D,
+      revision: 1,
+      policyHash: "0".repeat(64),
+      dataClass: "business" as const,
+      contentHandling: "minimized" as const,
       redactionProfileId: profile.profileId,
       redactionProfileHash: profile.profileHash,
       retentionDays: 30,
