@@ -185,14 +185,15 @@ describe("augmentworks scope create (AUG-364)", () => {
       dataOrigin: "constructed",
       effects: "informational",
       actionPolicyId: null,
-      budget: { maxMessages: 3, maxActions: 0, maxCommands: 60, maxRuntimeSeconds: 600, maxCredits: 6 },
+      budget: { maxMessages: 1, maxActions: 0, maxCommands: 2, maxRuntimeSeconds: 600, maxCredits: 1 },
       expiresAt: "2026-11-15T19:00:00Z"
     });
     const plan = h.stderr.join("");
     expect(plan).toContain(`Data policy:  ${policy.policyId} revision ${policy.revision}`);
     expect(plan).toContain("Data origin:  constructed");
     expect(plan).toContain("Expires:      2026-11-15T19:00:00Z");
-    expect(plan).toContain("Budget:       3 messages, 0 actions, 60 commands, 600 seconds, 6 credits");
+    expect(plan).toContain("Budget:       1 message, 0 actions, 2 commands, 600 seconds, 1 credit per run,");
+    expect(plan).toContain("sized to one run of this suite (1 case)");
     expect(result.next).toBe("augmentworks test --suite refunds.suite.yaml");
   });
 

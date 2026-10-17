@@ -35,10 +35,10 @@ Real-data errors say what happened, then what to do, and end with the code:
 | `TARGET_OWNER_LOGIN_REQUIRED` | Setup was run with a machine key or by a non-owner | Unset `AUGMENTWORKS_API_KEY` and run `augmentworks login` as a workspace owner |
 | `STATEMENT_NOT_ACCEPTED` | The workspace hasn't accepted the real-data statement | An owner runs `augmentworks target add` in a terminal, or accepts it in Settings → Targets |
 | `TARGET_NOT_VERIFIED` / `TARGET_AUTHORITY_REQUIRED` | The target isn't verified | `augmentworks target verify <name>`, then `augmentworks scope create` |
-| `TARGET_AUTHORITY_EXPIRED` | The scope, the target's verification, or the verification code expired | `augmentworks scope create` for a new scope, or `augmentworks target verify <name>` to renew |
-| `TARGET_AUTHORITY_REVOKED` | An owner revoked the target in Settings → Targets | Verify it again, then create a new scope; past results stay readable with `augmentworks run report <run-id>` |
-| `TARGET_SCOPE_MISMATCH` | `augmentworks.yaml` calls an address or endpoint the target wasn't registered with | `augmentworks target pull <name>` copies the registered address and endpoints; `augmentworks target list` shows them |
-| `EXECUTION_BUDGET_EXHAUSTED` | The run used up its scope's allowance | Run fewer cases at a time, for example with `augmentworks selection compile` and `test --shard` |
+| `TARGET_AUTHORITY_EXPIRED` | The scope, the target's verification, or the verification code expired | Code: `augmentworks target verify <name>` again. Scope: `augmentworks scope create`. Verification: renew in Settings → Targets, then `augmentworks target verify <name>` |
+| `TARGET_AUTHORITY_REVOKED` | An owner revoked the target in Settings → Targets | Register it again with `augmentworks target add`, verify it, then create a new scope; past results stay readable with `augmentworks run report <run-id>` |
+| `TARGET_SCOPE_MISMATCH` | `augmentworks.yaml` calls an address or endpoint the target wasn't registered with | Point `base_url` and each operation at the registered ones (`augmentworks target list` shows them); `augmentworks target pull <name>` can fix `base_url` and a missing `send` |
+| `EXECUTION_BUDGET_EXHAUSTED` | The run needs more messages or commands than its scope allows | Run `augmentworks scope create` again so the budget fits the suite, or run fewer cases |
 | `EXECUTION_RELEASE_UNAVAILABLE` | The server isn't accepting real-data tests right now | Try again later; nothing was sent to your agent |
 
 `aw-packet/0.1` and `aw-suite/1` files still work. `aw-suite/2` still requires

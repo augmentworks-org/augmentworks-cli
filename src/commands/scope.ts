@@ -15,7 +15,6 @@ import {
 } from "../target/common.js";
 import {
   DATA_ORIGIN_CHOICES,
-  DEFAULT_SCOPE_BUDGET,
   portalDataPolicyUrl,
   portalTargetsUrl,
   TARGET_ENVIRONMENTS,
@@ -24,6 +23,7 @@ import {
   type DataPolicySummary,
   type TargetDetail
 } from "../target/protocol.js";
+import { sizeScopeBudget, suiteWorkload, type SuiteWorkload } from "../target/scope-budget.js";
 import { writeSuiteScope } from "../target/suite-scope.js";
 import { selectTarget } from "../target/verify.js";
 import {
@@ -140,6 +140,8 @@ export async function runScopeCreate(
   const source = await readSuite(suitePath);
   // Fail on a file the CLI can't update before anything is created on the server.
   writeSuiteScope(source, { scopeId: "00000000-0000-4000-8000-000000000000", revision: 1 });
+  const workload = suiteWorkload(source);
+  const budget = sizeScopeBudget(workload);
 
   if (inspectCredentialEnvironment(env).mode === "api_key") throw ownerLoginRequiredError("Creating a test scope");
   const session = await authenticateHostedSession(options, { ...dependencies, stderr });
@@ -175,10 +177,10 @@ export async function runScopeCreate(
     dataOrigin,
     effects: "informational",
     actionPolicyId: null,
-    budget: DEFAULT_SCOPE_BUDGET,
+    budget,
     expiresAt
   };
-  stderr.write(formatScopePlan(detail, policy, request));
+  stderr.write(formatScopePlan(detail, policy, request, workload));
   await confirm(options, dependencies, env);
 
   const scope = await session.cloud.createExecutionScope(workspaceId, request, options.signal);
@@ -291,17 +293,27 @@ const ORIGIN_WORDS: Record<DataOrigin, string> = {
   mixed: "made-up data and real customer records"
 };
 
-function formatScopePlan(detail: TargetDetail, policy: DataPolicySummary, request: CreateScopeRequest): string {
+function formatScopePlan(
+  detail: TargetDetail,
+  policy: DataPolicySummary,
+  request: CreateScopeRequest,
+  workload: SuiteWorkload
+): string {
   const budget = request.budget;
   return [
     `This creates a test scope for ${sanitizeTerminal(detail.target.name)} (${detail.target.environment}) at ${sanitizeTerminal(detail.target.assessedIdentity)}:`,
     `  Data policy:  ${policy.policyId} revision ${policy.revision} (${sanitizeTerminal(policy.dataClass)} data, kept ${policy.retentionDays} days)`,
     `  Data origin:  ${request.dataOrigin} (${ORIGIN_WORDS[request.dataOrigin]})`,
-    "  Effects:      informational (send and observe only, no actions)",
+    "  Effects:      informational (sends messages and checks replies, no actions)",
     `  Expires:      ${request.expiresAt}`,
-    `  Budget:       ${budget.maxMessages} messages, ${budget.maxActions} actions, ${budget.maxCommands} commands, ${budget.maxRuntimeSeconds} seconds, ${budget.maxCredits} credits per run`,
+    `  Budget:       ${count(budget.maxMessages, "message")}, ${count(budget.maxActions, "action")}, ${count(budget.maxCommands, "command")}, ${count(budget.maxRuntimeSeconds, "second")}, ${count(budget.maxCredits, "credit")} per run,`,
+    `                sized to one run of this suite (${count(workload.cases, "case")}). A run that needs more is refused before anything is sent.`,
     ""
   ].join("\n");
+}
+
+function count(value: number, noun: string): string {
+  return `${value} ${noun}${value === 1 ? "" : "s"}`;
 }
 
 async function confirm(options: ScopeCreateOptions, dependencies: ScopeDependencies, env: NodeJS.ProcessEnv): Promise<void> {

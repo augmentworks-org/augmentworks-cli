@@ -274,7 +274,7 @@ Settings → Targets.
 ```bash
 npx --yes @augmentworks/cli@0.3.9 target add --env production
 npx --yes @augmentworks/cli@0.3.9 target verify <name>
-npx --yes @augmentworks/cli@0.3.9 scope create --target <name> --suite refunds.suite.yaml
+npx --yes @augmentworks/cli@0.3.9 scope create --target <name> --suite refunds.suite.yaml --data-origin customer_records
 npx --yes @augmentworks/cli@0.3.9 test --suite refunds.suite.yaml --max-credits 30 --yes
 ```
 
@@ -283,10 +283,12 @@ npx --yes @augmentworks/cli@0.3.9 test --suite refunds.suite.yaml --max-credits 
    the workspace's real-data statement for an owner to accept.
 2. `target verify <name>` prints a code to publish as a file on the agent's
    address or as a DNS TXT record, and finishes once the server sees it. A
-   private address is confirmed from your machine instead. Verification
-   lasts 90 days.
-3. `scope create` shows the data policy, expiry and per-run budget, asks, and
-   writes the scope id into the suite file.
+   private address is checked instead with one test message from your
+   machine. Verification lasts 90 days.
+3. `scope create` shows the data policy, data origin, expiry and a per-run
+   budget sized to the suite, asks, and writes the scope id into the suite
+   file. Pass `--data-origin customer_records` when the cases hold real
+   records.
 4. `test --suite` runs the suite under that scope.
 
 `target list` shows each target's status and scopes, and `target pull <name>`

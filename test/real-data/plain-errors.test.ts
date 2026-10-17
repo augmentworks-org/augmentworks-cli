@@ -123,7 +123,11 @@ describe("plain-language real-data errors (AUG-366)", () => {
     const directory = await mkdtemp(join(tmpdir(), "aw-plain-errors-"));
     temporary.push(directory);
     const suite = join(directory, "refunds.suite.yaml");
-    await writeFile(suite, "schema_version: aw-suite/3\nsuite_id: refunds\n", "utf8");
+    await writeFile(
+      suite,
+      "schema_version: aw-suite/3\nsuite_id: refunds\ncases:\n  - case_id: hours\n    turns:\n      - content: When are you open?\n",
+      "utf8"
+    );
     vi.stubEnv("AUGMENTWORKS_API_KEY", "aw_api_test_key");
     const stderr: string[] = [];
     const code = await runCli(["node", "augmentworks", "scope", "create", "--target", "support", "--suite", suite], {

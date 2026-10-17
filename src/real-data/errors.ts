@@ -70,15 +70,15 @@ const SUFFIX = {
   machineKeySetup:
     " Registering a target and creating a scope need a workspace owner's login: unset AUGMENTWORKS_API_KEY and run `augmentworks login`.",
   notVerified: ` Check the target with \`augmentworks target list\`, finish verifying it with \`augmentworks target verify <name>\`, then create a scope with ${SCOPE_CREATE}.`,
-  verificationExpired: ` Renew it with \`augmentworks target verify <name>\` (Settings → Targets shows when renewal opens), then create a new scope with ${SCOPE_CREATE}.`,
+  verificationExpired: ` Renew it in Settings → Targets once renewal opens, finish with \`augmentworks target verify <name>\`, then create a new scope with ${SCOPE_CREATE}.`,
   challengeExpired: " Run `augmentworks target verify <name>` again to get a new code.",
   localScopeExpired: " The packet can't run after that. Ask whoever issued it for a new local-authorized packet.",
   scopeExpired: ` Create a new one with ${SCOPE_CREATE}. An expired scope can't be reused.`,
-  revoked: ` A workspace owner revoked it in Settings → Targets. To test again, verify the target with \`augmentworks target verify <name>\` (or register it again with \`augmentworks target add\`), then create a new scope with ${SCOPE_CREATE}. Past results stay readable with \`augmentworks run report <run-id>\`.`,
+  revoked: ` A workspace owner revoked it in Settings → Targets. To test again, register it again with \`augmentworks target add\`, verify it with \`augmentworks target verify <name>\`, then create a new scope with ${SCOPE_CREATE}. Past results stay readable with \`augmentworks run report <run-id>\`.`,
   scopeMismatch:
-    " `augmentworks target pull <name>` copies the registered address and endpoints into augmentworks.yaml, and `augmentworks target list` shows them.",
+    " Point base_url and each operation in augmentworks.yaml at the registered address and endpoints. `augmentworks target list` shows them, and `augmentworks target pull <name>` can fix base_url and a missing send operation.",
   budgetExhausted:
-    " The run stopped there and won't retry, because a retry could message your agent again. Each run gets the scope's allowance, so run fewer cases at a time: split the suite with `augmentworks selection compile` and run each part with `augmentworks test --shard <shard-id>`.",
+    " Nothing more is sent, and the run won't retry, because a retry could message your agent again. Run `augmentworks scope create` again so the scope's budget fits the suite, or run fewer cases at a time.",
   releaseBusy: " Nothing was sent to your agent. Wait a few minutes and run the same command again.",
   releaseUnavailable:
     " Nothing was sent to your agent. Try again later. Synthetic tests and `augmentworks test --local --packet` still run."

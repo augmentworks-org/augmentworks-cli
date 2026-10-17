@@ -88,7 +88,7 @@ Settings → Targets.
 ```bash
 augmentworks target add --env production
 augmentworks target verify <name>
-augmentworks scope create --target <name> --suite refunds.suite.yaml
+augmentworks scope create --target <name> --suite refunds.suite.yaml --data-origin customer_records
 augmentworks test --suite refunds.suite.yaml --max-credits 30 --yes
 ```
 
@@ -106,14 +106,18 @@ augmentworks test --suite refunds.suite.yaml --max-credits 30 --yes
    finishes once the server confirms the code. Run it again to resume with
    the same code. A private or loopback address is confirmed from your
    machine with one connection check instead, recorded as your statement.
-   Verification lasts 90 days. Renewal opens 14 days before it ends; renew
-   with the same command.
+   Verification lasts 90 days from registration. Renewal opens 14 days
+   before it ends: start it in Settings → Targets, then finish with the same
+   command.
 3. **`scope create`** creates a test scope for the verified target and writes
    its id and revision into the suite file's `execution_scope` block. It
    shows the data policy, data origin (`--data-origin
    constructed|customer_records|mixed`), expiry (30 days by default, never
    past the target's verification) and per-run budget first, and asks before
-   creating it. Only the scope id and revision in the file change.
+   creating it. The budget is sized to one run of the suite: one message per
+   turn of each repetition, one credit per attempt. Only the scope id and
+   revision in the file change. Use `--data-origin customer_records` (or
+   `mixed`) when the cases hold real records.
 4. **`test --suite`** runs the suite under that scope with the usual quote
    and `--max-credits` consent.
 
@@ -145,12 +149,13 @@ execution_scope:
   A loopback address is transport only and can't stand in for a registered
   public address.
 - Every configured operation must call a registered endpoint (same method
-  and path). An informational scope allows only `send` and `observe`; a
-  configured `prepare` or `cleanup` stops the run with
-  `ACTION_NOT_ALLOWED`.
-- Each run gets the scope's budget of messages, actions and commands. A run
-  that uses it up stops there and isn't retried, because a retry could
-  message your agent again.
+  and path). Real-data runs check replies only: `scope create` refuses a
+  suite whose cases declare `observations`, and a configured `prepare` or
+  `cleanup` stops the run with `ACTION_NOT_ALLOWED`.
+- Each run gets the scope's budget of messages, commands, time and credits.
+  A run whose plan needs more is refused before anything is sent. A run that
+  stops partway isn't retried, because a retry could message your agent
+  again.
 - **Local scopes** (`aw-packet/local-authorized-1`) carry only a target
   boundary hash. The CLI rebuilds the boundary from `augmentworks.yaml` (the
   `base_url` origin and each operation's method and path) and the result must
