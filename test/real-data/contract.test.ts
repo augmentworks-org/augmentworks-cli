@@ -57,7 +57,7 @@ afterEach(async () => {
 
 describe("aw-real-data-1 contract lock", () => {
   it("pins the server contract with release enabled", () => {
-    expect(AW_REAL_DATA_CONTRACT.source.commit).toBe("4c27409a557d3ec2fc9370f765f0dd72953a1722");
+    expect(AW_REAL_DATA_CONTRACT.source.commit).toBe("16d767967c9d000b81f10ddb09800b0273277b68");
     expect(AW_REAL_DATA_CONTRACT.expected.schema).toBe(
       "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4"
     );

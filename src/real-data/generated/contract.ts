@@ -8,7 +8,7 @@ export const AW_REAL_DATA_CONTRACT = {
   "runtimeEnforced": true,
   "source": {
     "repository": "https://github.com/augmentworks-org/augmentworks.git",
-    "commit": "4c27409a557d3ec2fc9370f765f0dd72953a1722",
+    "commit": "16d767967c9d000b81f10ddb09800b0273277b68",
     "schema": "docs/contracts/aw-real-data-1.schema.json",
     "fixtures": "docs/contracts/aw-real-data-1.fixtures.json",
     "checksums": "docs/contracts/aw-real-data-1.checksums.json",

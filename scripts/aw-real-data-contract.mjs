@@ -16,7 +16,7 @@ export const EXPECTED_FIXTURES_SHA256 =
   "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b";
 export const EXPECTED_CHECKSUMS_SHA256 =
   "be06536416d4ef849fe1159fc6231ddc7017a391f32ed362b4780e29c8be3695";
-export const SOURCE_COMMIT = "4c27409a557d3ec2fc9370f765f0dd72953a1722";
+export const SOURCE_COMMIT = "16d767967c9d000b81f10ddb09800b0273277b68";
 
 export function canonicalLfText(value) {
   return String(value).replace(/\r\n/gu, "\n").replace(/\r/gu, "\n");
