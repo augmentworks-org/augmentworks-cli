@@ -4,7 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-17
+
+Minor release. Requires Node.js 22.12 or newer. Hosted authorized real-data
+tests work end to end: register your own agent as a workspace target, verify
+it, create a test scope, and run `test --suite`, in four CLI commands or from
+the portal. `@augmentworks/cli@0.3.9` stays the last version for Node.js 20
+and is not overwritten.
 
 ### Breaking
 
@@ -15,57 +21,6 @@ All notable changes to this project are documented here. The format follows
   release. `@augmentworks/cli@0.3.9` stays the last version for Node.js 20.
   CI now tests Node.js 22.12.0, 22, 24 and 26, with an engine-strict install
   on the 22.12.0 lane. The build targets `node22`.
-
-### Fixed
-
-- `gate` reads the server's decision from the `aw-release-gate-read/1`
-  `document`, so it no longer answers `unknown_evaluation_state` (exit 11)
-  for every graded run. The CLI accepts the server's coverage-change values,
-  the `running` and `cancelled` evaluation statuses, and a null build commit.
-  Only a removed required case counts as missing coverage.
-- `compare` reads the server's `aw-semantic-comparison-read/1` comparison
-  and reports regressions, fixes and coverage without deciding the release;
-  it exits `0` once both runs are graded. Use `gate` for the decision.
-- `test` and `run wait` wait for grading after the target finishes and take
-  pass or fail from the run report. Until now `test` said "passed" when the
-  target finished even if required checks failed, and `run wait` could never
-  exit `0` or `10` because the server's run status has no outcome. The hosted
-  GitHub Actions examples drop their null-outcome workaround.
-- `baseline promote` sends `runId`, as the server's promote route reads it,
-  and refuses an `--expected-revision` below 1 before calling the server.
-  Until now production rejected every promote with "runId must be a UUID".
-  New `baseline create --run <run-id> --name <name> --application <name>
-  --environment <name>` creates a workspace's first pin, so a new workspace
-  no longer needs a direct `POST /v1/baselines` call.
-- Authorized hosted runs (`--suite` with an execution scope, a saved
-  revision that names one, and investigation reruns) now quote and create
-  with the scope's registered boundary hash, so admission accepts them. The
-  scope is fetched and `augmentworks.yaml` is checked against its boundary
-  before the suite is uploaded or quoted. `recover --resume` and
-  `recover --cancel` accept the scope's hash recorded for such a run.
-- Windows file-identity checks work on Node.js 22.12.0 through 22.16.x
-  (and 24.0.0 through 24.1.x). Those releases ship a libuv that reports
-  `dev: 0` from path `stat`/`lstat` and the volume serial from `fstat`, so
-  opening a config, packet, lock, or journal looked like the file had been
-  replaced. The file index still has to match. Two nonzero device ids still
-  have to match.
-- The CLI reads the server's real-data documents as `aw-real-data/1`
-  defines them: `aw-capabilities/1`, `aw-execution-scope-response/1`,
-  `aw-target-boundary/1`, the `authorized-1` report and
-  `aw-local-execution-scope/1`. Until now every hosted real-data run failed
-  before any target call. The vendored contract is re-pinned to
-  `augmentworks-org/augmentworks@4c27409`, with `releaseEnabled` and
-  `runtimeEnforced` true. A `/v1/capabilities` response that doesn't parse
-  is now an error, not a silent "real data disabled"; a 404 still means
-  disabled. Configured operations must be endpoints of the admitted target
-  boundary, and a local scope's boundary is rebuilt from `augmentworks.yaml`
-  and checked against its `targetBoundaryHash`.
-- Before any call, an authorized run checks `augmentworks.yaml` against the
-  scope's target boundary: direct HTTP only, `base_url` at the registered
-  origin, every configured operation a registered endpoint, and only `send`
-  and `observe` for informational scopes. Each failure names the origin,
-  endpoint or operation that didn't match and what to change. The admitted
-  boundary is saved with the run, so a resumed run checks against it.
 
 ### Added
 
@@ -109,6 +64,57 @@ All notable changes to this project are documented here. The format follows
   have stops without writing. With no file, it creates one whose unknown
   values are marked `FILL_IN`. `doctor` now reports any `FILL_IN` value left
   in the configuration as an error (`PLACEHOLDER_UNFILLED`).
+
+### Fixed
+
+- `gate` reads the server's decision from the `aw-release-gate-read/1`
+  `document`, so it no longer answers `unknown_evaluation_state` (exit 11)
+  for every graded run. The CLI accepts the server's coverage-change values,
+  the `running` and `cancelled` evaluation statuses, and a null build commit.
+  Only a removed required case counts as missing coverage.
+- `compare` reads the server's `aw-semantic-comparison-read/1` comparison
+  and reports regressions, fixes and coverage without deciding the release;
+  it exits `0` once both runs are graded. Use `gate` for the decision.
+- `test` and `run wait` wait for grading after the target finishes and take
+  pass or fail from the run report. Until now `test` said "passed" when the
+  target finished even if required checks failed, and `run wait` could never
+  exit `0` or `10` because the server's run status has no outcome. The hosted
+  GitHub Actions examples drop their null-outcome workaround.
+- `baseline promote` sends `runId`, as the server's promote route reads it,
+  and refuses an `--expected-revision` below 1 before calling the server.
+  Until now production rejected every promote with "runId must be a UUID".
+  New `baseline create --run <run-id> --name <name> --application <name>
+  --environment <name>` creates a workspace's first pin, so a new workspace
+  no longer needs a direct `POST /v1/baselines` call.
+- Authorized hosted runs (`--suite` with an execution scope, a saved
+  revision that names one, and investigation reruns) now quote and create
+  with the scope's registered boundary hash, so admission accepts them. The
+  scope is fetched and `augmentworks.yaml` is checked against its boundary
+  before the suite is uploaded or quoted. `recover --resume` and
+  `recover --cancel` accept the scope's hash recorded for such a run.
+- Windows file-identity checks work on Node.js 22.12.0 through 22.16.x
+  (and 24.0.0 through 24.1.x). Those releases ship a libuv that reports
+  `dev: 0` from path `stat`/`lstat` and the volume serial from `fstat`, so
+  opening a config, packet, lock, or journal looked like the file had been
+  replaced. The file index still has to match. Two nonzero device ids still
+  have to match.
+- The CLI reads the server's real-data documents as `aw-real-data/1`
+  defines them: `aw-capabilities/1`, `aw-execution-scope-response/1`,
+  `aw-target-boundary/1`, the `authorized-1` report and
+  `aw-local-execution-scope/1`. Until now every hosted real-data run failed
+  before any target call. The vendored contract is re-pinned to
+  `augmentworks-org/augmentworks@16d7679`, with `releaseEnabled` and
+  `runtimeEnforced` true. A `/v1/capabilities` response that doesn't parse
+  is now an error, not a silent "real data disabled"; a 404 still means
+  disabled. Configured operations must be endpoints of the admitted target
+  boundary, and a local scope's boundary is rebuilt from `augmentworks.yaml`
+  and checked against its `targetBoundaryHash`.
+- Before any call, an authorized run checks `augmentworks.yaml` against the
+  scope's target boundary: direct HTTP only, `base_url` at the registered
+  origin, every configured operation a registered endpoint, and only `send`
+  and `observe` for informational scopes. Each failure names the origin,
+  endpoint or operation that didn't match and what to change. The admitted
+  boundary is saved with the run, so a resumed run checks against it.
 
 ### Changed
 
@@ -689,6 +695,7 @@ This repository does not overwrite or relabel 0.3.3.
 - Refund-agent mock target, public documentation, schema, tests, packed-package
   smoke test, CI, and npm trusted-publishing workflow.
 
+[0.4.0]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.0
 [0.3.9]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.9
 [0.3.8]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.8
 [0.3.7]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.7

@@ -19,6 +19,7 @@ import {
   REGISTRY_0_3_6_GIT_HEAD,
   REGISTRY_0_3_7_GIT_HEAD,
   REGISTRY_0_3_8_GIT_HEAD,
+  REGISTRY_0_3_9_GIT_HEAD,
   SOURCE_PACKAGE_VERSION,
   allowedDocumentedNpxPins,
   CUSTOMER_CLI_PLACEHOLDER,
@@ -44,8 +45,8 @@ describe("CLI release metadata", () => {
   });
 
   it("pins hosted npx commands to this package version, not 0.3.2 or 0.3.3", () => {
-    expect(SOURCE_PACKAGE_VERSION).toBe("0.3.9");
-    expect(PUBLISHED_PACKAGE_VERSION).toBe("0.3.9");
+    expect(SOURCE_PACKAGE_VERSION).toBe("0.4.0");
+    expect(PUBLISHED_PACKAGE_VERSION).toBe("0.4.0");
     expect(HOSTED_COMMAND_PIN).toBe(SOURCE_PACKAGE_VERSION);
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.2");
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.3");
@@ -54,7 +55,8 @@ describe("CLI release metadata", () => {
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.6");
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.7");
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.8");
-    expect(allowedDocumentedNpxPins()).toEqual(["0.3.9"]);
+    expect(HOSTED_COMMAND_PIN).not.toBe("0.3.9");
+    expect(allowedDocumentedNpxPins()).toEqual(["0.4.0"]);
     expect(HOSTED_COMMANDS.login).toBe(formatNpx(HOSTED_COMMAND_PIN, ["login"]));
     expect(HOSTED_COMMANDS.initAgent).toBe(formatNpx(HOSTED_COMMAND_PIN, ["init", "--agent"]));
     expect(HOSTED_COMMANDS.recover).toBe(formatNpx(HOSTED_COMMAND_PIN, ["recover"]));
@@ -77,7 +79,8 @@ describe("CLI release metadata", () => {
     expect(REGISTRY_0_3_6_GIT_HEAD).toBe("a9b927a2413305003f817c20e9c5df277512f83e");
     expect(REGISTRY_0_3_7_GIT_HEAD).toBe("876454878a31a897aec1d722fa838c9c0ecea2aa");
     expect(REGISTRY_0_3_8_GIT_HEAD).toBe("f36d9086bad1ac109a7670e8acc9bf14a5d15047");
-    expect(CLI_RELEASE.notes).toContain("Published-line 0.3.9");
+    expect(REGISTRY_0_3_9_GIT_HEAD).toBe("9e7919cbfe583cc15701904580be9d36da3bcaf4");
+    expect(CLI_RELEASE.notes).toContain("Published-line 0.4.0");
     expect(CLI_RELEASE.notes).not.toMatch(/Candidate 0\.3\.4/u);
     expect(CLI_RELEASE.notes).not.toMatch(/Last independently verified published tarball remains @augmentworks\/cli@0\.3\.2/u);
     expect(CLI_RELEASE.notes).toContain("published-registry-evidence.json");

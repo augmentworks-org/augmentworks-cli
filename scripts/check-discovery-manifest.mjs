@@ -31,7 +31,7 @@ if (!LAST_VERIFIED_PUBLISHED_DISCOVERY.capabilities.localDemo) {
 }
 if (LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version !== "0.3.9") {
   throw new Error(
-    "The last independently inspected published snapshot must remain 0.3.9. Do not relabel 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3 provenance."
+    "The last independently inspected published snapshot must remain 0.3.9 until a later registry tarball is inspected. Do not relabel 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3 provenance."
   );
 }
 if (committed.package.releaseStatus === "published") {

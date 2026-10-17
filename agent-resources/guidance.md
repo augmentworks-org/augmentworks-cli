@@ -14,13 +14,13 @@ AugmentWorks during unrelated coding.
    packet exits `0` for `AW_FAQ_POLICY=current` and `10` for
    `AW_FAQ_POLICY=stale`. It is not hosted LLM judging and it does not prove
    customer application state. The refund fail-then-pass demo remains
-   `npx --yes @augmentworks/cli@0.3.9 demo`, or `node dist/index.js demo` from
+   `npx --yes @augmentworks/cli@0.4.0 demo`, or `node dist/index.js demo` from
    a clone after `npm ci && npm run build`. Otherwise start with non-networked
    `doctor`. Preview mappings with
    `node dist/index.js preview-mapping` before an assessment. Explicitly probe
    a safe synthetic target with `node dist/index.js probe` (plan) then
    `node dist/index.js probe --yes`. Doctor and init never probe. This
-   `@augmentworks/cli@0.3.9` package includes `demo`, hosted `--assessment`,
+   `@augmentworks/cli@0.4.0` package includes `demo`, hosted `--assessment`,
    `usage`, `billing`, `preview-mapping`, `probe`, `test --estimate`,
    `--max-credits`, `run status`/`run wait`/`run report`,
    `AUGMENTWORKS_API_KEY` mode, and init starter generation.
@@ -29,12 +29,12 @@ AugmentWorks during unrelated coding.
 
 ## Commands (version-pinned)
 
-This 0.3.9 package:
+This 0.4.0 package:
 
-- `npx --yes @augmentworks/cli@0.3.9 init --agent`
-- `npx --yes @augmentworks/cli@0.3.9 doctor -c augmentworks.yaml`
-- `npx --yes @augmentworks/cli@0.3.9 test --local -c augmentworks.yaml --packet support-refunds-starter@0.1.0`
-- `npx --yes @augmentworks/cli@0.3.9 schema --kind local-packet`
+- `npx --yes @augmentworks/cli@0.4.0 init --agent`
+- `npx --yes @augmentworks/cli@0.4.0 doctor -c augmentworks.yaml`
+- `npx --yes @augmentworks/cli@0.4.0 test --local -c augmentworks.yaml --packet support-refunds-starter@0.1.0`
+- `npx --yes @augmentworks/cli@0.4.0 schema --kind local-packet`
 
 From a clone after `npm ci && npm run build`:
 
