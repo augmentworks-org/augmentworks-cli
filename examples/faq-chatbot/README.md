@@ -17,7 +17,7 @@ Published `@augmentworks/cli@0.3.8` and `@augmentworks/cli@0.3.7` do not
 contain this directory or the `AW_FAQ_POLICY` switch. `init` from those
 registry tarballs writes an older server that always returns the 30-day
 sentence. A later npm release is required before a guide claims the published
-package includes the stale-answer control. The commands below pin `@augmentworks/cli@0.3.9` and run it against these
+package includes the stale-answer control. The commands below pin `@augmentworks/cli@0.4.0` and run it against these
 git files.
 
 This example is fictional. Real-data tests run only against your own
@@ -114,9 +114,9 @@ Terminal B, from the same `faq-clean` directory (still outside the CLI
 checkout):
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 doctor -c augmentworks.yaml
-npx --yes @augmentworks/cli@0.3.9 preview-mapping -c augmentworks.yaml --operation send --fixture ./fixtures/send-response.json
-npx --yes @augmentworks/cli@0.3.9 test --local -c augmentworks.yaml --packet ./packet.json
+npx --yes @augmentworks/cli@0.4.0 doctor -c augmentworks.yaml
+npx --yes @augmentworks/cli@0.4.0 preview-mapping -c augmentworks.yaml --operation send --fixture ./fixtures/send-response.json
+npx --yes @augmentworks/cli@0.4.0 test --local -c augmentworks.yaml --packet ./packet.json
 echo "local-exit:$?"
 ```
 
@@ -165,7 +165,7 @@ AW_FAQ_POLICY=stale node --env-file=.env server.mjs
 Same packet, same published CLI:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 test --local -c augmentworks.yaml --packet ./packet.json
+npx --yes @augmentworks/cli@0.4.0 test --local -c augmentworks.yaml --packet ./packet.json
 echo "local-exit:$?"
 ```
 
@@ -216,9 +216,9 @@ the directory that contains the selected `-c` file, not from the shell's
 current directory when those differ.
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 doctor -c augmentworks.malformed.yaml
-npx --yes @augmentworks/cli@0.3.9 preview-mapping -c augmentworks.incompatible.yaml --operation send --fixture ./fixtures/send-response.json
-npx --yes @augmentworks/cli@0.3.9 probe -c augmentworks.incompatible.yaml --yes
+npx --yes @augmentworks/cli@0.4.0 doctor -c augmentworks.malformed.yaml
+npx --yes @augmentworks/cli@0.4.0 preview-mapping -c augmentworks.incompatible.yaml --operation send --fixture ./fixtures/send-response.json
+npx --yes @augmentworks/cli@0.4.0 probe -c augmentworks.incompatible.yaml --yes
 ```
 
 ## Next step
@@ -226,7 +226,7 @@ npx --yes @augmentworks/cli@0.3.9 probe -c augmentworks.incompatible.yaml --yes
 Local validation is the pass command and the stale-policy command above.
 Hosted authorization is a separate human action. Open
 `/docs/agent-setup` on the product site, then run
-`npx --yes @augmentworks/cli@0.3.9 login` only after a person approves it.
+`npx --yes @augmentworks/cli@0.4.0 login` only after a person approves it.
 Pricing is `/pricing` on the product site.
 The website's adopted production-compatible pin is still
 `@augmentworks/cli@0.3.7`, recorded at

@@ -1,17 +1,17 @@
 # Synthetic response-agent example
 
-This directory is a **synthetic** FAQ assessment fixture for this 0.3.9 package.
+This directory is a **synthetic** FAQ assessment fixture for this 0.4.0 package.
 It is not a production knowledge base, not a real customer policy, and not
 included in the npm tarball. Clone this repository for the example server.
 
 The account-free pass and forced-failure walkthrough for this same server is
 [`examples/faq-chatbot/`](../faq-chatbot/README.md). `AW_FAQ_POLICY=stale`
 returns the 14-day sentence on purpose. That switch is in this source tree.
-Published `@augmentworks/cli@0.3.9` and `@augmentworks/cli@0.3.7` do not
+Published `@augmentworks/cli@0.4.0` and `@augmentworks/cli@0.3.7` do not
 include it. This fixture is synthetic; real-data tests need a registered,
 verified target of your own.
 
-This `@augmentworks/cli@0.3.9` package includes `--assessment`. `init --starter
+This `@augmentworks/cli@0.4.0` package includes `--assessment`. `init --starter
 response-only` writes a packaged copy of this fixture (including `server.mjs`)
 instead of copying this git-only example directory.
 

@@ -28,22 +28,22 @@ The CLI needs **Node.js 22.12 or newer**. Run it with `npx`, pinned to this
 release:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 --version
+npx --yes @augmentworks/cli@0.4.0 --version
 ```
 
 or install it once and use the `augmentworks` command:
 
 ```bash
-npm install -g @augmentworks/cli@0.3.9
+npm install -g @augmentworks/cli@0.4.0
 augmentworks --version
 ```
 
 Older versions aren't supported. Upgrade with
-`npm install -g @augmentworks/cli@0.3.9`, or change the version in your `npx`
+`npm install -g @augmentworks/cli@0.4.0`, or change the version in your `npx`
 commands. On Node.js 20, upgrade Node.js to 22.12 or newer first: Node.js 20
 reached end of life in April 2026.
 
-The examples below use `npx --yes @augmentworks/cli@0.3.9`. `--yes` only skips
+The examples below use `npx --yes @augmentworks/cli@0.4.0`. `--yes` only skips
 npm's install prompt; it never approves spending. Run the published CLI from a
 directory that isn't a clone of this repository; inside a clone, `npx` can exit
 `127` with `augmentworks: not found`.
@@ -55,7 +55,7 @@ directory that isn't a clone of this repository; inside a clone, `npx` can exit
 No account, login, Docker, database, or model:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 demo
+npx --yes @augmentworks/cli@0.4.0 demo
 ```
 
 The demo starts a fictional refund agent on `127.0.0.1` and runs the real local
@@ -81,7 +81,7 @@ fixtures, and an assessment file. Pick the response-only chat pattern (the
 default) or `--starter workflow` for an agent with state:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 init --agent
+npx --yes @augmentworks/cli@0.4.0 init --agent
 ```
 
 Edit `.env` and `augmentworks.yaml` for your chatbot (see
@@ -89,10 +89,10 @@ Edit `.env` and `augmentworks.yaml` for your chatbot (see
 starter packet:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 doctor \
+npx --yes @augmentworks/cli@0.4.0 doctor \
   -c augmentworks.yaml
 
-npx --yes @augmentworks/cli@0.3.9 test \
+npx --yes @augmentworks/cli@0.4.0 test \
   --local \
   -c augmentworks.yaml \
   --packet support-refunds-starter@0.1.0 \
@@ -163,8 +163,8 @@ any call. `aw-packet/local-authorized-1` is a customer-declared local scope; it
 never contacts AugmentWorks and is not hosted authority. Print the schemas:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 schema --kind local-packet
-npx --yes @augmentworks/cli@0.3.9 schema --kind local-result
+npx --yes @augmentworks/cli@0.4.0 schema --kind local-packet
+npx --yes @augmentworks/cli@0.4.0 schema --kind local-result
 ```
 
 **Reports.** The default output directory is `.augmentworks/runs/<run_id>`.
@@ -185,7 +185,7 @@ Hosted tests need an invited AugmentWorks workspace; there is no self-serve
 signup. A person logs in once per machine:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 login
+npx --yes @augmentworks/cli@0.4.0 login
 ```
 
 Use `login --device` over SSH or on a headless machine, and
@@ -195,12 +195,12 @@ only authorizes this terminal; it never starts a run.
 Then generate the starter files, check them, and run a quick assessment:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 init --agent
+npx --yes @augmentworks/cli@0.4.0 init --agent
 
-npx --yes @augmentworks/cli@0.3.9 doctor \
+npx --yes @augmentworks/cli@0.4.0 doctor \
   -c augmentworks.yaml
 
-npx --yes @augmentworks/cli@0.3.9 test \
+npx --yes @augmentworks/cli@0.4.0 test \
   -c augmentworks.yaml \
   --assessment ./augmentworks.assessment.yaml \
   --profile quick \
@@ -219,8 +219,8 @@ If grading is still pending when your chatbot's part is done, the CLI exits
 another:
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 run wait <run-id>
-npx --yes @augmentworks/cli@0.3.9 run report <run-id> --json
+npx --yes @augmentworks/cli@0.4.0 run wait <run-id>
+npx --yes @augmentworks/cli@0.4.0 run report <run-id> --json
 ```
 
 Re-running the exact same `test` command on the same machine resumes the run
@@ -272,10 +272,10 @@ holds `augmentworks.yaml`. Each step can also be done in the portal under
 Settings → Targets.
 
 ```bash
-npx --yes @augmentworks/cli@0.3.9 target add --env production
-npx --yes @augmentworks/cli@0.3.9 target verify <name>
-npx --yes @augmentworks/cli@0.3.9 scope create --target <name> --suite refunds.suite.yaml --data-origin customer_records
-npx --yes @augmentworks/cli@0.3.9 test --suite refunds.suite.yaml --max-credits 30 --yes
+npx --yes @augmentworks/cli@0.4.0 target add --env production
+npx --yes @augmentworks/cli@0.4.0 target verify <name>
+npx --yes @augmentworks/cli@0.4.0 scope create --target <name> --suite refunds.suite.yaml --data-origin customer_records
+npx --yes @augmentworks/cli@0.4.0 test --suite refunds.suite.yaml --max-credits 30 --yes
 ```
 
 1. `target add` registers the agent's name, address and endpoints from
