@@ -2,7 +2,11 @@ import type { ResolvedConfig } from "../config/types.js";
 import { AwError } from "../errors.js";
 import type { AnyLocalPacketManifest, PacketAssertion, PacketManifest } from "./types.js";
 import { isLocalAuthorizedPacket } from "./types.js";
-import { assertBoundaryMatchesConfig } from "../real-data/boundary.js";
+import {
+  assertBoundaryMatchesConfig,
+  localTargetBoundary,
+  operationPermittedByEffects
+} from "../real-data/boundary.js";
 import { realDataError } from "../real-data/errors.js";
 
 export interface LocalPacketCompatibilityIssue {
@@ -101,8 +105,15 @@ export function assertLocalPacketCompatible(
   resolved: ResolvedConfig
 ): void {
   if (isLocalAuthorizedPacket(packet)) {
-    assertBoundaryMatchesConfig(packet.execution_scope.targetBoundary, resolved);
-    if (packet.required_capabilities.cleanup && !packet.execution_scope.targetBoundary.allowedOperations.includes("cleanup")) {
+    const boundary = localTargetBoundary(packet.execution_scope, resolved);
+    assertBoundaryMatchesConfig(boundary, resolved, {
+      allowPrivate: true,
+      effects: packet.execution_scope.effects
+    });
+    if (
+      packet.required_capabilities.cleanup &&
+      !operationPermittedByEffects("cleanup", packet.execution_scope.effects)
+    ) {
       throw realDataError(
         "ACTION_NOT_ALLOWED",
         "Local authorized packets cannot enable cleanup unless the local scope allows that operation."

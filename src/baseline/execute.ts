@@ -4,7 +4,7 @@ import {
   FEATURE_PACKAGE_VERSION,
   RELEASE_POLICY_SCHEMA_VERSION
 } from "./schema.js";
-import { classifyReleasePolicy } from "./classify.js";
+import { classifyComparison, classifyReleasePolicy } from "./classify.js";
 import { createsBillableRunError, mapReleasePolicyError } from "./errors.js";
 import {
   formatReleasePolicyHuman,
@@ -108,13 +108,14 @@ export async function runReleasePolicyCommand(
             );
     const document = normalizeReleasePolicyDocument(raw, { candidateRunId, baselineId });
     if (document.createsBillableRun) throw createsBillableRunError();
-    const classification = classifyReleasePolicy(document);
+    const classification =
+      command === "compare" ? classifyComparison(document) : classifyReleasePolicy(document);
     const portalUrl = document.portalUrl ?? portalCompareUrl(session.apiOrigin, candidateRunId, baselineId);
     if (json) {
       stdout.write(
         releasePolicySuccessJson(document, classification, { command, portalUrl })
       );
-      const hint = releasePolicyStderrHint(document, classification);
+      const hint = releasePolicyStderrHint(document, classification, command);
       if (hint !== "") stderr.write(hint);
     } else {
       stdout.write(formatReleasePolicyHuman(document, classification, { command, portalUrl }));

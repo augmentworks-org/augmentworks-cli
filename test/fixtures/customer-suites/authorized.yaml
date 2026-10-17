@@ -1,7 +1,7 @@
 schema_version: aw-suite/3
 suite_id: authorized.records.fixture
 title: Authorized real-data fixture
-description: Offline fixture for aw-suite/3 CLI handoff. Release remains disabled until backend and privacy integration are verified.
+description: Fictional aw-suite/3 fixture. Its scope id stands in for one that scope create writes for a registered, verified target.
 execution_scope:
   schema_version: aw-execution-scope/1
   scope_id: 66666666-6666-4666-8666-666666666666

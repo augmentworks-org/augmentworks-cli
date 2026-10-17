@@ -56,7 +56,7 @@ export function assertCommandWithinBudget(
   if (nextCommands > budget.maxCommands || nextMessages > budget.maxMessages || nextActions > budget.maxActions) {
     throw realDataError(
       "EXECUTION_BUDGET_EXHAUSTED",
-      `Execution budget exhausted (messages ${String(nextMessages)}/${String(budget.maxMessages)}, actions ${String(nextActions)}/${String(budget.maxActions)}, commands ${String(nextCommands)}/${String(budget.maxCommands)}), including indeterminate sends.`
+      `This run used up its scope's allowance of ${String(budget.maxMessages)} messages, ${String(budget.maxActions)} actions and ${String(budget.maxCommands)} commands, counting sends whose outcome is unknown.`
     );
   }
 }
@@ -70,7 +70,7 @@ export function consumeProbeAllowance(budget: ExecutionBudget, consumption: Budg
   if (next.messages > budget.maxMessages || next.commands > budget.maxCommands) {
     throw realDataError(
       "EXECUTION_BUDGET_EXHAUSTED",
-      "A diagnostic probe consumes real target allowance and would exceed the admitted budget."
+      "A connection check sends a real message to your agent, and this run's scope has no allowance left for it."
     );
   }
   return next;

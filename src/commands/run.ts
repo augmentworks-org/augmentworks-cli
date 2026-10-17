@@ -23,6 +23,7 @@ import {
   type RunReportClientOptions
 } from "../report/client.js";
 import { reportConsistencyRecoveryText } from "../report/consistency.js";
+import { reportSettled, waitForGradedReport } from "../outcome/graded.js";
 import {
   AUTHORIZED_REPORT_SCOPE,
   LIVE_INFORMATIONAL_REPORT_SCOPE,
@@ -184,10 +185,17 @@ async function executeRunSubcommand(
       }
       return;
     }
-    const status =
+    const now = dependencies.now ?? Date.now;
+    const deadline = action === "wait" ? now() + parseTimeoutMs(values.timeoutMs) : now();
+    const status = await withGradedOutcome(
+      session,
       action === "wait"
-        ? await waitForRunStatus(session, id, values, dependencies)
-        : await readRunStatus(session, id, values.signal);
+        ? await waitForRunStatus(session, id, deadline, values, dependencies)
+        : await readRunStatus(session, id, values.signal),
+      deadline,
+      values,
+      dependencies
+    );
     if (json) stdout.write(runStatusSuccessJson(status));
     else stdout.write(formatRunStatusHuman(status));
     const exitCode = billingStatusExitCode(status);
@@ -373,13 +381,12 @@ async function readRunStatus(
 async function waitForRunStatus(
   session: HostedAuthSession,
   runId: string,
+  deadline: number,
   values: RunCommandOptions,
   dependencies: RunCommandDependencies
 ): Promise<BillingRunStatus> {
-  const timeoutMs = parseTimeoutMs(values.timeoutMs);
   const now = dependencies.now ?? Date.now;
   const sleep = dependencies.sleep ?? sleepWithSignal;
-  const deadline = now() + timeoutMs;
   let delay = 1_000;
   let last: BillingRunStatus | undefined;
   for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
@@ -394,6 +401,33 @@ async function waitForRunStatus(
     delay = Math.min(delay * 2, 5_000);
   }
   throw waitIncompleteError(runId, last);
+}
+
+/**
+ * Billing status has no outcome, so a finished, graded run takes pass or fail
+ * from its run report. Without a settled report the run stays incomplete.
+ */
+async function withGradedOutcome(
+  session: HostedAuthSession,
+  status: BillingRunStatus,
+  deadline: number,
+  values: RunCommandOptions,
+  dependencies: RunCommandDependencies
+): Promise<BillingRunStatus> {
+  if (status.outcome !== undefined || status.executionStatus !== "completed") return status;
+  if (!classifyBillingRunStatus(status).waitTerminal) return status;
+  const report = await waitForGradedReport({
+    cloud: session.cloud,
+    runId: status.runId,
+    workspaceId: session.identity.workspaceId,
+    deadline,
+    now: dependencies.now ?? Date.now,
+    sleep: dependencies.sleep ?? sleepWithSignal,
+    ...(values.signal === undefined ? {} : { signal: values.signal })
+  });
+  if (report === undefined || !reportSettled(report)) return status;
+  const outcome = report.outcome === "passed" && !report.reportReady ? null : report.outcome;
+  return { ...status, outcome };
 }
 
 function waitIncompleteError(runId: string, status: BillingRunStatus | undefined): AwError {

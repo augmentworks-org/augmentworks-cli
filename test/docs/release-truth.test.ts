@@ -15,6 +15,7 @@ const currentSurfaces = [
   "docs/agent-setup.md",
   "docs/discovery-handoff.md",
   "docs/distribution-runbook.md",
+  "docs/command-examples.md",
   "docs/examples/README.md",
   "docs/examples/github-actions-hosted.yml",
   "docs/examples/github-actions-local.yml",
@@ -65,7 +66,8 @@ describe("current release truth", () => {
 
     const readme = await readSurface("README.md");
     expect(readme).toContain(`@augmentworks/cli@${CLI_VERSION}`);
-    expect(readme).toContain(`| This package (\`package.json\`) | \`${CLI_VERSION}\` |`);
+    const runbook = await readSurface("docs/distribution-runbook.md");
+    expect(runbook).toContain(`| This package (\`package.json\`) | \`${CLI_VERSION}\` |`);
 
     const guidance = await readSurface("agent-resources/guidance.md");
     expect(guidance).toContain(`@augmentworks/cli@${CLI_VERSION}`);

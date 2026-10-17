@@ -146,10 +146,15 @@ describe("investigation reproduction admission", () => {
         apiOrigin: () => new URL("http://127.0.0.1:8787")
       }
     );
-    const before = JSON.parse(beforeIo.output().stdout) as { assessment?: string; decision?: string };
-    expect(beforeIo.output().exitCode === 10 || before.assessment === "blocked" || before.decision === "block").toBe(
-      true
-    );
+    // compare reports the regression; only gate turns it into a decision.
+    const before = JSON.parse(beforeIo.output().stdout) as {
+      assessment?: string;
+      decision?: string | null;
+      groups?: { new_required_regressions?: number };
+    };
+    expect(before.assessment).toBe("reported");
+    expect(before.decision).toBeNull();
+    expect(before.groups?.new_required_regressions).toBeGreaterThan(0);
     expect(createBodies).toHaveLength(0);
 
     const result = await runTest(

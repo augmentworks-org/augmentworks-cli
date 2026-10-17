@@ -6,11 +6,9 @@
 # No browser. npm `--yes` is not a spending ceiling. Billing rejection is
 # exit 13; a new required semantic regression is exit 10 even when
 # aggregate pass rates match; incomplete grading or an incomplete gate is
-# 11; evaluator error is 12. Pending or partial evaluation exits 11 and does
-# not call gate. A completed run whose billing status omits outcome
-# (execution completed, evaluation complete, outcome null) also exits 11
-# from run wait; that status query still calls gate and is not a pass.
-# Do not treat a null billing outcome as exit 0.
+# 11; evaluator error is 12. `run wait` takes pass (0) or a failed required
+# check (10) from the graded run report. Pending or partial evaluation, or a
+# report that is not ready, exits 11 and does not call gate.
 # Recover an interrupted create before starting another admission.
 # Do not auto-promote a baseline. Prefer repository secret AUGMENTWORKS_API_KEY
 # (AUGMENTWORKS_TOKEN remains a compatible injection). The complete hosted
@@ -95,37 +93,11 @@ jobs:
           wait_code=$?
           set -e
           cat .augmentworks/ci/wait.json
-          # Same contracted wait 11 split as github-actions-hosted.yml:
-          # unfinished grading skips gate; completed grading with a null
-          # billing outcome is a terminal status query and still calls gate.
-          grading_ready=0
-          if [ "$wait_code" -eq 11 ]; then
-            grading_ready="$(node -e "
-              // aw-hosted-ci-grading-ready
-              const fs = require('node:fs');
-              let ready = false;
-              try {
-                const parsed = JSON.parse(fs.readFileSync('.augmentworks/ci/wait.json', 'utf8'));
-                const outcome = Object.prototype.hasOwnProperty.call(parsed, 'outcome') ? parsed.outcome : null;
-                ready = parsed.ok === true
-                  && parsed.observation === 'succeeded'
-                  && parsed.work === 'terminal'
-                  && parsed.assessment === 'incomplete'
-                  && parsed.executionStatus === 'completed'
-                  && parsed.evaluationStatus === 'complete'
-                  && (outcome === null || outcome === '');
-              } catch {
-                ready = false;
-              }
-              process.stdout.write(ready ? '1' : '0');
-            ")"
-          fi
-          if [ "$wait_code" -ne 0 ] && [ "$wait_code" -ne 10 ] && [ "$grading_ready" != "1" ]; then
+          # run wait exits 0 or 10 from the graded run report, and 11 while
+          # grading is unfinished. Only a graded run reaches the gate.
+          if [ "$wait_code" -ne 0 ] && [ "$wait_code" -ne 10 ]; then
             echo "Wait did not finish for original run $run_id. Re-query that ID. Do not start another billed assessment." >&2
             exit "$wait_code"
-          fi
-          if [ "$grading_ready" = "1" ]; then
-            echo "Billing status omitted outcome after completed grading for original run $run_id. Continuing to the release gate. This is not unfinished evaluation and is not a pass." >&2
           fi
           node dist/index.js gate \
             --run "$run_id" \

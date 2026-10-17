@@ -18,17 +18,123 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `gate` reads the server's decision from the `aw-release-gate-read/1`
+  `document`, so it no longer answers `unknown_evaluation_state` (exit 11)
+  for every graded run. The CLI accepts the server's coverage-change values,
+  the `running` and `cancelled` evaluation statuses, and a null build commit.
+  Only a removed required case counts as missing coverage.
+- `compare` reads the server's `aw-semantic-comparison-read/1` comparison
+  and reports regressions, fixes and coverage without deciding the release;
+  it exits `0` once both runs are graded. Use `gate` for the decision.
+- `test` and `run wait` wait for grading after the target finishes and take
+  pass or fail from the run report. Until now `test` said "passed" when the
+  target finished even if required checks failed, and `run wait` could never
+  exit `0` or `10` because the server's run status has no outcome. The hosted
+  GitHub Actions examples drop their null-outcome workaround.
+- `baseline promote` sends `runId`, as the server's promote route reads it,
+  and refuses an `--expected-revision` below 1 before calling the server.
+  Until now production rejected every promote with "runId must be a UUID".
+  New `baseline create --run <run-id> --name <name> --application <name>
+  --environment <name>` creates a workspace's first pin, so a new workspace
+  no longer needs a direct `POST /v1/baselines` call.
+- Authorized hosted runs (`--suite` with an execution scope, a saved
+  revision that names one, and investigation reruns) now quote and create
+  with the scope's registered boundary hash, so admission accepts them. The
+  scope is fetched and `augmentworks.yaml` is checked against its boundary
+  before the suite is uploaded or quoted. `recover --resume` and
+  `recover --cancel` accept the scope's hash recorded for such a run.
 - Windows file-identity checks work on Node.js 22.12.0 through 22.16.x
   (and 24.0.0 through 24.1.x). Those releases ship a libuv that reports
   `dev: 0` from path `stat`/`lstat` and the volume serial from `fstat`, so
   opening a config, packet, lock, or journal looked like the file had been
   replaced. The file index still has to match. Two nonzero device ids still
   have to match.
+- The CLI reads the server's real-data documents as `aw-real-data/1`
+  defines them: `aw-capabilities/1`, `aw-execution-scope-response/1`,
+  `aw-target-boundary/1`, the `authorized-1` report and
+  `aw-local-execution-scope/1`. Until now every hosted real-data run failed
+  before any target call. The vendored contract is re-pinned to
+  `augmentworks-org/augmentworks@4c27409`, with `releaseEnabled` and
+  `runtimeEnforced` true. A `/v1/capabilities` response that doesn't parse
+  is now an error, not a silent "real data disabled"; a 404 still means
+  disabled. Configured operations must be endpoints of the admitted target
+  boundary, and a local scope's boundary is rebuilt from `augmentworks.yaml`
+  and checked against its `targetBoundaryHash`.
+- Before any call, an authorized run checks `augmentworks.yaml` against the
+  scope's target boundary: direct HTTP only, `base_url` at the registered
+  origin, every configured operation a registered endpoint, and only `send`
+  and `observe` for informational scopes. Each failure names the origin,
+  endpoint or operation that didn't match and what to change. The admitted
+  boundary is saved with the run, so a resumed run checks against it.
+
+### Added
+
+- `target add --env <environment>` registers the agent in `augmentworks.yaml`
+  (its name, `base_url` and every operation) as a workspace target, so the
+  address and endpoints are never typed twice. It asks whether the agent is
+  yours or a client's (with a written-permission reference), and shows the
+  workspace real-data statement once for a typed `yes` if the workspace hasn't
+  accepted it. In CI there's no prompt: pass `--attest owned` or
+  `--attest written --permission-ref <ref>`, and accept the statement in the
+  portal first; `--yes` never answers either. It needs a workspace owner's
+  login, refuses machine keys, and ends with `augmentworks target verify <name>`.
+- `target verify <name>` verifies a target you added. For a public address
+  it prints the value to serve at `/.well-known/augmentworks-target` (or the
+  TXT record for `_augmentworks-target.<host>` when the target was added with
+  `--method dns`) and when the code expires, checks for it every 15 seconds,
+  and prints "verified until …". The server is asked at the start, as soon as
+  the CLI first sees the code, and then at most every few minutes, so waiting
+  stays inside its attempt limits. Ctrl+C stops it, and running it again
+  resumes with the same code; an expired code is replaced. A private address
+  is confirmed from this machine with one connection probe (no credits) and
+  recorded as the owner's statement. A client's agent records the written
+  permission (`--client-ref` names the client). Needs an owner's login.
+- `scope create --target <name> --suite <file>` creates a test scope for a
+  verified target and writes its id into the `aw-suite/3` file, changing only
+  `execution_scope.scope_id` and `revision` (comments and formatting stay as
+  they were). It uses the workspace's current data policy unless `--policy`
+  is given, and shows the policy, data origin (`--data-origin`, default
+  `constructed`), expiry (30 days, or when the target's verification ends;
+  `--expires` to choose) and budget before asking, or `--yes` in CI. A
+  workspace without the real-data statement, or an unverified target, stops
+  with the step that's missing. Needs an owner's login. Ends with
+  `augmentworks test --suite <file>`.
+- `target list` shows each target's status, verification expiry and test
+  scopes (scopes for owners only), and marks a scope that expires within 7
+  days. `--suite <file>` also checks that file's scope and says how to
+  replace it.
+- `target pull <name>` brings a target added in the portal into
+  `augmentworks.yaml`: its name, address and endpoints. Mappings and auth
+  aren't touched, and an operation that calls an endpoint the target doesn't
+  have stops without writing. With no file, it creates one whose unknown
+  values are marked `FILL_IN`. `doctor` now reports any `FILL_IN` value left
+  in the configuration as an error (`PLACEHOLDER_UNFILLED`).
 
 ### Changed
 
 - On Node.js older than 22.12, the CLI prints a one-line warning to stderr
   with a link to the current LTS release, then runs the command as before.
+- Real-data errors now say what happened, then what to do, naming the
+  command or the Settings → Targets page that fixes it, and print the code
+  last: `Error: <message> (<CODE>)`. This covers a target or endpoint that
+  doesn't match the scope, an expired scope or verification, a revoked
+  target, a used-up run allowance, a workspace that hasn't accepted the
+  real-data statement, an unverified target, a machine key used for setup,
+  and the server not accepting real-data tests. The codes are unchanged, and
+  `--json` output carries the same advice in `fix`. Other errors keep the
+  `Error [CODE]: <message>` form.
+- The docs, agent resources, starters and `init` guidance no longer call
+  hosted real data release-disabled. They describe the real-data setup
+  (`target add`, `target verify`, `scope create`, then `test --suite`), and
+  `docs/customer-suites.md` documents the `aw-suite/3` rules, including how a
+  local scope's boundary is rebuilt from `augmentworks.yaml`.
+  `docs/troubleshooting.md` lists each real-data error and its fix.
+- The README is rewritten for users: install, first local test, first hosted
+  test, real-data test, commands, troubleshooting. It pins one version and
+  states the Node.js 22.12 minimum. The version history, integrity hashes,
+  gitHeads and publishing rules moved to `docs/distribution-runbook.md`, and
+  the `node dist/index.js` source-build commands to
+  `docs/command-examples.md`.
 - Recorded the independent inspection of npm `@augmentworks/cli@0.3.9`.
   The published tarball is unchanged and still embeds the prior 0.3.8
   `LAST_VERIFIED` snapshot.

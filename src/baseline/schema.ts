@@ -10,21 +10,30 @@ export type ReleaseDecision = (typeof RELEASE_DECISIONS)[number];
 export const COMPARABILITY_STATES = ["compatible", "incompatible", "incomplete"] as const;
 export type ComparabilityState = (typeof COMPARABILITY_STATES)[number];
 
+// The last five are the server's values (main
+// `src/lib/feature-contracts/constants.ts`, `COVERAGE_CHANGE_REASONS`).
 export const COVERAGE_CHANGES = [
   "none",
   "added",
   "removed",
   "rescheduled",
   "missing_required",
-  "unknown"
+  "unknown",
+  "added_cases",
+  "removed_cases",
+  "added_and_removed_cases",
+  "repetition_count_changed",
+  "selection_filter_changed"
 ] as const;
 export type CoverageChange = (typeof COVERAGE_CHANGES)[number];
 
 export const EVALUATION_STATUSES = [
   "complete",
   "pending",
+  "running",
   "partial",
   "error",
+  "cancelled",
   "absent",
   "unsupported",
   "unknown"

@@ -8,7 +8,8 @@ import {
   type ExecutionScope,
   type LocalExecutionScope,
   type DataPolicy,
-  type RedactionProfile
+  type RedactionProfile,
+  type TargetBoundary
 } from "./documents.js";
 import { realDataError } from "./errors.js";
 import { EXECUTION_SCOPE_BINDING_SCHEMA_VERSION } from "./constants.js";
@@ -57,11 +58,11 @@ export function assertBindingMatches(options: {
   if (binding.configSha256 !== options.configSha256) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      "Persisted execution scope does not match the current target configuration."
+      "augmentworks.yaml no longer matches the target this run's scope was created for."
     );
   }
   if (options.workspaceId !== undefined && binding.workspaceId !== undefined && binding.workspaceId !== options.workspaceId) {
-    throw realDataError("TARGET_SCOPE_MISMATCH", "Persisted execution scope belongs to a different workspace.");
+    throw realDataError("TARGET_SCOPE_MISMATCH", "This run's scope belongs to a different workspace than the one you're logged in to.");
   }
   if (options.quoteId !== undefined && binding.quoteId !== undefined && binding.quoteId !== options.quoteId) {
     throw realDataError("QUOTE_SCOPE_MISMATCH", "Persisted execution scope does not match the quoted admission.");
@@ -89,6 +90,7 @@ export function hostedBinding(options: {
   readonly contentHash?: string;
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
+  readonly boundary?: TargetBoundary;
 }): ExecutionScopeBinding {
   return {
     schemaVersion: EXECUTION_SCOPE_BINDING_SCHEMA_VERSION,
@@ -108,6 +110,7 @@ export function hostedBinding(options: {
     admitted: options.scope,
     ...(options.dataPolicy === undefined ? {} : { dataPolicy: options.dataPolicy }),
     ...(options.redactionProfile === undefined ? {} : { redactionProfile: options.redactionProfile }),
+    ...(options.boundary === undefined ? {} : { targetBoundary: options.boundary }),
     availability: "ready",
     fetchedAt: new Date().toISOString().replace(/\.\d+Z$/u, "Z")
   };
@@ -119,6 +122,8 @@ export function localBinding(options: {
   readonly scope: LocalExecutionScope;
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
+  /** The boundary rebuilt from augmentworks.yaml that matched the scope's hash. */
+  readonly boundary?: TargetBoundary;
 }): ExecutionScopeBinding {
   return {
     schemaVersion: EXECUTION_SCOPE_BINDING_SCHEMA_VERSION,
@@ -133,6 +138,7 @@ export function localBinding(options: {
     admitted: options.scope,
     ...(options.dataPolicy === undefined ? {} : { dataPolicy: options.dataPolicy }),
     ...(options.redactionProfile === undefined ? {} : { redactionProfile: options.redactionProfile }),
+    ...(options.boundary === undefined ? {} : { targetBoundary: options.boundary }),
     availability: "ready",
     fetchedAt: new Date().toISOString().replace(/\.\d+Z$/u, "Z")
   };

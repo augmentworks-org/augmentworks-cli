@@ -19,21 +19,33 @@ OK OFFLINE_CHECK_COMPLETE: No target hooks or cloud operations were invoked.
 Doctor passed.
 ```
 
-## Data scope and release gate
+## Data scope and real-data errors
 
-Hosted real-data quote and admission stay release-disabled
-(`EXECUTION_RELEASE_UNAVAILABLE`) until a compatible published release is
-enabled and an operator verifies it. While that gate is closed, use an
-authorized, isolated synthetic or staging target and constructed test data. Do
-not point a hosted run at a production system, and do not upload production,
-customer, or regulated records.
+Hosted real-data tests need a registered, verified target and a test scope
+(`augmentworks target add`, `augmentworks target verify <name>`,
+`augmentworks scope create`). Without a scope, use an authorized, isolated
+synthetic or staging target and constructed test data, and don't point a
+hosted run at a production system.
+
+Real-data errors say what happened, then what to do, and end with the code:
+`Error: <message> (<CODE>)`. The common ones:
+
+| Code | What it means | What to do |
+| --- | --- | --- |
+| `TARGET_OWNER_LOGIN_REQUIRED` | Setup was run with a machine key or by a non-owner | Unset `AUGMENTWORKS_API_KEY` and run `augmentworks login` as a workspace owner |
+| `STATEMENT_NOT_ACCEPTED` | The workspace hasn't accepted the real-data statement | An owner runs `augmentworks target add` in a terminal, or accepts it in Settings → Targets |
+| `TARGET_NOT_VERIFIED` / `TARGET_AUTHORITY_REQUIRED` | The target isn't verified | `augmentworks target verify <name>`, then `augmentworks scope create` |
+| `TARGET_AUTHORITY_EXPIRED` | The scope, the target's verification, or the verification code expired | Code: `augmentworks target verify <name>` again. Scope: `augmentworks scope create`. Verification: renew in Settings → Targets, then `augmentworks target verify <name>` |
+| `TARGET_AUTHORITY_REVOKED` | An owner revoked the target in Settings → Targets | Register it again with `augmentworks target add`, verify it, then create a new scope; past results stay readable with `augmentworks run report <run-id>` |
+| `TARGET_SCOPE_MISMATCH` | `augmentworks.yaml` calls an address or endpoint the target wasn't registered with | Point `base_url` and each operation at the registered ones (`augmentworks target list` shows them); `augmentworks target pull <name>` can fix `base_url` and a missing `send` |
+| `EXECUTION_BUDGET_EXHAUSTED` | The run needs more messages or commands than its scope allows | Run `augmentworks scope create` again so the budget fits the suite, or run fewer cases |
+| `EXECUTION_RELEASE_UNAVAILABLE` | The server isn't accepting real-data tests right now | Try again later; nothing was sent to your agent |
 
 `aw-packet/0.1` and `aw-suite/1` files still work. `aw-suite/2` still requires
 `synthetic_only: false` and is not relabeled as synthetic. `aw-suite/3` and
 `aw-packet/local-authorized-1` are explicit. Offline local execution stays
-account-free and never contacts AugmentWorks. This package does not guess the
-minimum published npm version for a later real-data release, and this text is
-not legal approval. Packaged starters remain fictional.
+account-free and never contacts AugmentWorks. Real-data suites need CLI 0.4.0
+or newer, and this text is not legal approval. Packaged starters remain fictional.
 
 ## Common failures
 
@@ -352,19 +364,26 @@ polling while target execution is nonterminal even when evaluation is
 `absent`. A successful HTTP status query is not a passing assessment: wait
 and release gates must use process exit `0` only after an explicit resolved
 `passed` outcome with complete required grading and known coverage. A
-completed run with a null outcome exits `11`, never `0`. Timed-out waits stay
+completed run with a null outcome exits `11`, never `0`. `test` and `run
+wait` take the graded outcome from the run report (`/v1/relay/runs/{runId}/report`)
+once grading settles; until the report is ready they exit `11`. Timed-out waits stay
 read-only and never create another quote, reservation, or run. Retry guidance
 names the original run ID.
 
 `compare` / `gate --run` POST `/v1/comparisons/evaluate` or
 `/v1/release-gates/evaluate` for an explicit `--run` and `--baseline`.
-They never quote, create, or retry a run. HTTP 200 with `decision: block`
-exits `10` even when aggregate pass rates match. Pending judging, missing
-coverage, and unknown server decisions exit `11`. Evaluator error exits
+They never quote, create, or retry a run. `gate` reads the server's
+decision: `decision: block` exits `10` even when aggregate pass rates match.
+`compare` only reports changes and exits `0` once both runs are graded.
+Pending judging, missing required coverage, and unknown server decisions
+exit `11`. Evaluator error exits
 `12`. A missing pin exits `2`. Auth failures exit `3`. `--json` keeps
 diagnostics on stderr. After an interrupt, re-query the original run ID;
 do not substitute a newer run or auto-promote. `baseline promote` requires
-`--expected-revision` and `baseline:promote`; a stale pin exits `4`.
+`--expected-revision` (1 or more) and `baseline:promote`; a stale pin exits `4`.
+If the workspace has no pin yet, create one with `baseline create --run <run-id>
+--name <name> --application <name> --environment <name>`, which needs
+`baseline:create`.
 
 `gate --manifest-file` POSTs identity-only
 `aw-manifest-release-gate-request/2` to `/v1/release-gates/evaluate-manifest`.

@@ -10,7 +10,9 @@ import { isLiveCustomerSuite, type CustomerSuite } from "../suite/schema.js";
 import {
   assertBoundaryMatchesConfig,
   assertCommandWithinBoundary,
-  assertScopeNotExpired
+  assertScopeNotExpired,
+  assessedIdentityOrigin,
+  operationPermittedByEffects
 } from "./boundary.js";
 import { assertCommandWithinBudget, journalBudgetConsumption } from "./budget.js";
 import type {
@@ -24,6 +26,8 @@ import { realDataError } from "./errors.js";
 
 export type AuthorizedDispatchPolicy = {
   readonly kind: "authorized";
+  /** Local scopes are customer-declared and may assess a private origin. */
+  readonly local: boolean;
   readonly origin: string;
   readonly expiresAt: string;
   readonly budget: LocalExecutionScope["budget"] | ExecutionScope["budget"];
@@ -55,15 +59,21 @@ export function authorizedDispatchPolicy(options: {
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
 }): AuthorizedDispatchPolicy {
-  assertScopeNotExpired(options.scope.expiresAt, options.now ?? Date.now());
+  const local = options.scope.schemaVersion === "aw-local-execution-scope/1";
+  assertScopeNotExpired(
+    options.scope.expiresAt,
+    options.now ?? Date.now(),
+    local ? "This packet's local scope" : undefined
+  );
   return {
     kind: "authorized",
-    origin: options.boundary.assessedOrigin,
+    local,
+    origin: assessedIdentityOrigin(options.boundary, { allowPrivate: local }),
     expiresAt: options.scope.expiresAt,
     budget: options.scope.budget,
     boundary: options.boundary,
     effects: options.scope.effects,
-    cleanupPermitted: options.boundary.allowedOperations.includes("cleanup"),
+    cleanupPermitted: operationPermittedByEffects("cleanup", options.scope.effects),
     sendReplayable: false,
     ...(options.dataPolicy === undefined ? {} : { dataPolicy: options.dataPolicy }),
     ...(options.redactionProfile === undefined ? {} : { redactionProfile: options.redactionProfile })
@@ -78,7 +88,10 @@ export function assertDispatchReadyForQuote(
   if (policy.kind === "live_informational") {
     return;
   }
-  assertBoundaryMatchesConfig(policy.boundary, resolved);
+  assertBoundaryMatchesConfig(policy.boundary, resolved, {
+    allowPrivate: policy.local,
+    effects: policy.effects
+  });
 }
 
 export function assertCommandAllowed(
@@ -92,7 +105,7 @@ export function assertCommandAllowed(
     return;
   }
   assertScopeNotExpired(policy.expiresAt, now);
-  assertCommandWithinBoundary(command, policy.boundary);
+  assertCommandWithinBoundary(command, policy.effects);
   if (command.kind === "cleanup" && !policy.cleanupPermitted) {
     throw realDataError(
       "ACTION_NOT_ALLOWED",

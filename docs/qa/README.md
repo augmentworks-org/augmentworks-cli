@@ -72,8 +72,8 @@ Rules:
    `--output-dir`.
 3. Point `CHATBOT_BASE_URL` at a **task-owned** loopback or fictional fixture.
    CI examples stay fabricated. A real assessment of customer records requires
-   target-owner authority and a compatible published release; hosted real-data
-   quote and admission stay release-disabled here. Do not copy third-party
+   a target the workspace registered and verified and a test scope from a
+   workspace owner; local QA runs never create one. Do not copy third-party
    website selectors or commit customer production data.
 4. Observe outbound calls (process wrapper, HTTP log, or `unshare --net` when
    the kernel allows it). If namespace isolation is denied, record

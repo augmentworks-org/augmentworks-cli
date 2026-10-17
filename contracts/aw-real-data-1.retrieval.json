@@ -1,84 +1,105 @@
 {
   "schemaVersion": "aw-real-data-1-retrieval/1",
-  "attemptedAt": "2026-09-22T21:31:12.000Z",
+  "attemptedAt": "2026-10-16T14:41:41.160Z",
   "source": {
     "repository": "https://github.com/augmentworks-org/augmentworks.git",
-    "commit": "b198906188bab2dac9ae2a1ad539405807e46e1e",
+    "commit": "4c27409a557d3ec2fc9370f765f0dd72953a1722",
     "files": [
       "docs/contracts/aw-real-data-1.schema.json",
       "docs/contracts/aw-real-data-1.fixtures.json",
       "docs/contracts/aw-real-data-1.checksums.json"
     ],
     "access": {
-      "kind": "linear_attachment",
-      "issue": "AUG-188",
-      "issueId": "4b75681d-a58f-4906-a728-b24665df1364",
-      "attachmentId": "f95225e8-badf-42fa-9a39-2373b851a584",
-      "title": "Verified R01 contract bytes — pinned b198906",
-      "filename": "aug188-r01-b198906-contracts.zip",
-      "zipBytes": 17169,
-      "zipSha256": "f325c47d990f22ce6a9ccc1dde41b665fb7286c01d6e5693bf8e11e5521fb2f2"
+      "kind": "github",
+      "repository": "augmentworks-org/augmentworks",
+      "ref": "4c27409a557d3ec2fc9370f765f0dd72953a1722"
     }
   },
   "expected": {
-    "schema": "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121",
-    "fixtures": "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230",
-    "checksums": "df6c3be22fcf22efd5ac540dee83ac63a3a1e72e335d0f728dd55fcddd9fb20d"
+    "schema": "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4",
+    "fixtures": "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b",
+    "checksums": "be06536416d4ef849fe1159fc6231ddc7017a391f32ed362b4780e29c8be3695"
   },
   "imported": true,
   "verified": true,
   "files": {
-    "contracts/aw-real-data-1.schema.json": "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121",
-    "contracts/aw-real-data-1.fixtures.json": "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230",
-    "contracts/aw-real-data-1.checksums.json": "df6c3be22fcf22efd5ac540dee83ac63a3a1e72e335d0f728dd55fcddd9fb20d"
-  },
-  "extracted": {
-    "aw-real-data-1.schema.json": {
-      "sha256": "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121",
-      "bytes": 25842
-    },
-    "aw-real-data-1.fixtures.json": {
-      "sha256": "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230",
-      "bytes": 100138
-    },
-    "aw-real-data-1.checksums.json": {
-      "sha256": "df6c3be22fcf22efd5ac540dee83ac63a3a1e72e335d0f728dd55fcddd9fb20d",
-      "bytes": 318
-    }
+    "contracts/aw-real-data-1.schema.json": "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4",
+    "contracts/aw-real-data-1.fixtures.json": "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b",
+    "contracts/aw-real-data-1.checksums.json": "be06536416d4ef849fe1159fc6231ddc7017a391f32ed362b4780e29c8be3695"
   },
   "attempts": [
     {
       "command": "gh api user",
-      "status": 1,
-      "signal": null,
-      "error": null,
-      "httpStatus": "403",
-      "message": "Resource not accessible by integration"
-    },
-    {
-      "command": "gh api repos/augmentworks-org/augmentworks",
-      "status": 1,
-      "signal": null,
-      "error": null,
-      "httpStatus": "404",
-      "message": "Not Found"
-    },
-    {
-      "command": "linear get_attachment f95225e8-badf-42fa-9a39-2373b851a584",
-      "status": 0,
-      "signal": null,
-      "error": null,
-      "httpStatus": "200",
-      "message": "native Linear attachment download; ZIP 17169 bytes SHA256 f325c47d990f22ce6a9ccc1dde41b665fb7286c01d6e5693bf8e11e5521fb2f2"
-    },
-    {
-      "command": "node scripts/import-aw-real-data-contract.mjs --from <verified Linear zip extract>",
       "status": 0,
       "signal": null,
       "error": null,
       "httpStatus": null,
-      "message": "copyFile import; lock.imported=true; releaseEnabled=false; runtimeEnforced=false"
+      "message": ""
+    },
+    {
+      "command": "gh api repos/augmentworks-org/augmentworks",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "gh api repos/augmentworks-org/augmentworks/contents/docs/contracts/aw-real-data-1.schema.json?ref=4c27409a557d3ec2fc9370f765f0dd72953a1722",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "gh api repos/augmentworks-org/augmentworks/contents/docs/contracts/aw-real-data-1.fixtures.json?ref=4c27409a557d3ec2fc9370f765f0dd72953a1722",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "gh api repos/augmentworks-org/augmentworks/contents/docs/contracts/aw-real-data-1.checksums.json?ref=4c27409a557d3ec2fc9370f765f0dd72953a1722",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "gh api -H Accept: application/vnd.github.raw repos/augmentworks-org/augmentworks/contents/docs/contracts/aw-real-data-1.schema.json?ref=4c27409a557d3ec2fc9370f765f0dd72953a1722",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "gh api repos/augmentworks-org/augmentworks/git/trees/4c27409a557d3ec2fc9370f765f0dd72953a1722",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "git ls-remote https://github.com/augmentworks-org/augmentworks.git 4c27409a557d3ec2fc9370f765f0dd72953a1722",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": ""
+    },
+    {
+      "command": "AUGMENTWORKS_MAIN_REPO",
+      "status": 2,
+      "signal": null,
+      "error": null,
+      "httpStatus": null,
+      "message": "unset; no local main checkout provided"
     }
   ],
-  "conclusion": "Exact frozen R01 schema, fixtures, and checksums were imported from Linear attachment f95225e8-badf-42fa-9a39-2373b851a584 (aug188-r01-b198906-contracts.zip) on AUG-188 and checksum-verified against augmentworks-org/augmentworks@b198906188bab2dac9ae2a1ad539405807e46e1e. Private GitHub fetch remains unavailable to this CLI token. Files were not reserialized. lock.imported is true. releaseEnabled and runtimeEnforced remain false."
+  "conclusion": "Exact frozen R01 schema/fixture bytes were retrieved and checksum-verified."
 }

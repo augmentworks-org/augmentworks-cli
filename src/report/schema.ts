@@ -354,7 +354,9 @@ export const AuthorizedReportOverlaySchema = z
     evidenceStatus: z.enum(["available", "partially_redacted", "unavailable", "expired", "purged"]),
     actionEvidenceStatus: z.enum(["not_applicable", "reported", "verified_receipts", "indeterminate"]),
     representationHashes: z.array(sha256).max(32),
-    limitations: z.array(z.string().min(1).max(500)).max(32)
+    limitations: z.array(z.string().min(1).max(500)).max(32),
+    v1ReportUnchanged: z.literal(true),
+    independentlyVerifiedBusinessState: z.literal(false)
   })
   .strict();
 

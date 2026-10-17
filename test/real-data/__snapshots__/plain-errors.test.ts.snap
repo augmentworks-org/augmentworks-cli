@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`plain-language real-data errors (AUG-366) > authority revoked 1`] = `"Error: This suite's test scope was revoked, so nothing was sent to your agent. A workspace owner revoked it in Settings → Targets. To test again, register it again with \`augmentworks target add\`, verify it with \`augmentworks target verify <name>\`, then create a new scope with \`augmentworks scope create --target <name> --suite <file>\`. Past results stay readable with \`augmentworks run report <run-id>\`. (TARGET_AUTHORITY_REVOKED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > budget exhausted 1`] = `"Error: This run used up its scope's allowance of 3 messages, 0 actions and 60 commands, counting sends whose outcome is unknown. Nothing more is sent, and the run won't retry, because a retry could message your agent again. Run \`augmentworks scope create\` again so the scope's budget fits the suite, or run fewer cases at a time. (EXECUTION_BUDGET_EXHAUSTED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > machine key used for setup (CLI) 1`] = `"Error: Creating a test scope needs a workspace owner's login, and machine keys can't do it. Unset AUGMENTWORKS_API_KEY and run \`augmentworks login\` as an owner. (TARGET_OWNER_LOGIN_REQUIRED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > machine key used for setup (server) 1`] = `"Error: Machine keys can't register targets or create scopes. Registering a target and creating a scope need a workspace owner's login: unset AUGMENTWORKS_API_KEY and run \`augmentworks login\`. (TARGET_AUTHORITY_REQUIRED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > no workspace statement 1`] = `"Error: This workspace hasn't accepted the real-data statement, so it can't run real-data tests. A workspace owner accepts it once by running \`augmentworks target add\` in a terminal, or in Settings → Targets. (TARGET_AUTHORITY_REQUIRED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > release unavailable 1`] = `"Error: AugmentWorks isn't accepting real-data tests right now. Nothing was sent to your agent. Try again later. Synthetic tests and \`augmentworks test --local --packet\` still run. (EXECUTION_RELEASE_UNAVAILABLE)"`;
+
+exports[`plain-language real-data errors (AUG-366) > release unavailable, rate limited 1`] = `"Error: Too many real-data runs started in this workspace. Nothing was sent to your agent. Wait a few minutes and run the same command again. (EXECUTION_RELEASE_UNAVAILABLE)"`;
+
+exports[`plain-language real-data errors (AUG-366) > scope expired 1`] = `"Error: This suite's test scope expired at 2026-10-01T00:00:00Z. Create a new one with \`augmentworks scope create --target <name> --suite <file>\`. An expired scope can't be reused. (TARGET_AUTHORITY_EXPIRED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > target not verified 1`] = `"Error: This suite's target isn't verified yet, so it can't run real-data tests. Check the target with \`augmentworks target list\`, finish verifying it with \`augmentworks target verify <name>\`, then create a scope with \`augmentworks scope create --target <name> --suite <file>\`. (TARGET_AUTHORITY_REQUIRED)"`;
+
+exports[`plain-language real-data errors (AUG-366) > target scope mismatch 1`] = `"Error: target.base_url in augmentworks.yaml points at https://staging.example.com, but this scope's target is registered at https://bot.example.com. Set base_url to https://bot.example.com, or register https://staging.example.com as its own target. A loopback address is transport only and can't stand in for a registered public address. Point base_url and each operation in augmentworks.yaml at the registered address and endpoints. \`augmentworks target list\` shows them, and \`augmentworks target pull <name>\` can fix base_url and a missing send operation. (TARGET_SCOPE_MISMATCH)"`;
+
+exports[`plain-language real-data errors (AUG-366) > verification expired 1`] = `"Error: This target's verification expired at 2026-10-01T00:00:00Z. Renew it in Settings → Targets once renewal opens, finish with \`augmentworks target verify <name>\`, then create a new scope with \`augmentworks scope create --target <name> --suite <file>\`. (TARGET_AUTHORITY_EXPIRED)"`;

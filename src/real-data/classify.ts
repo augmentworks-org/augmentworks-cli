@@ -1,5 +1,5 @@
 import { AwError, EXIT } from "../errors.js";
-import { isRealDataErrorCode } from "./errors.js";
+import { isRealDataErrorCode, PLAIN_RECOVERY_CODES, recoveryAdvice } from "./errors.js";
 import type { RealDataErrorCode } from "./constants.js";
 
 export const REAL_DATA_FAILURE_CLASSES = [
@@ -36,19 +36,19 @@ const FIX: Record<RealDataErrorCode, { readonly class: RealDataFailureClass; rea
   },
   TARGET_AUTHORITY_REQUIRED: {
     class: "blocked_setup",
-    fix: "Register and verify the target, then fetch a new execution scope. `augmentworks doctor` checks login; it does not grant authority."
+    fix: recoveryAdvice("TARGET_AUTHORITY_REQUIRED", "")
   },
   TARGET_AUTHORITY_REVOKED: {
     class: "revoked_authority",
-    fix: "Obtain a new verified authority and a new quote. Existing evidence remains readable with `augmentworks run report <run-id>`."
+    fix: recoveryAdvice("TARGET_AUTHORITY_REVOKED", "")
   },
   TARGET_AUTHORITY_EXPIRED: {
     class: "revoked_authority",
-    fix: "Obtain a renewed authority and a new quote. Do not reuse the expired scope."
+    fix: recoveryAdvice("TARGET_AUTHORITY_EXPIRED", "")
   },
   TARGET_SCOPE_MISMATCH: {
     class: "blocked_setup",
-    fix: "Match the configured origin, method, path, and allowed operations to the admitted boundary. Manual redirects only."
+    fix: recoveryAdvice("TARGET_SCOPE_MISMATCH", "")
   },
   DATA_POLICY_FORBIDDEN: {
     class: "blocked_setup",
@@ -96,11 +96,11 @@ const FIX: Record<RealDataErrorCode, { readonly class: RealDataFailureClass; rea
   },
   EXECUTION_BUDGET_EXHAUSTED: {
     class: "budget_exhausted",
-    fix: "The finite operation allowance is exhausted. Raise the admitted budget only with a new quoted scope; never pass implicit --yes."
+    fix: recoveryAdvice("EXECUTION_BUDGET_EXHAUSTED", "")
   },
   EXECUTION_RELEASE_UNAVAILABLE: {
     class: "blocked_setup",
-    fix: "Hosted real-data execution is implemented but release-disabled. Use `augmentworks test --local --packet` for an aw-packet/local-authorized-1 packet. `augmentworks suite preflight` does not contact the target."
+    fix: recoveryAdvice("EXECUTION_RELEASE_UNAVAILABLE", "")
   },
   HOSTED_AUTHORITY_INTERCHANGE_FORBIDDEN: {
     class: "blocked_setup",
@@ -122,7 +122,8 @@ export function classifyRealDataFailure(error: AwError): ClassifiedRealDataFailu
   return {
     class: mapped.class,
     code: error.code,
-    fix: mapped.fix,
+    // These codes cover several situations, so the advice follows the message (AUG-366).
+    fix: PLAIN_RECOVERY_CODES.has(error.code) ? recoveryAdvice(error.code, error.message) : mapped.fix,
     exitCode: exitCodeForClass(mapped.class, error)
   };
 }

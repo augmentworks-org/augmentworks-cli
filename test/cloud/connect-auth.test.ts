@@ -13,6 +13,7 @@ import type { AugmentWorksConfig } from "../../src/config/types.js";
 import type { HttpConnector } from "../../src/connector/http.js";
 import { RunIntentStore } from "../../src/relay/run-intent.js";
 import { canonicalize, sha256 } from "../../src/util/canonical.js";
+import { gradedReport, reportPathFor } from "../util/graded-report.js";
 
 describe("long-running command authentication lifecycle", () => {
   it("uses the async token provider after remaining connected for more than an hour", async () => {
@@ -129,6 +130,9 @@ describe("long-running command authentication lifecycle", () => {
             credit_state: "consumed"
           });
         }
+        if (url.pathname === reportPathFor("run-1")) {
+          return Response.json(gradedReport("run-1", "workspace-1"));
+        }
         return Response.json({
           protocol_version: RELAY_PROTOCOL_VERSION,
           run_id: "run-1",
@@ -178,7 +182,7 @@ describe("long-running command authentication lifecycle", () => {
         status: "completed",
         outcome: "passed"
       });
-      expect(bearerHeaders).toEqual(["Bearer hour-one-token", "Bearer hour-two-token"]);
+      expect(bearerHeaders).toEqual(["Bearer hour-one-token", "Bearer hour-two-token", "Bearer hour-two-token"]);
     } finally {
       await rm(stateDirectory, { recursive: true, force: true });
     }

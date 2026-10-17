@@ -8,7 +8,8 @@ The account-free pass and forced-failure walkthrough for this same server is
 [`examples/faq-chatbot/`](../faq-chatbot/README.md). `AW_FAQ_POLICY=stale`
 returns the 14-day sentence on purpose. That switch is in this source tree.
 Published `@augmentworks/cli@0.3.9` and `@augmentworks/cli@0.3.7` do not
-include it. Hosted real-data quote and admission stay release-disabled.
+include it. This fixture is synthetic; real-data tests need a registered,
+verified target of your own.
 
 This `@augmentworks/cli@0.3.9` package includes `--assessment`. `init --starter
 response-only` writes a packaged copy of this fixture (including `server.mjs`)

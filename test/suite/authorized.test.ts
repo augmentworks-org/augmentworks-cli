@@ -15,9 +15,18 @@ import {
 import { suitePacketBinding } from "../../src/suite/admit.js";
 import { hostedSuiteUnsupportedLocalError } from "../../src/suite/errors.js";
 import { loadLocalPacket } from "../../src/local/packet.js";
+import { ExecutionScopeSchema } from "../../src/real-data/documents.js";
+import realDataFixtures from "../../contracts/aw-real-data-1.fixtures.json" with { type: "json" };
 
 const projectRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const authorizedFixture = resolve(projectRoot, "test/fixtures/customer-suites/authorized.yaml");
+const contractSuite = realDataFixtures.fixtures.customer_suite_v3.document;
+/** The sealed scope the server returns for the fixture's scope_id 6666… revision 1. */
+const sealedScope = ExecutionScopeSchema.parse({
+  ...contractSuite.executionScope,
+  scopeId: "66666666-6666-4666-8666-666666666666",
+  revision: 1
+});
 
 describe("authorized aw-suite/3 customer suites", () => {
   it("loads, previews, and maps to aw-customer-suite/3 without mutating v1 native hashes", async () => {
@@ -30,15 +39,33 @@ describe("authorized aw-suite/3 customer suites", () => {
     expect(preview.packet).toEqual({ key: "aw-customer-suite", version: "3.0.0" });
     expect(preview.executionScope?.scopeId).toBe("66666666-6666-4666-8666-666666666666");
     expect(suitePacketBinding(loaded)).toEqual({ key: "aw-customer-suite", version: "3.0.0" });
-    const source = nativeSuiteSource(loaded);
+    const source = nativeSuiteSource(loaded, sealedScope);
     expect(source).toMatchObject({
       schemaVersion: "aw-customer-suite/3",
-      packetOverlay: "aw-packet/authorized-1",
-      suiteId: "authorized.records.fixture"
+      suiteId: "authorized.records.fixture",
+      executionScope: sealedScope
     });
     expect(source).not.toHaveProperty("syntheticOnly");
+    expect(source).not.toHaveProperty("packetOverlay");
     expect(AuthorizedNativeSuiteSourceSchema.safeParse(source).success).toBe(true);
     expect(nativeSuiteContentHash(parseNativeSuiteCreateDocument(source))).toBe(nativeSuiteContentHash(source));
+  });
+
+  it("uploads the sealed scope in the shape aw-real-data/1 fixes (AUG-357)", async () => {
+    expect(contractSuite).not.toHaveProperty("packetOverlay");
+    expect(AuthorizedNativeSuiteSourceSchema.safeParse(contractSuite).success).toBe(true);
+    const loaded = await loadCustomerSuiteFile(authorizedFixture);
+    expect(Object.keys(nativeSuiteSource(loaded, sealedScope)).sort()).toEqual(
+      Object.keys(contractSuite).sort()
+    );
+  });
+
+  it("refuses to upload without the sealed scope the suite names", async () => {
+    const loaded = await loadCustomerSuiteFile(authorizedFixture);
+    expect(() => nativeSuiteSource(loaded)).toThrow(expect.objectContaining({ code: "SUITE_HOSTED_INCOMPATIBLE" }));
+    expect(() => nativeSuiteSource(loaded, { ...sealedScope, revision: 2 })).toThrow(
+      expect.objectContaining({ code: "SUITE_HOSTED_INCOMPATIBLE" })
+    );
   });
 
   it("preflights as authorized overlay without contacting a target", async () => {

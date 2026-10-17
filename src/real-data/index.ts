@@ -27,6 +27,7 @@ export {
 export {
   parseExecutionScope,
   parseLocalExecutionScope,
+  parseTargetBoundary,
   parseExecutionScopeResponse,
   parseCapabilities,
   parseAuthorizedReport,
@@ -79,11 +80,11 @@ export {
   assertAuthorizedCapabilities,
   capabilitiesAdvertiseAuthorized,
   capabilitiesReleaseEnabled,
-  parseOrDisabledCapabilities,
   DISABLED_REAL_DATA_CAPABILITIES
 } from "./capabilities.js";
 export {
   canonicalAssessedOrigin,
+  localTargetBoundary,
   assertBoundaryMatchesConfig,
   assertCommandWithinBoundary,
   assertScopeNotExpired

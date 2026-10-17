@@ -56,11 +56,14 @@ export {
 export {
   DATA_POLICY_BLOCKED_FAILURE,
   INSUFFICIENT_EVIDENCE_FAILURE,
+  inspectRelayResult,
   projectAssessmentReferencePayload,
   projectJsonDocument,
   projectOutboundDocument,
-  projectRelayResult
+  projectRelayResult,
+  relayContentParts
 } from "./project.js";
+export type { RelayContentPart, RelayIngressPath } from "./project.js";
 export {
   executeLocalContentCleanup,
   LOCAL_CONTENT_CLEANUP_SCHEMA,

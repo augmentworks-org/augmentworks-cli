@@ -1,18 +1,29 @@
 import { Command } from "commander";
 
 import { AwError, EXIT, exitCodeFor } from "../errors.js";
-import { BASELINE_PROMOTE_ACTION, FEATURE_PACKAGE_VERSION, RELEASE_POLICY_SCHEMA_VERSION } from "../baseline/schema.js";
+import {
+  BASELINE_CREATE_ACTION,
+  BASELINE_PROMOTE_ACTION,
+  FEATURE_PACKAGE_VERSION,
+  RELEASE_POLICY_SCHEMA_VERSION
+} from "../baseline/schema.js";
 import { normalizeApplicationsResponse } from "../baseline/applications.js";
-import { createsBillableRunError, mapReleasePolicyError, promotionForbiddenError } from "../baseline/errors.js";
+import {
+  createForbiddenError,
+  createsBillableRunError,
+  mapReleasePolicyError,
+  promotionForbiddenError
+} from "../baseline/errors.js";
 import {
   applicationsSuccessJson,
   formatApplicationsHuman,
+  formatCreatedHuman,
   formatPromotionHuman,
   observationFailureJson,
   portalBaselinesUrl,
   promotionSuccessJson
 } from "../baseline/format.js";
-import { parseBoundIdentifier, parseExpectedRevision } from "../baseline/ids.js";
+import { parseBaselineName, parseBoundIdentifier, parseExpectedRevision } from "../baseline/ids.js";
 import { normalizePromoteResponse } from "../baseline/protocol.js";
 import {
   authenticateHostedSession,
@@ -25,6 +36,9 @@ export interface BaselineCommandOptions extends HostedAuthOptions {
   readonly run?: string;
   readonly baseline?: string;
   readonly expectedRevision?: string;
+  readonly name?: string;
+  readonly application?: string;
+  readonly environment?: string;
   readonly json?: boolean;
 }
 
@@ -36,7 +50,7 @@ export interface BaselineCommandDependencies extends HostedAuthDependencies {
 
 export function createBaselineCommand(dependencies: BaselineCommandDependencies = {}): Command {
   const baseline = new Command("baseline").description(
-    "Inspect pinned baselines or explicitly promote a candidate run as the pin"
+    "Inspect pinned baselines, create the first pin from a finished run, or explicitly promote a candidate run as the pin"
   );
   addWorkspaceOption(
     baseline
@@ -49,6 +63,24 @@ export function createBaselineCommand(dependencies: BaselineCommandDependencies 
       )
   ).action(async (values: BaselineCommandOptions) => {
     await executeBaseline("status", values, dependencies);
+  });
+  addWorkspaceOption(
+    baseline
+      .command("create")
+      .description(
+        "Create a named baseline pin from a finished, fully graded run. Does not start a test or consume credits"
+      )
+      .option("--run <run-id>", "finished run to pin")
+      .option("--name <name>", "baseline name, for example main")
+      .option("--application <name>", "application name; created if it does not exist")
+      .option("--environment <name>", "environment name, for example production; created if it does not exist")
+      .option("--json", "write one machine-readable baseline object to stdout")
+      .option(
+        "--allow-file-credentials",
+        "allow a warned mode-0600 credential file when OS credential storage is unavailable"
+      )
+  ).action(async (values: BaselineCommandOptions) => {
+    await executeBaseline("create", values, dependencies);
   });
   addWorkspaceOption(
     baseline
@@ -71,7 +103,7 @@ export function createBaselineCommand(dependencies: BaselineCommandDependencies 
 }
 
 async function executeBaseline(
-  action: "status" | "promote",
+  action: "status" | "create" | "promote",
   values: BaselineCommandOptions,
   dependencies: BaselineCommandDependencies
 ): Promise<void> {
@@ -96,6 +128,41 @@ async function executeBaseline(
       else stdout.write(formatApplicationsHuman(document, portalUrl));
       return;
     }
+    if (action === "create") {
+      const runId = parseBoundIdentifier(values.run, "run");
+      const name = parseBaselineName(values.name, "name");
+      const applicationName = parseBaselineName(values.application, "application");
+      const environmentName = parseBaselineName(values.environment, "environment");
+      const actions = session.identity.actions;
+      if (actions !== undefined && !actions.includes(BASELINE_CREATE_ACTION)) {
+        throw createForbiddenError();
+      }
+      const request = {
+        schemaVersion: RELEASE_POLICY_SCHEMA_VERSION,
+        packageVersion: FEATURE_PACKAGE_VERSION,
+        name,
+        applicationName,
+        environmentName,
+        runId
+      } as const;
+      const raw =
+        values.signal === undefined
+          ? await session.cloud.createBaseline(request)
+          : await session.cloud.createBaseline(request, values.signal);
+      const result = normalizePromoteResponse(raw);
+      if (result.createsBillableRun === true) throw createsBillableRunError();
+      const returnedRun = result.candidateRunId ?? result.runId;
+      if (returnedRun !== undefined && returnedRun !== runId) {
+        throw new AwError({
+          code: "RELEASE_IDENTITY_MISMATCH",
+          category: "protocol",
+          message: "AugmentWorks returned a baseline for a different run."
+        });
+      }
+      if (json) stdout.write(promotionSuccessJson(result, "created"));
+      else stdout.write(formatCreatedHuman(result));
+      return;
+    }
     const candidateRunId = parseBoundIdentifier(values.run, "run");
     const baselineId = parseBoundIdentifier(values.baseline, "baseline");
     const expectedPromotionRevision = parseExpectedRevision(values.expectedRevision);
@@ -103,24 +170,16 @@ async function executeBaseline(
     if (actions !== undefined && !actions.includes(BASELINE_PROMOTE_ACTION)) {
       throw promotionForbiddenError();
     }
+    const request = {
+      schemaVersion: RELEASE_POLICY_SCHEMA_VERSION,
+      packageVersion: FEATURE_PACKAGE_VERSION,
+      runId: candidateRunId,
+      expectedPromotionRevision
+    } as const;
     const raw =
       values.signal === undefined
-        ? await session.cloud.promoteBaseline(baselineId, {
-            schemaVersion: RELEASE_POLICY_SCHEMA_VERSION,
-            packageVersion: FEATURE_PACKAGE_VERSION,
-            candidateRunId,
-            expectedPromotionRevision
-          })
-        : await session.cloud.promoteBaseline(
-            baselineId,
-            {
-              schemaVersion: RELEASE_POLICY_SCHEMA_VERSION,
-              packageVersion: FEATURE_PACKAGE_VERSION,
-              candidateRunId,
-              expectedPromotionRevision
-            },
-            values.signal
-          );
+        ? await session.cloud.promoteBaseline(baselineId, request)
+        : await session.cloud.promoteBaseline(baselineId, request, values.signal);
     const result = normalizePromoteResponse(raw);
     if (result.createsBillableRun === true) throw createsBillableRunError();
     const returnedRun = result.candidateRunId ?? result.runId;
