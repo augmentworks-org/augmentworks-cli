@@ -19,6 +19,7 @@ import type { ConnectorExecutionContext, ConnectorResult } from "./types.js";
 import {
   effectivePolicySummary,
   inspectOutbound,
+  inspectRelayResult,
   type DataHandlingReceipt,
   type DataPolicy,
   type EffectivePolicySummary,
@@ -674,7 +675,10 @@ function applyPrivacyPreview(
     }
   }
   const document = (evidence?.result ?? request.response ?? {}) as JsonValue;
-  const inspected = inspectOutbound(document, policy, profile, secrets);
+  const inspected =
+    evidence?.result === undefined
+      ? inspectOutbound(document, policy, profile, secrets)
+      : inspectRelayResult(request.operation, evidence.result, { policy, profile, localSecrets: secrets });
   const privacy: MappingPreviewPrivacy = {
     hosted_real_data_release: "unavailable",
     effective: effectivePolicySummary(policy, profile),

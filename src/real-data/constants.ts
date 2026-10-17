@@ -4,16 +4,16 @@ export const REAL_DATA_CONTRACT_REVISION = 1 as const;
 export const REAL_DATA_LOCK_SCHEMA_VERSION = "aw-real-data/1" as const;
 
 export const SOURCE_REPOSITORY = "https://github.com/augmentworks-org/augmentworks.git" as const;
-export const SOURCE_COMMIT = "b198906188bab2dac9ae2a1ad539405807e46e1e" as const;
+export const SOURCE_COMMIT = "16d767967c9d000b81f10ddb09800b0273277b68" as const;
 export const SOURCE_SCHEMA_PATH = "docs/contracts/aw-real-data-1.schema.json" as const;
 export const SOURCE_FIXTURES_PATH = "docs/contracts/aw-real-data-1.fixtures.json" as const;
 export const SOURCE_CHECKSUMS_PATH = "docs/contracts/aw-real-data-1.checksums.json" as const;
 export const SOURCE_SPEC_PATH = "docs/contracts/aw-real-data-1.md" as const;
 
 export const EXPECTED_SCHEMA_SHA256 =
-  "6a53d04f297eb4db275bb7074bf7705a08137d932be823a3f4087d84cfdf7121" as const;
+  "485c58f0def045df6ab592c6814dfbe7b045fe522699fc5221a15e867808a5a4" as const;
 export const EXPECTED_FIXTURES_SHA256 =
-  "26033843d55dcb9b49ccf68fa96f7de9ec34aa6c299e8ab28b605cad37572230" as const;
+  "408ee99ee191892480a161e25b7196129d5dbd5ab2bf729ae95153d826cd550b" as const;
 
 export const TARGET_AUTHORITY_SCHEMA_VERSION = "aw-target-authority/1" as const;
 export const EXECUTION_SCOPE_SCHEMA_VERSION = "aw-execution-scope/1" as const;
@@ -66,7 +66,9 @@ export const REDACTION_DETECTORS = [
 export const RECEIPT_OUTCOMES = ["accepted", "transformed", "blocked", "insufficient_evidence"] as const;
 export const SCOPE_AVAILABILITY = ["ready", "revoked", "expired", "release_unavailable"] as const;
 export const TRANSPORT_TYPES = ["direct_http", "browser_bridge"] as const;
-export const ALLOWED_OPERATIONS = ["prepare", "send", "observe", "cleanup"] as const;
+export const EFFECT_BOUNDARIES = ["no_tools", "read_only_enforced", "action_gateway"] as const;
+export const ENDPOINT_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"] as const;
+export const CONTROLLED_ACTIONS_UNAVAILABLE_REASON = "unavailable_until_r10" as const;
 export const EVIDENCE_STATUSES = [
   "available",
   "partially_redacted",

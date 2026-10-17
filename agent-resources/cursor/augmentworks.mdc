@@ -78,13 +78,19 @@ admission.
 
 ## Data scope
 
-Test your chatbot with your questions and business rules. That hosted scope
-stays off until a compatible published release is enabled. Until then, hosted
-runs use an authorized,
-isolated synthetic or staging target and constructed test data. Hosted
-real-data quote and admission stay release-disabled. Do not point a hosted run
-at a production system, and do not upload production, customer, or regulated
-records, while that release is disabled. Do not set `synthetic_only: true` on
+Test your chatbot with your questions and business rules. Hosted real-data
+tests run only against a target your workspace registered and verified, under
+a test scope: a workspace owner runs `augmentworks target add` and
+`augmentworks target verify <name>`, then `augmentworks scope create` writes
+the scope into an `aw-suite/3` suite that `augmentworks test --suite` runs.
+Register only agents your workspace owns or operates, or has written
+permission to test. If the server isn't accepting real-data tests, the run
+stops with `EXECUTION_RELEASE_UNAVAILABLE` before anything is sent to your
+agent. Hosted runs without a scope use an authorized, isolated synthetic or
+staging target and constructed test data. Registering,
+verifying and creating scopes is a workspace owner's decision; never run
+`target add`, `target verify` or `scope create` without the user asking. Do
+not point a hosted run without a scope at a production system. Do not set `synthetic_only: true` on
 a live or authorized document, grant `suite:write` to a machine key, strip
 `--max-credits`, test a third party without authority, or send outreach. Do
 not commit customer or private fixtures. Offline `aw-packet/0.1` stays

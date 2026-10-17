@@ -5,17 +5,19 @@ import { canonicalDocumentHash } from "./canonical.js";
 import {
   ACTION_EVIDENCE_STATUSES,
   ACTION_POLICY_SCHEMA_VERSION,
-  ALLOWED_OPERATIONS,
   AUTHORIZATION_KINDS,
   AUTHORIZED_PACKET_SCHEMA_VERSION,
   AUTHORIZED_REPORT_SCOPE_SCHEMA_VERSION,
   CAPABILITIES_SCHEMA_VERSION,
   CONTENT_HANDLING,
+  CONTROLLED_ACTIONS_UNAVAILABLE_REASON,
   DATA_CLASSES,
   DATA_HANDLING_RECEIPT_SCHEMA_VERSION,
   DATA_ORIGINS,
   DATA_POLICY_SCHEMA_VERSION,
+  EFFECT_BOUNDARIES,
   EFFECTS,
+  ENDPOINT_METHODS,
   ENVIRONMENTS,
   EVIDENCE_STATUSES,
   EXECUTION_SCOPE_BINDING_SCHEMA_VERSION,
@@ -26,6 +28,7 @@ import {
   LOCAL_EXECUTION_SCOPE_SCHEMA_VERSION,
   LOCAL_VERIFICATION,
   PROVIDER_PROCESSING,
+  REAL_DATA_CONTRACT_REVISION,
   RECEIPT_OUTCOMES,
   REDACTION_ACTIONS,
   REDACTION_DETECTORS,
@@ -212,9 +215,8 @@ export type DataHandlingReceipt = z.infer<typeof DataHandlingReceiptSchema>;
 
 export const TargetEndpointSchema = z
   .object({
-    method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
-    path: z.string().min(1).max(2_048).regex(/^\/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*$/),
-    origin: z.string().min(1).max(2_048)
+    method: z.enum(ENDPOINT_METHODS),
+    path: z.string().min(1).max(300)
   })
   .strict();
 
@@ -222,14 +224,12 @@ export const TargetBoundarySchema = z
   .object({
     schemaVersion: z.literal(TARGET_BOUNDARY_SCHEMA_VERSION),
     targetId: UuidSchema,
-    targetRevision: PositiveIntSchema,
+    revision: PositiveIntSchema,
     boundaryHash: Sha256Schema,
     transport: z.enum(TRANSPORT_TYPES),
-    assessedOrigin: z.string().min(1).max(2_048),
-    endpoints: z.array(TargetEndpointSchema).min(1).max(16),
-    allowedOperations: z.array(z.enum(ALLOWED_OPERATIONS)).min(1).max(4),
-    allowPrivateEndpoints: z.boolean(),
-    redirectMode: z.literal("manual")
+    effectBoundary: z.enum(EFFECT_BOUNDARIES),
+    assessedIdentity: z.string().min(1).max(253),
+    endpoints: z.array(TargetEndpointSchema).max(32)
   })
   .strict();
 
@@ -256,19 +256,11 @@ export const LocalExecutionScopeSchema = z
     environment: z.enum(ENVIRONMENTS),
     dataOrigin: z.enum(DATA_ORIGINS),
     effects: z.enum(EFFECTS),
-    verification: z.literal(LOCAL_VERIFICATION),
     authority: LocalAuthorityIdentitySchema,
     dataPolicy: PolicyIdentitySchema,
-    actionPolicy: z.null(),
+    actionPolicy: ActionPolicyIdentitySchema.nullable(),
     budget: BudgetSchema,
-    expiresAt: UtcZSchema,
-    targetBoundary: TargetBoundarySchema,
-    revocation: z
-      .object({
-        localOnly: z.literal(true),
-        remoteRevocationWhileOffline: z.literal("not_observed")
-      })
-      .strict()
+    expiresAt: UtcZSchema
   })
   .strict()
   .superRefine((value, context) => {
@@ -319,18 +311,36 @@ export type ActionPolicy = z.infer<typeof ActionPolicySchema>;
 export const CapabilitiesSchema = z
   .object({
     schemaVersion: z.literal(CAPABILITIES_SCHEMA_VERSION),
-    executionScopes: z.array(z.string().min(1).max(80)).max(16),
-    suiteSchemas: z.array(z.string().min(1).max(80)).max(16),
-    packetSchemas: z.array(z.string().min(1).max(80)).max(16),
-    reportScopes: z.array(z.string().min(1).max(80)).max(16),
-    dataPolicies: z.array(z.string().min(1).max(80)).max(16),
-    enabledEffects: z.array(z.enum(EFFECTS)).max(3),
-    runtimeEnforced: z.boolean().optional(),
-    releaseEnabled: z.boolean().optional()
+    contractRevision: z.literal(REAL_DATA_CONTRACT_REVISION),
+    runtimeEnforced: z.literal(true),
+    releaseEnabled: z.literal(true),
+    executionScopes: z.array(z.string()),
+    suiteSchemas: z.array(z.string()),
+    packetSchemas: z.array(z.string()),
+    reportScopes: z.array(z.string()),
+    dataPolicies: z.array(z.string()),
+    supportedEffects: z.array(z.enum(EFFECTS)),
+    enabledEffects: z.array(z.enum(EFFECTS)),
+    controlledActions: z
+      .object({
+        available: z.literal(false),
+        reason: z.literal(CONTROLLED_ACTIONS_UNAVAILABLE_REASON)
+      })
+      .strict()
   })
   .strict();
 
-export type RealDataCapabilities = z.infer<typeof CapabilitiesSchema>;
+/**
+ * A parsed aw-capabilities/1 document, or the CLI's disabled stand-in for a
+ * server that has no /v1/capabilities route. Only the stand-in is ever false.
+ */
+export type RealDataCapabilities = Omit<
+  z.infer<typeof CapabilitiesSchema>,
+  "runtimeEnforced" | "releaseEnabled"
+> & {
+  readonly runtimeEnforced: boolean;
+  readonly releaseEnabled: boolean;
+};
 
 export const ExecutionScopeResponseSchema = z
   .object({
@@ -371,7 +381,9 @@ export const AuthorizedReportSchema = z
     evidenceStatus: z.enum(EVIDENCE_STATUSES),
     actionEvidenceStatus: z.enum(ACTION_EVIDENCE_STATUSES),
     representationHashes: z.array(Sha256Schema).max(32),
-    limitations: z.array(z.string().min(1).max(500)).max(32)
+    limitations: z.array(z.string().min(1).max(500)).max(32),
+    v1ReportUnchanged: z.literal(true),
+    independentlyVerifiedBusinessState: z.literal(false)
   })
   .strict();
 
@@ -396,6 +408,8 @@ export const ExecutionScopeBindingSchema = z
     admitted: z.union([ExecutionScopeSchema, LocalExecutionScopeSchema]),
     dataPolicy: DataPolicySchema.optional(),
     redactionProfile: RedactionProfileSchema.optional(),
+    /** The admitted boundary: the server's for hosted, the one rebuilt from augmentworks.yaml for local. */
+    targetBoundary: TargetBoundarySchema.optional(),
     availability: z.enum(SCOPE_AVAILABILITY),
     fetchedAt: UtcZSchema
   })
@@ -455,18 +469,12 @@ export function parseLocalExecutionScope(value: unknown): LocalExecutionScope {
     "Local execution scope"
   );
   assertHash(document, "scopeHash", "INVALID_EXECUTION_SCOPE", "scopeHash");
-  assertHash(
-    document.targetBoundary as unknown as Record<string, unknown>,
-    "boundaryHash",
-    "TARGET_SCOPE_MISMATCH",
-    "boundaryHash"
-  );
-  if (document.targetBoundary.boundaryHash !== document.targetBoundaryHash) {
-    throw realDataError(
-      "TARGET_SCOPE_MISMATCH",
-      "Local targetBoundary.boundaryHash does not match targetBoundaryHash."
-    );
-  }
+  return document;
+}
+
+export function parseTargetBoundary(value: unknown): TargetBoundary {
+  const document = parseOrThrow(TargetBoundarySchema, value, "TARGET_SCOPE_MISMATCH", "Target boundary");
+  assertHash(document, "boundaryHash", "TARGET_SCOPE_MISMATCH", "boundaryHash");
   return document;
 }
 
@@ -488,7 +496,16 @@ export function parseRedactionProfile(value: unknown): RedactionProfile {
 }
 
 export function parseCapabilities(value: unknown): RealDataCapabilities {
-  return parseOrThrow(CapabilitiesSchema, value, "UNSUPPORTED_EXECUTION_SCOPE", "Capabilities");
+  const parsed = CapabilitiesSchema.safeParse(value);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const where = issue === undefined || issue.path.length === 0 ? "" : ` at ${issue.path.join(".")}`;
+    throw realDataError(
+      "UNSUPPORTED_EXECUTION_SCOPE",
+      `The server's /v1/capabilities response is not a valid aw-capabilities/1 document (${issue?.message ?? "invalid"}${where}). This CLI can't tell whether real-data runs are available there.`
+    );
+  }
+  return parsed.data;
 }
 
 export function parseExecutionScopeResponse(value: unknown): ExecutionScopeResponse {
@@ -508,8 +525,18 @@ export function parseExecutionScopeResponse(value: unknown): ExecutionScopeRespo
   if (document.scope.dataPolicy.hash !== document.dataPolicy.policyHash) {
     throw realDataError("DATA_POLICY_STALE", "Admitted data-policy hash does not match the scope binding.");
   }
+  assertHash(document.targetBoundary, "boundaryHash", "TARGET_SCOPE_MISMATCH", "boundaryHash");
   if (document.scope.targetBoundaryHash !== document.targetBoundary.boundaryHash) {
     throw realDataError("TARGET_SCOPE_MISMATCH", "Admitted target boundary hash does not match the scope binding.");
+  }
+  if (
+    document.targetBoundary.targetId !== document.scope.targetId ||
+    document.targetBoundary.revision !== document.scope.targetRevision
+  ) {
+    throw realDataError(
+      "TARGET_SCOPE_MISMATCH",
+      "Admitted target boundary is for a different target or target revision than the scope."
+    );
   }
   if (document.actionPolicy !== null) {
     assertHash(document.actionPolicy, "policyHash", "ACTION_BOUNDARY_REQUIRED", "actionPolicyHash");

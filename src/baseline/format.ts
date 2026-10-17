@@ -34,7 +34,7 @@ export function releasePolicySuccessJson(
     baselineSnapshotHash: document.baseline.snapshotHash ?? null,
     baselineSemanticRevisionHash: document.baseline.semanticRevisionHash ?? null,
     baselinePromotionRevision: document.baseline.promotionRevision ?? null,
-    decision: document.decision,
+    decision: extras.command === "compare" ? null : document.decision,
     comparability: document.comparability,
     coverageChange: document.coverageChange,
     evaluationStatus: document.evaluationStatus,
@@ -65,7 +65,11 @@ export function formatReleasePolicyHuman(
 ): string {
   const lines: string[] = [];
   lines.push(`Command: ${extras.command}`);
-  lines.push(`Decision: ${sanitizeTerminal(document.decision)} (${classification.assessment})`);
+  if (extras.command === "compare") {
+    lines.push(`Changes: ${classification.assessment}. compare reports changes; run gate for the release decision.`);
+  } else {
+    lines.push(`Decision: ${sanitizeTerminal(document.decision)} (${classification.assessment})`);
+  }
   lines.push(`Policy: ${sanitizeTerminal(document.policyVersion)}`);
   lines.push(`Comparability: ${sanitizeTerminal(document.comparability)}`);
   lines.push(`Evaluation: ${sanitizeTerminal(document.evaluationStatus)}`);
@@ -115,11 +119,14 @@ export function formatReleasePolicyHuman(
   return `${lines.join("\n")}\n`;
 }
 
-export function promotionSuccessJson(result: PromoteBaselineResponse): string {
+export function promotionSuccessJson(
+  result: PromoteBaselineResponse,
+  assessment: "promoted" | "created" = "promoted"
+): string {
   return `${JSON.stringify({
     ok: true,
     observation: "succeeded",
-    assessment: "promoted",
+    assessment,
     exit_code: 0,
     schemaVersion: result.schemaVersion ?? RELEASE_POLICY_SCHEMA_VERSION,
     createsBillableRun: result.createsBillableRun ?? false,
@@ -139,6 +146,18 @@ export function formatPromotionHuman(result: PromoteBaselineResponse): string {
   return `Promoted ${baseline}${revision}. This did not start a test or consume credits.\n`;
 }
 
+export function formatCreatedHuman(result: PromoteBaselineResponse): string {
+  const baseline = result.baselineId === undefined ? "a baseline" : sanitizeTerminal(result.baselineId);
+  const lines = [`Created baseline ${baseline}. This did not start a test or consume credits.`];
+  if (result.baselineId !== undefined && result.promotionRevision !== undefined) {
+    lines.push(
+      `Gate later runs with: augmentworks gate --run <run-id> --baseline ${baseline}`,
+      `Promote a newer run with: augmentworks baseline promote --run <run-id> --baseline ${baseline} --expected-revision ${String(result.promotionRevision)}`
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 export function portalCompareUrl(apiOrigin: URL, runId: string, baselineId: string): string {
   const url = new URL("/portal/compare", apiOrigin);
   url.searchParams.set("runId", runId);
@@ -152,11 +171,15 @@ export function portalBaselinesUrl(apiOrigin: URL): string {
 
 export function releasePolicyStderrHint(
   document: NormalizedReleasePolicy,
-  classification: ReleaseClassification
+  classification: ReleaseClassification,
+  command: "compare" | "gate" = "gate"
 ): string {
-  if (classification.exitCode === 0) return "";
   const runId = sanitizeTerminal(document.candidateRunId);
   const baselineId = sanitizeTerminal(document.baselineId);
+  if (command === "compare" && classification.exitCode === 0) {
+    return `compare reports changes and does not decide the release. Run: augmentworks gate --run ${runId} --baseline ${baselineId}\n`;
+  }
+  if (classification.exitCode === 0) return "";
   return [
     `This snapshot is a successful comparison query, not a passing release. Exit ${String(classification.exitCode)}.`,
     `Re-query the original run: augmentworks run wait ${runId}`,

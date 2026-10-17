@@ -29,12 +29,10 @@
 #
 # Untrusted fork pull requests skip this secret-bearing job. Same-repo
 # pull_request, push to the default branch, and workflow_dispatch may run it.
-# A required semantic regression exits 10 and fails the job. Pending or
-# partial evaluation exits 11 and never calls gate, so it cannot be a green
-# release. A completed run whose billing status omits outcome (execution
-# completed, evaluation complete, outcome null) also exits 11 from run wait;
-# that status query is terminal and still calls gate. It is not a pass.
-# Do not treat a null billing outcome as exit 0.
+# A required semantic regression exits 10 and fails the job. `run wait`
+# takes pass (0) or a failed required check (10) from the graded run report.
+# Pending or partial evaluation, or a report that is not ready, exits 11 and
+# never calls gate, so it cannot be a green release.
 # POST /v1/release-gates/evaluate on a finalized result is the CI provenance
 # record; the server emits own_target.ci_result_recorded once for that
 # aw-release-policy/1 decision when the principal is a machine. Pending work
@@ -162,41 +160,14 @@ jobs:
           "${AW[@]}" run wait "$run_id" --json --timeout-ms 60000 > .augmentworks/ci/wait.json
           wait_code=$?
           set -e
-          # run wait exits 11 both for unfinished grading and for a terminal
-          # billing status that omits outcome after evaluation is complete.
-          # Only the second shape continues to gate. Pending and partial stay
-          # here and must not become a green release.
-          grading_ready=0
-          if [ "$wait_code" -eq 11 ]; then
-            grading_ready="$(node -e "
-              // aw-hosted-ci-grading-ready
-              const fs = require('node:fs');
-              let ready = false;
-              try {
-                const parsed = JSON.parse(fs.readFileSync('.augmentworks/ci/wait.json', 'utf8'));
-                const outcome = Object.prototype.hasOwnProperty.call(parsed, 'outcome') ? parsed.outcome : null;
-                ready = parsed.ok === true
-                  && parsed.observation === 'succeeded'
-                  && parsed.work === 'terminal'
-                  && parsed.assessment === 'incomplete'
-                  && parsed.executionStatus === 'completed'
-                  && parsed.evaluationStatus === 'complete'
-                  && (outcome === null || outcome === '');
-              } catch {
-                ready = false;
-              }
-              process.stdout.write(ready ? '1' : '0');
-            ")"
-          fi
-          if [ "$wait_code" -ne 0 ] && [ "$wait_code" -ne 10 ] && [ "$grading_ready" != "1" ]; then
+          # run wait exits 0 or 10 from the graded run report, and 11 while
+          # grading is unfinished. Only a graded run reaches the gate.
+          if [ "$wait_code" -ne 0 ] && [ "$wait_code" -ne 10 ]; then
             echo "Wait did not finish for original run $run_id. Re-query that ID. Do not start another billed assessment or treat this as a green gate." >&2
             set +e
             "${AW[@]}" recover --json > .augmentworks/ci/recover.json
             set -e
             exit "$wait_code"
-          fi
-          if [ "$grading_ready" = "1" ]; then
-            echo "Billing status omitted outcome after completed grading for original run $run_id. Continuing to the release gate. This is not unfinished evaluation and is not a pass." >&2
           fi
           set +e
           "${AW[@]}" gate --run "$run_id" --baseline "$AUGMENTWORKS_BASELINE_ID" --json > .augmentworks/ci/gate.json
@@ -224,9 +195,6 @@ jobs:
             echo "- gate exit: \`$gate_code\`"
             echo "- recover: \`npx --yes @augmentworks/cli@0.3.9 recover --json\` (does not start a run)"
             echo "- wait: \`npx --yes @augmentworks/cli@0.3.9 run wait $run_id\`"
-            if [ "$grading_ready" = "1" ]; then
-              echo "- billing status omitted outcome after completed grading; release gate still ran"
-            fi
             echo "- gate records CI provenance through POST /v1/release-gates/evaluate; pending or partial evaluation never reaches this step"
             echo
             echo "Summaries omit credentials, private target URLs, and excluded evidence."

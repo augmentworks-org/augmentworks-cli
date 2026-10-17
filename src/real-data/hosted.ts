@@ -11,13 +11,17 @@ import {
 } from "./policy.js";
 import {
   parseLocalExecutionScope,
+  parseTargetBoundary,
   SuiteExecutionScopeRefSchema,
+  type ExecutionScopeBinding,
   type ExecutionScopeResponse,
-  type SuiteExecutionScopeRef
+  type LocalExecutionScope,
+  type SuiteExecutionScopeRef,
+  type TargetBoundary
 } from "./documents.js";
 import { EXECUTION_SCOPE_SCHEMA_VERSION } from "./constants.js";
 import { realDataError } from "./errors.js";
-import { assertBoundaryMatchesConfig, assertScopeNotExpired } from "./boundary.js";
+import { assertBoundaryMatchesConfig, assertScopeNotExpired, localTargetBoundary } from "./boundary.js";
 import {
   hostedBinding,
   persistExecutionScopeBinding,
@@ -42,7 +46,7 @@ export async function assertHostedScopeUsable(
   if (response.scope.workspaceId !== options.workspaceId) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      "The admitted execution scope belongs to a different workspace."
+      "This suite's test scope belongs to a different workspace than the one you're logged in to."
     );
   }
   if (options.revision !== undefined && response.scope.revision !== options.revision) {
@@ -52,15 +56,15 @@ export async function assertHostedScopeUsable(
     throw realDataError("EXECUTION_SCOPE_STALE", "The admitted scope hash does not match the suite binding.");
   }
   if (response.availability === "revoked") {
-    throw realDataError("TARGET_AUTHORITY_REVOKED", "The admitted execution scope is revoked.");
+    throw realDataError("TARGET_AUTHORITY_REVOKED", "This suite's test scope was revoked, so nothing was sent to your agent.");
   }
   if (response.availability === "expired") {
-    throw realDataError("TARGET_AUTHORITY_EXPIRED", "The admitted execution scope is expired.");
+    throw realDataError("TARGET_AUTHORITY_EXPIRED", "This suite's test scope has expired, so nothing was sent to your agent.");
   }
   if (response.availability === "release_unavailable") {
     throw realDataError(
       "EXECUTION_RELEASE_UNAVAILABLE",
-      "The server advertised this scope but hosted real-data execution is not released."
+      "AugmentWorks isn't accepting real-data tests for this scope right now."
     );
   }
   if (response.availability !== "ready") {
@@ -69,13 +73,15 @@ export async function assertHostedScopeUsable(
   if (response.authority.verificationStatus !== "verified") {
     throw realDataError(
       "TARGET_AUTHORITY_REQUIRED",
-      "The accompanying authority document is not server-verified. JSON verificationStatus cannot grant access."
+      "This suite's target isn't verified yet, so it can't run real-data tests."
     );
   }
   assertScopeNotExpired(response.scope.expiresAt, options.now ?? Date.now());
-  assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now());
+  assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now(), "This target's verification");
   if (options.resolved !== undefined) {
-    assertBoundaryMatchesConfig(response.targetBoundary, options.resolved);
+    assertBoundaryMatchesConfig(response.targetBoundary, options.resolved, {
+      effects: response.scope.effects
+    });
   }
 }
 
@@ -133,6 +139,7 @@ export async function persistHostedScopeForRun(options: {
       configSha256: options.configSha256,
       workspaceId: options.workspaceId,
       scope: options.response.scope,
+      boundary: options.response.targetBoundary,
       dataPolicy: options.response.dataPolicy,
       redactionProfile: options.response.redactionProfile,
       ...(options.quoteId === undefined ? {} : { quoteId: options.quoteId }),
@@ -167,21 +174,58 @@ export async function loadPersistedDispatchPolicy(options: {
     const scope = parseLocalExecutionScope(binding.admitted);
     return authorizedDispatchPolicy({
       scope,
-      boundary: scope.targetBoundary,
+      boundary: persistedLocalBoundary(binding, scope, options.resolved),
       ...(binding.dataPolicy === undefined ? {} : { dataPolicy: binding.dataPolicy }),
       ...(binding.redactionProfile === undefined ? {} : { redactionProfile: binding.redactionProfile })
     });
   }
   if (options.resolved !== undefined && binding.bindingKind === "hosted") {
-    // Boundary enforcement uses current config vs persisted hash.
-    if (targetBoundarySha256(options.resolved) !== binding.targetBoundaryHash) {
+    if (binding.targetBoundary !== undefined) {
+      assertBoundaryMatchesConfig(storedBoundary(binding), options.resolved, {
+        effects: binding.admitted.effects
+      });
+    } else if (targetBoundarySha256(options.resolved) !== binding.targetBoundaryHash) {
+      // Bindings written before the boundary was stored compare the config hash.
       throw realDataError(
         "TARGET_SCOPE_MISMATCH",
-        "Current target configuration does not match the persisted admitted boundary."
+        "augmentworks.yaml no longer matches the target this run was started against."
       );
     }
   }
   return undefined;
+}
+
+/** The persisted boundary, checked against the hash the admitted scope names. */
+function storedBoundary(binding: ExecutionScopeBinding): TargetBoundary {
+  const boundary = parseTargetBoundary(binding.targetBoundary);
+  if (boundary.boundaryHash !== binding.targetBoundaryHash) {
+    throw realDataError(
+      "TARGET_SCOPE_MISMATCH",
+      "The saved target boundary for this run doesn't match its execution scope. Start a new run instead of resuming this one."
+    );
+  }
+  return boundary;
+}
+
+function persistedLocalBoundary(
+  binding: ExecutionScopeBinding,
+  scope: LocalExecutionScope,
+  resolved: ResolvedConfig | undefined
+): TargetBoundary {
+  if (binding.targetBoundary !== undefined) {
+    const boundary = storedBoundary(binding);
+    if (resolved !== undefined) {
+      assertBoundaryMatchesConfig(boundary, resolved, { allowPrivate: true, effects: scope.effects });
+    }
+    return boundary;
+  }
+  if (resolved === undefined) {
+    throw realDataError(
+      "TARGET_SCOPE_MISMATCH",
+      "A local scope's target boundary is rebuilt from augmentworks.yaml. Run this from the original configuration."
+    );
+  }
+  return localTargetBoundary(scope, resolved);
 }
 
 export function suiteNeedsHostedScope(suite: CustomerSuite): boolean {
@@ -231,7 +275,7 @@ export async function resolveDispatchPolicyForBinding(options: {
       const scope = parseLocalExecutionScope(persisted.admitted);
       return authorizedDispatchPolicy({
         scope,
-        boundary: scope.targetBoundary,
+        boundary: persistedLocalBoundary(persisted, scope, options.resolved),
         ...(persisted.dataPolicy === undefined ? {} : { dataPolicy: persisted.dataPolicy }),
         ...(persisted.redactionProfile === undefined ? {} : { redactionProfile: persisted.redactionProfile })
       });

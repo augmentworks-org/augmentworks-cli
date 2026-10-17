@@ -13,6 +13,7 @@ import { assessmentWireBoundDiagnostics } from "../assessment/wire-bounds.js";
 import { EXIT, AwError } from "../errors.js";
 import { inspectConfig } from "../config/load.js";
 import type { ConfigInspection, Diagnostic } from "../config/types.js";
+import { PLACEHOLDER_MARKER, placeholderPaths } from "../target/pull.js";
 
 export interface DoctorOptions {
   readonly config?: string;
@@ -55,6 +56,16 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorRepo
     processEnv: options.processEnv ?? process.env
   });
   const diagnostics: Diagnostic[] = [...inspection.diagnostics];
+  if (inspection.resolvedConfig !== undefined) {
+    for (const path of placeholderPaths(inspection.resolvedConfig.config)) {
+      diagnostics.push({
+        level: "error",
+        code: "PLACEHOLDER_UNFILLED",
+        message: `${path} is still a ${PLACEHOLDER_MARKER} placeholder from target pull. Set it to the real value from your agent, then run doctor again.`,
+        path
+      });
+    }
+  }
   let assessment: LoadedAssessment | undefined;
   const defaultAssessmentPath = resolve(dirname(configPath), "augmentworks.assessment.yaml");
   const assessmentPath =

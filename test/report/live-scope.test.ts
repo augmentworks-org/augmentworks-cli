@@ -179,7 +179,9 @@ describe("authorized-1 report scope", () => {
       evidenceStatus: "available",
       actionEvidenceStatus: "not_applicable",
       representationHashes: [HASH],
-      limitations: ["Remote revocation is not proven by this overlay."]
+      limitations: ["Remote revocation is not proven by this overlay."],
+      v1ReportUnchanged: true,
+      independentlyVerifiedBusinessState: false
     };
     const { server, hrefs } = await startMock((_request, response, url) => {
       if (url.pathname !== `/v1/relay/runs/${REPORT_RUN_ID}/report`) return false;
@@ -225,7 +227,9 @@ describe("authorized-1 report scope", () => {
         evidenceStatus: "unavailable",
         actionEvidenceStatus: "not_applicable",
         representationHashes: [],
-        limitations: []
+        limitations: [],
+        v1ReportUnchanged: true,
+        independentlyVerifiedBusinessState: false
       });
       return true;
     });

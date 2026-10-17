@@ -62,6 +62,7 @@ const documentedSurfaces = [
   "docs/investigation.md",
   "docs/discovery-handoff.md",
   "docs/distribution-runbook.md",
+  "docs/command-examples.md",
   "docs/stabilization-implementation.md",
   "docs/stabilization-rollout.md",
   "docs/examples/github-actions-hosted.yml",
@@ -112,8 +113,9 @@ describe("customer-facing CLI copy", () => {
     }
   });
 
-  it("leads with the source demo, then verified published local and hosted paths", async () => {
+  it("leads with install, then the local, hosted and real-data paths", async () => {
     const readme = await readSurface("README.md");
+    const examples = await readSurface("docs/command-examples.md");
 
     expect(readme).toContain(HOSTED_COMMANDS.login);
     expect(readme).toContain(HOSTED_COMMANDS.test);
@@ -129,41 +131,42 @@ describe("customer-facing CLI copy", () => {
         new RegExp(`npx(?:\\s+(?:--yes|-y))?\\s+@augmentworks/cli@${SOURCE_PACKAGE_VERSION}\\b`, "u")
       );
     }
-    expect(readme).toContain(SOURCE_ASSESSMENT_COMMANDS.doctor);
-    expect(readme).toContain(SOURCE_ASSESSMENT_COMMANDS.testQuick);
-    expect(readme).toContain(SOURCE_ASSESSMENT_COMMANDS.testFull);
-    expect(readme).toContain(SOURCE_USAGE_COMMAND);
-    expect(readme).toContain(SOURCE_USAGE_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_BILLING_COMMAND);
-    expect(readme).toContain(SOURCE_BILLING_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_BILLING_PRINT_COMMAND);
-    expect(readme).toContain(SOURCE_ESTIMATE_COMMAND);
-    expect(readme).toContain(SOURCE_ESTIMATE_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_INIT_COMMAND);
-    expect(readme).toContain(SOURCE_INIT_WORKFLOW_COMMAND);
     expect(readme).toContain(PUBLISHED_LOCAL_COMMANDS.demo);
-    expect(readme).toContain(SOURCE_PREVIEW_MAPPING_COMMAND);
-    expect(readme).toContain(SOURCE_PREVIEW_MAPPING_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_PROBE_COMMAND);
-    expect(readme).toContain(SOURCE_PROBE_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_PROBE_YES_COMMAND);
-    expect(readme).toContain(SOURCE_RUN_STATUS_COMMAND);
-    expect(readme).toContain(SOURCE_RUN_WAIT_COMMAND);
-    expect(readme).toContain(SOURCE_RUN_REPORT_COMMAND);
-    expect(readme).toContain(SOURCE_COMPARE_COMMAND);
-    expect(readme).toContain(SOURCE_GATE_COMMAND);
-    expect(readme).toContain(SOURCE_GATE_WAIT_COMMAND);
-    expect(readme).toContain(SOURCE_BASELINE_STATUS_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_INSPECT_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_INSPECT_JSON_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_FETCH_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_EXPORT_COMMAND);
-    expect(readme).toContain(SOURCE_INVESTIGATION_TEST_COMMAND);
-    expect(readme).toContain(SOURCE_CATALOG_LIST_COMMAND);
-    expect(readme).toContain(SOURCE_CATALOG_SHOW_COMMAND);
-    expect(readme).toContain(SOURCE_SELECTION_COMPILE_COMMAND);
-    expect(readme).toContain(SOURCE_TEST_SHARD_COMMAND);
-    expect(readme).toContain(SOURCE_GATE_MANIFEST_COMMAND);
+    // Source-build invocations live in docs/command-examples.md, not the user README.
+    expect(examples).toContain(SOURCE_ASSESSMENT_COMMANDS.doctor);
+    expect(examples).toContain(SOURCE_ASSESSMENT_COMMANDS.testQuick);
+    expect(examples).toContain(SOURCE_ASSESSMENT_COMMANDS.testFull);
+    expect(examples).toContain(SOURCE_USAGE_COMMAND);
+    expect(examples).toContain(SOURCE_USAGE_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_BILLING_COMMAND);
+    expect(examples).toContain(SOURCE_BILLING_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_BILLING_PRINT_COMMAND);
+    expect(examples).toContain(SOURCE_ESTIMATE_COMMAND);
+    expect(examples).toContain(SOURCE_ESTIMATE_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_INIT_COMMAND);
+    expect(examples).toContain(SOURCE_INIT_WORKFLOW_COMMAND);
+    expect(examples).toContain(SOURCE_PREVIEW_MAPPING_COMMAND);
+    expect(examples).toContain(SOURCE_PREVIEW_MAPPING_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_PROBE_COMMAND);
+    expect(examples).toContain(SOURCE_PROBE_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_PROBE_YES_COMMAND);
+    expect(examples).toContain(SOURCE_RUN_STATUS_COMMAND);
+    expect(examples).toContain(SOURCE_RUN_WAIT_COMMAND);
+    expect(examples).toContain(SOURCE_RUN_REPORT_COMMAND);
+    expect(examples).toContain(SOURCE_COMPARE_COMMAND);
+    expect(examples).toContain(SOURCE_GATE_COMMAND);
+    expect(examples).toContain(SOURCE_GATE_WAIT_COMMAND);
+    expect(examples).toContain(SOURCE_BASELINE_STATUS_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_INSPECT_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_INSPECT_JSON_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_FETCH_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_EXPORT_COMMAND);
+    expect(examples).toContain(SOURCE_INVESTIGATION_TEST_COMMAND);
+    expect(examples).toContain(SOURCE_CATALOG_LIST_COMMAND);
+    expect(examples).toContain(SOURCE_CATALOG_SHOW_COMMAND);
+    expect(examples).toContain(SOURCE_SELECTION_COMPILE_COMMAND);
+    expect(examples).toContain(SOURCE_TEST_SHARD_COMMAND);
+    expect(examples).toContain(SOURCE_GATE_MANIFEST_COMMAND);
     expect(HOSTED_COMMANDS.test).toContain("--assessment");
 
     const demoAt = readme.indexOf(LOCAL_COMMANDS.demo);
@@ -172,6 +175,16 @@ describe("customer-facing CLI copy", () => {
     expect(demoAt).toBeGreaterThan(-1);
     expect(publishedLocalAt).toBeGreaterThan(demoAt);
     expect(hostedTestAt).toBeGreaterThan(demoAt);
+    const sections = ["## Install", "## First local test", "## First hosted test", "## Real-data test", "## Commands", "## Troubleshooting"].map(
+      (heading) => readme.indexOf(heading)
+    );
+    expect(sections.every((at, index) => at > -1 && (index === 0 || at > (sections[index - 1] ?? -1)))).toBe(true);
+    expect(readme).toContain("https://augmentworks.ai/docs/real-data");
+    expect(readme).toContain("Node.js 22.12 or newer");
+    expect(readme).toContain("Older versions aren't supported.");
+    expect(readme).not.toMatch(/Do not (?:run|use) [`]?(?:npx )?@?(?:augmentworks\/cli@)?latest/u);
+    expect(readme).not.toMatch(/gitHead|integrity `sha512|Do not overwrite/u);
+    expect(publishedLocalAt).toBeLessThan(hostedTestAt);
     const tick = String.fromCharCode(96);
     for (const command of ["login", "logout", "whoami", "usage", "billing", "init", "doctor", "preview-mapping", "probe", "demo", "catalog", "selection", "test", "suite", "investigation", "run", "compare", "gate", "baseline", "recover", "action", "schema"]) {
       expect(readme).toContain("| " + tick + command);
@@ -217,11 +230,12 @@ describe("customer-facing CLI copy", () => {
     for (const pattern of obsolete) {
       expect(content, pattern.source).not.toMatch(pattern);
     }
-    expect(content).toMatch(/release-disabled/u);
+    expect(content).not.toMatch(/release-disabled/u);
+    expect(content).toMatch(/regist\w+(?:,| and) verif/u);
     expect(content.toLowerCase()).toContain("synthetic");
   });
 
-  it("states gated real-data availability without claiming the release is on", async () => {
+  it("states how hosted real data works without overclaiming", async () => {
     const readme = (await readSurface("README.md")).replace(/\s+/gu, " ");
     const agentSetup = (await readSurface("docs/agent-setup.md")).replace(/\s+/gu, " ");
     const securityModel = (await readSurface("docs/security-model.md")).replace(/\s+/gu, " ");
@@ -229,8 +243,9 @@ describe("customer-facing CLI copy", () => {
 
     for (const content of [readme, agentSetup, securityModel]) {
       expect(content).toContain("Test your chatbot with your questions and business rules.");
-      expect(content).toContain("hosted real-data");
-      expect(content).toContain("release-disabled");
+      expect(content).toContain("Hosted real-data tests run only against a target your workspace registered and verified");
+      expect(content).toContain("EXECUTION_RELEASE_UNAVAILABLE");
+      expect(content).not.toContain("release-disabled");
       expect(content).toContain("This text is not legal approval");
       expect(content).not.toMatch(/real-data is (already )?enabled/iu);
       expect(content).not.toMatch(/\b(SOC\s*2|HIPAA)\b[^\n.]{0,80}\b(certified|compliant)\b/iu);
@@ -243,7 +258,7 @@ describe("customer-facing CLI copy", () => {
     expect(securityModel).toContain("Zero Data Retention");
     expect(troubleshooting).toContain("synthetic_only: false");
     expect(troubleshooting).toContain("aw-packet/0.1");
-    expect(initNextSteps()).toContain("hosted real-data stays release-disabled");
+    expect(initNextSteps()).toContain("real-data tests need a verified target and a scope");
     expect(initNextSteps()).not.toContain("isolated synthetic target values");
   });
 
@@ -252,7 +267,8 @@ describe("customer-facing CLI copy", () => {
     const localTest = await readSurface("src/commands/local-test.ts");
     expect(init).toContain("Add only the prepare, send, observe, and cleanup hooks required by the selected pattern.");
     expect(init).toContain("The packaged starter is fictional.");
-    expect(init).toContain("Hosted real-data quote and admission stay release-disabled");
+    expect(init).toContain("Hosted real-data tests need a target a workspace owner registered and verified");
+    expect(init).not.toContain("release-disabled");
     expect(init).toContain("Do not set \\`synthetic_only: true\\` on a live or authorized document");
     expect(init).not.toContain("Add only synthetic prepare, send, observe, and cleanup hooks");
     expect(init).not.toContain("Preview mappings with a synthetic JSON fixture");

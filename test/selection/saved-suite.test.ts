@@ -286,6 +286,16 @@ describe("saved-suite local HTTP handoff", () => {
         send(response, 200, savedSuiteManifest());
         return true;
       }
+      if (request.method === "GET" && url.pathname === `/v1/suites/${SUITE_ID}/revisions/${SUITE_REVISION}`) {
+        // A synthetic suite: no execution scope, so the run carries the config's boundary.
+        send(response, 200, {
+          suiteId: SUITE_ID,
+          revisionId: SUITE_REVISION,
+          contentHash: CANONICAL_HASH,
+          canonicalDocument: { schemaVersion: "aw-customer-suite/2", suiteId: SUITE_ID }
+        });
+        return true;
+      }
       if (request.method === "POST" && url.pathname === "/v1/billing/quote") {
         quoteBodies.push((await readJsonBody(request)) as Record<string, unknown>);
         send(response, 200, billingFixtures.fixtures["quote_success_with_balance"]?.response);

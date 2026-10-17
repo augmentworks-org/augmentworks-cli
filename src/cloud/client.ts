@@ -58,12 +58,15 @@ import {
 } from "../suite/protocol.js";
 import { mapReleasePolicyError } from "../baseline/errors.js";
 import { RELEASE_POLICY_PATHS } from "../baseline/schema.js";
+import { reportPath, RunReportSchema, type RunReport } from "../report/schema.js";
 import {
   EvaluateComparisonRequestSchema,
   EvaluateReleaseRequestSchema,
+  CreateBaselineRequestSchema,
   PromoteBaselineRequestSchema,
   type EvaluateComparisonRequest,
   type EvaluateReleaseRequest,
+  type CreateBaselineRequest,
   type PromoteBaselineRequest
 } from "../baseline/protocol.js";
 import {
@@ -89,13 +92,39 @@ import {
   CAPABILITIES_PATH,
   EXECUTION_SCOPE_PATH_TEMPLATE
 } from "../real-data/constants.js";
+import { DISABLED_REAL_DATA_CAPABILITIES } from "../real-data/capabilities.js";
 import {
-  DISABLED_REAL_DATA_CAPABILITIES,
-  parseOrDisabledCapabilities
-} from "../real-data/capabilities.js";
+  dataPoliciesPath,
+  executionScopesPath,
+  parseDataPolicies,
+  parseRealDataStatement,
+  parseTargetDetail,
+  parseTargetList,
+  parseTargetRegistration,
+  parseTargetScopes,
+  parseVerifyResponse,
+  realDataStatementPath,
+  targetDetailPath,
+  targetScopesPath,
+  targetVerifyPath,
+  workspaceTargetsPath,
+  type CreateScopeRequest,
+  type DataPolicySummary,
+  type RealDataStatement,
+  type RegisterTargetRequest,
+  type StoredTarget,
+  type TargetDetail,
+  type TargetRegistration,
+  type TargetScopeSummary,
+  type VerifyTargetRequest,
+  type VerifyTargetResponse
+} from "../target/protocol.js";
 import {
   looksLikeExecutionScopeResponse,
+  parseCapabilities,
+  parseExecutionScope,
   parseExecutionScopeResponse,
+  type ExecutionScope,
   type ExecutionScopeResponse,
   type RealDataCapabilities
 } from "../real-data/documents.js";
@@ -612,6 +641,22 @@ export class CloudClient {
     throw lastError;
   }
 
+  async createBaseline(request: CreateBaselineRequest, signal?: AbortSignal): Promise<unknown> {
+    const validated = CreateBaselineRequestSchema.safeParse(request);
+    if (!validated.success) {
+      throw new AwError({
+        code: "INVALID_COMPARISON_REQUEST",
+        category: "config",
+        message: "The baseline create request does not match aw-release-policy/1."
+      });
+    }
+    try {
+      return await this.#request("POST", RELEASE_POLICY_PATHS.baselines, validated.data, signal);
+    } catch (error) {
+      throw mapReleasePolicyError(error);
+    }
+  }
+
   async promoteBaseline(
     baselineId: string,
     request: PromoteBaselineRequest,
@@ -650,6 +695,23 @@ export class CloudClient {
     return parseBillingQuoteResponse(value);
   }
 
+  /**
+   * The first page of the run's `aw-run-report/1`, for its grading state and
+   * outcome. `run report` reads every page; this reads only the summary.
+   */
+  async getRunReportSummary(runId: string, signal?: AbortSignal): Promise<RunReport> {
+    const value = await this.#request("GET", reportPath(runId), undefined, signal);
+    const parsed = RunReportSchema.safeParse(value);
+    if (!parsed.success || parsed.data.runId !== runId) {
+      throw new AwError({
+        code: "INVALID_CLOUD_RESPONSE",
+        category: "protocol",
+        message: "AugmentWorks returned a run report that does not match aw-run-report/1 for this run."
+      });
+    }
+    return parsed.data;
+  }
+
   async getBillingRunStatus(runId: string, signal?: AbortSignal): Promise<BillingRunStatus> {
     const value = await this.#requestBilling(
       "GET",
@@ -681,9 +743,9 @@ export class CloudClient {
   }
 
   async getRealDataCapabilities(signal?: AbortSignal): Promise<RealDataCapabilities> {
+    let value: unknown;
     try {
-      const value = await this.#request("GET", CAPABILITIES_PATH, undefined, signal);
-      return parseOrDisabledCapabilities(value);
+      value = await this.#request("GET", CAPABILITIES_PATH, undefined, signal);
     } catch (error) {
       if (
         error instanceof AwError &&
@@ -693,6 +755,8 @@ export class CloudClient {
       }
       throw error;
     }
+    // A capabilities document that doesn't parse is an error, never "disabled".
+    return parseCapabilities(value);
   }
 
   async getExecutionScope(scopeId: string, signal?: AbortSignal): Promise<ExecutionScopeResponse> {
@@ -703,6 +767,73 @@ export class CloudClient {
       signal
     );
     return parseExecutionScopeResponse(value);
+  }
+
+  /** The workspace real-data statement an owner accepts once per version (AUG-358). */
+  async getRealDataStatement(workspaceId: string, signal?: AbortSignal): Promise<RealDataStatement> {
+    const value = await this.#request("GET", realDataStatementPath(workspaceId), undefined, signal);
+    return parseRealDataStatement(value);
+  }
+
+  /** Registers a target from augmentworks.yaml. The idempotency key makes a retried call safe. */
+  async registerTarget(
+    workspaceId: string,
+    request: RegisterTargetRequest,
+    idempotencyKey: string,
+    signal?: AbortSignal
+  ): Promise<TargetRegistration> {
+    const value = await this.#request(
+      "POST",
+      workspaceTargetsPath(workspaceId),
+      request,
+      signal,
+      this.requestTimeoutMs,
+      false,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return parseTargetRegistration(value);
+  }
+
+  async listTargets(workspaceId: string, signal?: AbortSignal): Promise<StoredTarget[]> {
+    const value = await this.#request("GET", workspaceTargetsPath(workspaceId), undefined, signal);
+    return parseTargetList(value);
+  }
+
+  async getTargetDetail(workspaceId: string, targetId: string, signal?: AbortSignal): Promise<TargetDetail> {
+    const value = await this.#request("GET", targetDetailPath(workspaceId, targetId), undefined, signal);
+    return parseTargetDetail(value, targetId);
+  }
+
+  /** Answers the target's open challenge. The server does the HTTPS or DNS check itself. */
+  async verifyTarget(
+    workspaceId: string,
+    targetId: string,
+    request: VerifyTargetRequest,
+    signal?: AbortSignal
+  ): Promise<VerifyTargetResponse> {
+    const value = await this.#request("POST", targetVerifyPath(workspaceId, targetId), request, signal);
+    return parseVerifyResponse(value, targetId);
+  }
+
+  /** A target's test scopes. Owners only. */
+  async listTargetScopes(workspaceId: string, targetId: string, signal?: AbortSignal): Promise<TargetScopeSummary[]> {
+    const value = await this.#request("GET", targetScopesPath(workspaceId, targetId), undefined, signal);
+    return parseTargetScopes(value, targetId);
+  }
+
+  async listDataPolicies(workspaceId: string, signal?: AbortSignal): Promise<DataPolicySummary[]> {
+    const value = await this.#request("GET", dataPoliciesPath(workspaceId), undefined, signal);
+    return parseDataPolicies(value);
+  }
+
+  /** Creates a test scope for a verified target. The response is the sealed scope document. */
+  async createExecutionScope(
+    workspaceId: string,
+    request: CreateScopeRequest,
+    signal?: AbortSignal
+  ): Promise<ExecutionScope> {
+    const value = await this.#request("POST", executionScopesPath(workspaceId), request, signal);
+    return parseExecutionScope(value);
   }
 
   async getRunExecutionScope(

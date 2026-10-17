@@ -1,13 +1,36 @@
-import { sealDocumentHash, canonicalDocumentHash } from "../../src/real-data/canonical.js";
+import { readFileSync } from "node:fs";
+
+import { sealDocumentHash } from "../../src/real-data/canonical.js";
 import type {
   DataPolicy,
   ExecutionScope,
   ExecutionScopeResponse,
   LocalExecutionScope,
+  RealDataCapabilities,
   RedactionProfile,
   TargetAuthority,
   TargetBoundary
 } from "../../src/real-data/documents.js";
+
+/** The vendored server contract. Test documents start from its fixtures so they can't drift from it. */
+export const CONTRACT = JSON.parse(
+  readFileSync(new URL("../../contracts/aw-real-data-1.fixtures.json", import.meta.url), "utf8")
+) as {
+  readonly fixtures: Record<string, { readonly valid: boolean; readonly document: unknown; readonly expectedCode?: string }>;
+  readonly http: Record<string, { readonly status: number; readonly response: unknown }>;
+};
+
+export function contractFixture<T>(name: string): T {
+  const fixture = CONTRACT.fixtures[name];
+  if (fixture === undefined) throw new Error(`missing contract fixture ${name}`);
+  return structuredClone(fixture.document) as T;
+}
+
+export function contractResponse<T>(name: string): T {
+  const exchange = CONTRACT.http[name];
+  if (exchange === undefined) throw new Error(`missing contract HTTP fixture ${name}`);
+  return structuredClone(exchange.response) as T;
+}
 
 export const UUID_A = "11111111-1111-4111-8111-111111111111";
 export const UUID_B = "22222222-2222-4222-8222-222222222222";
@@ -18,45 +41,24 @@ export const UUID_F = "66666666-6666-4666-8666-666666666666";
 
 export const FUTURE = "2099-12-31T23:59:59Z";
 
+/** The workspace the contract's hosted fixtures belong to. */
+export const WORKSPACE_ID = contractFixture<TargetAuthority>("target_authority_verified").workspaceId;
+
 export function sealedBoundary(overrides: Partial<TargetBoundary> = {}): TargetBoundary {
-  const draft: TargetBoundary = {
-    schemaVersion: "aw-target-boundary/1",
-    targetId: UUID_A,
-    targetRevision: 1,
-    boundaryHash: "0".repeat(64),
-    transport: "direct_http",
-    assessedOrigin: "https://support.example.com",
-    endpoints: [
-      {
-        method: "POST",
-        path: "/chat",
-        origin: "https://support.example.com"
-      }
-    ],
-    allowedOperations: ["send"],
-    allowPrivateEndpoints: false,
-    redirectMode: "manual",
-    ...overrides
-  };
-  return sealDocumentHash(draft, "boundaryHash");
+  return sealDocumentHash(
+    { ...contractFixture<TargetBoundary>("target_boundary"), ...overrides },
+    "boundaryHash"
+  );
 }
 
+/** The contract's verified authority, re-bound to the boundary and moved past the fixture's expiry. */
 export function sealedAuthority(boundary: TargetBoundary): TargetAuthority {
   return sealDocumentHash(
     {
-      schemaVersion: "aw-target-authority/1",
-      authorityId: UUID_B,
-      revision: 1,
-      authorityHash: "0".repeat(64),
-      workspaceId: UUID_C,
+      ...contractFixture<TargetAuthority>("target_authority_verified"),
       targetId: boundary.targetId,
-      targetRevision: boundary.targetRevision,
+      targetRevision: boundary.revision,
       targetBoundaryHash: boundary.boundaryHash,
-      authorizationKind: "owned_target",
-      permissionRef: "fixture-owned-target",
-      effectsAllowed: ["informational"],
-      verificationMethod: "reviewed_permission",
-      verificationStatus: "verified",
       expiresAt: FUTURE
     },
     "authorityHash"
@@ -140,47 +142,35 @@ export function sealedScope(
 ): ExecutionScope {
   return sealDocumentHash(
     {
-      schemaVersion: "aw-execution-scope/1",
-      scopeId: UUID_F,
-      revision: 1,
-      scopeHash: "0".repeat(64),
+      ...contractFixture<ExecutionScope>("execution_scope_production_public"),
       workspaceId: authority.workspaceId,
       targetId: boundary.targetId,
-      targetRevision: boundary.targetRevision,
+      targetRevision: boundary.revision,
       targetBoundaryHash: boundary.boundaryHash,
-      environment: "staging",
-      dataOrigin: "customer_records",
-      effects: "informational",
       authority: { id: authority.authorityId, revision: authority.revision, hash: authority.authorityHash },
       dataPolicy: { id: policy.policyId, revision: policy.revision, hash: policy.policyHash },
-      actionPolicy: null,
-      budget: {
-        maxMessages: 3,
-        maxActions: 0,
-        maxCommands: 60,
-        maxRuntimeSeconds: 600,
-        maxCredits: 6
-      },
       expiresAt: FUTURE
     },
     "scopeHash"
   );
 }
 
+/**
+ * The contract's get_scope response, with a credential-only policy so the
+ * fail-closed default privacy service accepts it, and a far-off expiry.
+ */
 export function hostedScopeResponse(): ExecutionScopeResponse {
   const { policy, profile } = publicCredentialOnlyPolicy();
   const boundary = sealedBoundary();
   const authority = sealedAuthority(boundary);
   const scope = sealedScope(boundary, authority, policy);
   return {
-    schemaVersion: "aw-execution-scope-response/1",
+    ...contractResponse<ExecutionScopeResponse>("get_scope"),
     scope,
     authority,
     dataPolicy: policy,
     redactionProfile: profile,
-    actionPolicy: null,
-    targetBoundary: boundary,
-    availability: "ready"
+    targetBoundary: boundary
   };
 }
 
@@ -232,8 +222,9 @@ export function canaryRedactionPolicy(
       profileHash: "0".repeat(64),
       allowedContentFields: [],
       rules: [
-        { id: "mask-email-message", selector: "/message/content", action: "mask" as const, detector: "email" as const },
-        { id: "mask-phone-message", selector: "/message/content", action: "mask" as const, detector: "phone" as const },
+        // Relay replies reach the profile as the ingress document { path, content: message }.
+        { id: "mask-email-message", selector: "/content/content", action: "mask" as const, detector: "email" as const },
+        { id: "mask-phone-message", selector: "/content/content", action: "mask" as const, detector: "phone" as const },
         {
           id: "mask-email-assistant",
           selector: "/attempts/*/turns/*/assistant_content",
@@ -271,56 +262,74 @@ export function canaryRedactionPolicy(
   return { policy, profile };
 }
 
+/**
+ * The server's default redaction profile (augmentworks default-profile.ts): it
+ * keeps /path and /content of each ingress document and masks /content.
+ */
+export function serverDefaultRedactionPolicy(): { policy: DataPolicy; profile: RedactionProfile } {
+  const profile = sealDocumentHash(
+    {
+      schemaVersion: "aw-redaction-profile/1" as const,
+      profileId: UUID_E,
+      revision: 1,
+      profileHash: "0".repeat(64),
+      allowedContentFields: ["/path", "/content"],
+      rules: [
+        { id: "mask-credential-content", selector: "/content", action: "mask" as const, detector: "credential" as const },
+        { id: "mask-email-content", selector: "/content", action: "mask" as const, detector: "email" as const },
+        { id: "mask-phone-content", selector: "/content", action: "mask" as const, detector: "phone" as const },
+        {
+          id: "mask-local-secret-content",
+          selector: "/content",
+          action: "mask" as const,
+          detector: "exact_local_secret" as const
+        },
+        { id: "drop-internal-notes", selector: "/internalNotes", action: "drop" as const, detector: "field" as const }
+      ],
+      maxDocumentBytes: 65_536,
+      maxTextChars: 8_000
+    },
+    "profileHash"
+  );
+  const policy = sealDocumentHash(
+    {
+      schemaVersion: "aw-data-policy/1" as const,
+      policyId: UUID_D,
+      revision: 1,
+      policyHash: "0".repeat(64),
+      dataClass: "business" as const,
+      contentHandling: "minimized" as const,
+      redactionProfileId: profile.profileId,
+      redactionProfileHash: profile.profileHash,
+      retentionDays: 30,
+      externalSharing: "disabled" as const,
+      providerProcessing: "openai_standard" as const
+    },
+    "policyHash"
+  );
+  return { policy, profile };
+}
+
+/** The contract's local scope, bound to the boundary and policy, for customer records. */
 export function sealedLocalScope(boundary: TargetBoundary, policy: DataPolicy): LocalExecutionScope {
   return sealDocumentHash(
     {
-      schemaVersion: "aw-local-execution-scope/1",
-      scopeId: UUID_F,
-      revision: 1,
-      scopeHash: "0".repeat(64),
+      ...contractFixture<LocalExecutionScope>("execution_scope_local"),
       targetId: boundary.targetId,
-      targetRevision: boundary.targetRevision,
+      targetRevision: boundary.revision,
       targetBoundaryHash: boundary.boundaryHash,
-      environment: "development",
       dataOrigin: "customer_records",
-      effects: "informational",
-      verification: "customer_declared_local",
-      authority: {
-        id: UUID_B,
-        revision: 1,
-        hash: canonicalDocumentHash({ id: UUID_B, revision: 1 }),
-        verification: "customer_declared_local"
-      },
       dataPolicy: { id: policy.policyId, revision: policy.revision, hash: policy.policyHash },
-      actionPolicy: null,
-      budget: {
-        maxMessages: 3,
-        maxActions: 0,
-        maxCommands: 8,
-        maxRuntimeSeconds: 600,
-        maxCredits: 0
-      },
-      expiresAt: FUTURE,
-      targetBoundary: boundary,
-      revocation: { localOnly: true, remoteRevocationWhileOffline: "not_observed" }
+      expiresAt: FUTURE
     },
     "scopeHash"
   );
 }
 
-export const ENABLED_CAPABILITIES = {
-  schemaVersion: "aw-capabilities/1" as const,
-  executionScopes: ["aw-execution-scope/1"],
-  suiteSchemas: ["aw-suite/1", "aw-suite/2", "aw-suite/3"],
-  packetSchemas: ["aw-packet/0.1", "aw-packet/live-informational-1", "aw-packet/authorized-1"],
-  reportScopes: ["authorized-1"],
-  dataPolicies: ["aw-data-policy/1"],
-  enabledEffects: ["informational" as const],
-  runtimeEnforced: true,
-  releaseEnabled: true
-};
+export const ENABLED_CAPABILITIES = contractResponse<RealDataCapabilities>("get_capabilities");
 
-export const ADVERTISED_DISABLED_CAPABILITIES = {
+/** Not a document the server can send: the CLI's own view of a server that hasn't released real data. */
+export const ADVERTISED_DISABLED_CAPABILITIES: RealDataCapabilities = {
   ...ENABLED_CAPABILITIES,
   runtimeEnforced: false,
   releaseEnabled: false
@@ -341,9 +350,8 @@ export function localAuthorizedPacketManifest(
   const boundary =
     overrides.boundary ??
     sealedBoundary({
-      allowPrivateEndpoints: true,
-      assessedOrigin: "http://127.0.0.1:8000",
-      endpoints: [{ method: "POST" as const, path: "/send", origin: "http://127.0.0.1:8000" }]
+      assessedIdentity: "http://127.0.0.1:8000",
+      endpoints: [{ method: "POST" as const, path: "/send" }]
     });
   const scope = sealedLocalScope(boundary, policy);
   const budget = {

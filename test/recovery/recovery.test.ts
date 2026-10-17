@@ -17,6 +17,7 @@ import { RelayJournal } from "../../src/relay/journal.js";
 import type { RelayRunner } from "../../src/relay/runner.js";
 import { relayCommand, resultFor } from "../relay/helpers.js";
 import { canonicalize, sha256 } from "../../src/util/canonical.js";
+import { gradedReport, reportPathFor } from "../util/graded-report.js";
 
 const temporaryDirectories: string[] = [];
 const PACKET = {
@@ -233,6 +234,7 @@ describe("CLI recovery (B04)", () => {
           evaluation: "not_applicable"
         });
       }
+      if (url.pathname === reportPathFor("run-1")) return Response.json(gradedReport("run-1", "workspace-1"));
       return Response.json(statusFor());
     });
     const result = await runTest(

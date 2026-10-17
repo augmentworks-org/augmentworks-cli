@@ -2,7 +2,8 @@
 
 Website guides can reuse this directory. It is a fictional single-turn JSON
 HTTP chatbot, not a customer test and not proof that an arbitrary chatbot is
-supported. Hosted real-data quote and admission stay release-disabled.
+supported. It is synthetic; real-data tests need a registered, verified
+target (see `docs/customer-suites.md`).
 
 ## Reusable paths
 

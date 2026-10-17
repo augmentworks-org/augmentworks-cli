@@ -14,6 +14,7 @@ import {
   type ListeningServer
 } from "../util/http-server.js";
 import { runSourceCli } from "../util/cli-process.js";
+import { gradedReport, reportPathFor } from "../util/graded-report.js";
 
 const protocolVersion = "aw-relay/0.1" as const;
 const targetProtocolVersion = "aw-target/0.1" as const;
@@ -334,6 +335,10 @@ test("the child CLI executes a stateful refund assessment over the outbound rela
         command_id: commandId,
         accepted: true
       });
+      return;
+    }
+    if (request.method === "GET" && path === reportPathFor("run-integration-1")) {
+      sendJson(response, 200, gradedReport("run-integration-1", "workspace-integration"));
       return;
     }
     if (request.method === "GET" && path === "/v1/relay/runs/run-integration-1") {

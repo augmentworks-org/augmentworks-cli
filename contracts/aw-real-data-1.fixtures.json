@@ -3,8 +3,8 @@
   "contractRevision": 1,
   "fabricated": true,
   "label": "FABRICATED — not a customer record",
-  "runtimeEnforced": false,
-  "releaseEnabled": false,
+  "runtimeEnforced": true,
+  "releaseEnabled": true,
   "citationConvention": "unicode_code_point",
   "maskPlaceholderExample": "«redacted:email»",
   "fixtures": {
@@ -1232,8 +1232,8 @@
       "document": {
         "schemaVersion": "aw-capabilities/1",
         "contractRevision": 1,
-        "runtimeEnforced": false,
-        "releaseEnabled": false,
+        "runtimeEnforced": true,
+        "releaseEnabled": true,
         "executionScopes": [
           "aw-execution-scope/1",
           "aw-local-execution-scope/1"
@@ -2095,6 +2095,21 @@
           "maxTextChars": 8000
         },
         "actionPolicy": null,
+        "targetBoundary": {
+          "schemaVersion": "aw-target-boundary/1",
+          "targetId": "12121212-1212-4121-8121-121212121212",
+          "revision": 1,
+          "boundaryHash": "6c84a519910f98e59811d105c53f19033a4f0460f7b9a2610c8bbc615ab67e76",
+          "transport": "direct_http",
+          "effectBoundary": "no_tools",
+          "assessedIdentity": "https://support.example.com",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/chat"
+            }
+          ]
+        },
         "availability": "ready"
       }
     },
@@ -2105,8 +2120,8 @@
       "response": {
         "schemaVersion": "aw-capabilities/1",
         "contractRevision": 1,
-        "runtimeEnforced": false,
-        "releaseEnabled": false,
+        "runtimeEnforced": true,
+        "releaseEnabled": true,
         "executionScopes": [
           "aw-execution-scope/1",
           "aw-local-execution-scope/1"

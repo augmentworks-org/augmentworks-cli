@@ -88,6 +88,7 @@ async function main() {
     if (
       existing.imported === true &&
       existing.verified === true &&
+      existing.source?.commit === SOURCE_COMMIT &&
       existing.source?.access?.kind === "linear_attachment"
     ) {
       process.stdout.write(`${existing.conclusion}\npreserved ${RETRIEVAL_PATH}\n`);
@@ -119,6 +120,9 @@ async function main() {
       run("git", ["ls-remote", `https://github.com/${REPO}.git`, SOURCE_COMMIT], { timeout: 20_000 })
     )
   );
+  const githubFetched = attempts
+    .slice(2, 2 + SOURCE_FILES.length)
+    .every((attempt) => attempt.status === 0);
 
   const localRoot = process.env.AUGMENTWORKS_MAIN_REPO?.trim();
   if (localRoot) {
@@ -149,7 +153,10 @@ async function main() {
     source: {
       repository: `https://github.com/${REPO}.git`,
       commit: SOURCE_COMMIT,
-      files: SOURCE_FILES
+      files: SOURCE_FILES,
+      ...(latest.verified && githubFetched
+        ? { access: { kind: "github", repository: REPO, ref: SOURCE_COMMIT } }
+        : {})
     },
     expected: {
       schema: EXPECTED_SCHEMA_SHA256,

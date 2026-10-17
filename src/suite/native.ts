@@ -11,11 +11,8 @@ import {
   type CustomerSuite,
   type SuiteCase
 } from "./schema.js";
-import {
-  AUTHORIZED_PACKET_SCHEMA_VERSION,
-  SUITE_SCHEMA_VERSION_V3
-} from "../real-data/constants.js";
-import { SuiteExecutionScopeRefSchema } from "../real-data/documents.js";
+import { SUITE_SCHEMA_VERSION_V3 } from "../real-data/constants.js";
+import { ExecutionScopeSchema, type ExecutionScope } from "../real-data/documents.js";
 
 /** Exact producer schema from augmentworks@7ee82d2f; authoring aw-suite/1 stays separate. */
 const { oneOf: _documentChoices, ...producerDefinitions } = producerSchema;
@@ -65,15 +62,22 @@ export const AuthorizedNativeSuiteSourceSchema = z
     displayName: z.string().min(1).max(200),
     description: z.string().min(1).max(2000),
     conversationMode: z.enum(["single_turn", "explicit_session_v1"]),
-    packetOverlay: z.literal(AUTHORIZED_PACKET_SCHEMA_VERSION),
-    executionScope: SuiteExecutionScopeRefSchema,
+    executionScope: ExecutionScopeSchema,
     tags: z.array(z.string().min(1).max(80)).max(16),
     references: z.array(z.unknown()).max(16),
     cases: z.array(z.unknown()).min(1).max(20)
   })
   .strict();
 
-export function nativeSuiteSource(loaded: LoadedCustomerSuite): Record<string, unknown> {
+/**
+ * The document `POST /v1/suites` stores. An aw-suite/3 file names its test
+ * scope by ID; the upload carries the sealed scope the server returned for
+ * that ID (aw-real-data/1 `customer_suite_v3`), so pass it as `sealedScope`.
+ */
+export function nativeSuiteSource(
+  loaded: LoadedCustomerSuite,
+  sealedScope?: ExecutionScope
+): Record<string, unknown> {
   const suite = loaded.document;
   if (suite.suiteId.includes("/") || suite.cases.some((item) => item.caseId.length > 160)) {
     throw suiteError(
@@ -92,7 +96,7 @@ export function nativeSuiteSource(loaded: LoadedCustomerSuite): Record<string, u
     );
   }
   if (isAuthorizedCustomerSuite(suite)) {
-    return authorizedNativeSuiteSource(loaded, suite);
+    return authorizedNativeSuiteSource(loaded, suite, sealedScope);
   }
   if (isLiveCustomerSuite(suite)) {
     return liveNativeSuiteSource(loaded, suite);
@@ -142,8 +146,21 @@ function liveNativeSuiteSource(
 
 function authorizedNativeSuiteSource(
   loaded: LoadedCustomerSuite,
-  suite: Extract<CustomerSuite, { schemaVersion: typeof SUITE_SCHEMA_VERSION_V3 }>
+  suite: Extract<CustomerSuite, { schemaVersion: typeof SUITE_SCHEMA_VERSION_V3 }>,
+  sealedScope: ExecutionScope | undefined
 ): Record<string, unknown> {
+  const ref = suite.executionScope;
+  if (
+    sealedScope === undefined ||
+    sealedScope.scopeId !== ref.scopeId ||
+    (ref.revision !== undefined && sealedScope.revision !== ref.revision) ||
+    (ref.scopeHash !== undefined && sealedScope.scopeHash !== ref.scopeHash)
+  ) {
+    throw suiteError(
+      "SUITE_HOSTED_INCOMPATIBLE",
+      "The suite's test scope wasn't fetched from AugmentWorks before upload. No suite, quote, or run was created."
+    );
+  }
   const document = {
     schemaVersion: "aw-customer-suite/3",
     documentKind: "customer_suite_source",
@@ -151,13 +168,7 @@ function authorizedNativeSuiteSource(
     displayName: suite.title,
     description: suite.description?.trim() ? suite.description : suite.title.trim() || suite.suiteId,
     conversationMode: suite.cases.some((item) => item.turns.length > 1) ? "explicit_session_v1" : "single_turn",
-    packetOverlay: AUTHORIZED_PACKET_SCHEMA_VERSION,
-    executionScope: {
-      schemaVersion: suite.executionScope.schemaVersion,
-      scopeId: suite.executionScope.scopeId,
-      ...(suite.executionScope.revision === undefined ? {} : { revision: suite.executionScope.revision }),
-      ...(suite.executionScope.scopeHash === undefined ? {} : { scopeHash: suite.executionScope.scopeHash })
-    },
+    executionScope: sealedScope,
     tags: suite.tags ?? [],
     references: nativeReferences(loaded),
     cases: nativeCases(loaded, suite.cases)

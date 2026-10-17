@@ -199,13 +199,17 @@ secret from a connector that executes it. The hosted service can retain
 undispatched branches, assertions, scorer logic, and comparative data; a local
 packet and all of its assertions are necessarily visible to the customer.
 
-Test your chatbot with your questions and business rules. That hosted scope
-stays off until a compatible published release is enabled. Until then, hosted
-runs use an authorized,
-isolated synthetic or staging target and constructed test data. Hosted
-real-data quote and admission stay release-disabled. Do not point a hosted run
-at a production system, and do not upload production, customer, or regulated
-records, while that release is disabled. Secrets, PHI, payment-card
+Test your chatbot with your questions and business rules. Hosted real-data
+tests run only against a target your workspace registered and verified, under
+a test scope: a workspace owner runs `augmentworks target add` and
+`augmentworks target verify <name>`, then `augmentworks scope create` writes
+the scope into an `aw-suite/3` suite that `augmentworks test --suite` runs.
+Register only agents your workspace owns or operates, or has written
+permission to test. If the server isn't accepting real-data tests, the run
+stops with `EXECUTION_RELEASE_UNAVAILABLE` before anything is sent to your
+agent. Hosted runs without a scope use an authorized, isolated synthetic or
+staging target and constructed test data. Do not point a
+hosted run without a scope at a production system. Secrets, PHI, payment-card
 credentials, and other separately restricted data stay out of evaluation
 content. This text is not legal approval and does not claim SOC 2, HIPAA, or
 Zero Data Retention. Logs and evidence should be treated as sensitive even
@@ -217,10 +221,8 @@ When a frozen `aw-data-policy/1` document and bound `aw-redaction-profile/1`
 are supplied, the CLI projects content through
 `inspectOutbound(document, policy, profile, localSecrets)` before a mapping
 preview hashes evidence, before a journal append, and before local report
-files are written. Hosted real-data quote and admission remain release-disabled
-until a compatible published release is enabled and an operator verifies it.
-Contract vending for that release stays with the runtime owner; this document
-does not enable it.
+files are written. For a hosted real-data run, the policy and profile come from
+the server-created test scope, never from local YAML.
 
 Credentials are excluded in both `minimized` and `verbatim` content handling.
 Verbatim may retain expressly permitted personal fields; it is not a license
@@ -269,9 +271,10 @@ result files.
 
 ## Operational safeguards
 
-- v0.2 hosted runs in this package use an authorized, isolated synthetic or
-  staging target and constructed test data while hosted real-data is
-  release-disabled. Offline `aw-packet/0.1` stays synthetic-only and
+- Hosted real-data runs need a registered, verified target and a test scope
+  created by a workspace owner. Hosted runs without a scope use an
+  authorized, isolated synthetic or staging target and constructed test
+  data. Offline `aw-packet/0.1` stays synthetic-only and
   account-free. `aw-packet/local-authorized-1` never contacts AugmentWorks and
   is not hosted authority.
 - `doctor` performs no lifecycle operation and consumes no assessment credit.

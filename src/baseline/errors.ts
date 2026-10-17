@@ -62,6 +62,15 @@ export function createsBillableRunError(): AwError {
   });
 }
 
+export function createForbiddenError(): AwError {
+  return new AwError({
+    code: "BASELINE_CREATE_FORBIDDEN",
+    category: "auth",
+    message:
+      "This credential cannot create a baseline. Sign in as a workspace owner, or use a key the server grants baseline:create."
+  });
+}
+
 export function promotionForbiddenError(): AwError {
   return new AwError({
     code: "PROMOTION_FORBIDDEN",

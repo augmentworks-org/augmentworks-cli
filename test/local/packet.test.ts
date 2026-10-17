@@ -450,7 +450,7 @@ describe("aw-packet/local-authorized-1", () => {
     if (!isLocalAuthorizedPacket(loaded.manifest)) {
       throw new Error("expected local-authorized packet");
     }
-    expect(loaded.manifest.execution_scope.verification).toBe("customer_declared_local");
+    expect(loaded.manifest.execution_scope.authority.verification).toBe("customer_declared_local");
     expect(loaded.manifest.synthetic_only).toBe(false);
     expect(parseLocalPacket(manifest).schema_version).toBe("aw-packet/local-authorized-1");
   });

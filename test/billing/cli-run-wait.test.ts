@@ -9,6 +9,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { EXIT } from "../../src/errors.js";
 import { ensurePackedCliBuilt, runPackedCli } from "../util/cli-process.js";
+import { gradedReport, reportPathFor } from "../util/graded-report.js";
 import { listenLoopback, type ListeningServer } from "../util/http-server.js";
 
 const projectRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
@@ -316,5 +317,63 @@ describe("packed augmentworks run wait/status", () => {
     expect(paths).not.toContain("POST /v1/billing/quote");
     expect(paths).not.toContain("POST /v1/relay/runs");
     expect(paths.some((path) => path.includes(":retry-evaluation"))).toBe(false);
+  });
+
+  // Production billing status has no outcome field (AUG-384); the graded
+  // outcome comes from the run report.
+  describe("graded outcome from the run report (AUG-384)", () => {
+    const gradedComplete = {
+      ...pendingGrading,
+      evaluationStatus: "complete",
+      progress: { completedAttempts: 10, plannedAttempts: 10, completedJudgeJobs: 4, plannedJudgeJobs: 4 }
+    };
+
+    async function waitWithReport(report: Record<string, unknown> | undefined) {
+      const cwd = await emptyCwd();
+      const { server, paths } = await startMock((request, response, url) => {
+        if (request.method === "GET" && url.pathname === "/api/v1/cli/auth/me") {
+          send(response, 200, identity());
+          return true;
+        }
+        if (request.method === "GET" && url.pathname === "/v1/billing/capabilities") {
+          send(response, 200, fixtures.fixtures["absent_capability"]?.response);
+          return true;
+        }
+        if (request.method === "GET" && url.pathname === "/v1/billing/status") {
+          send(response, 200, gradedComplete);
+          return true;
+        }
+        if (request.method === "GET" && url.pathname === reportPathFor(RUN_ID) && report !== undefined) {
+          send(response, 200, report);
+          return true;
+        }
+        return false;
+      });
+      const result = await runPackedCli(["run", "wait", RUN_ID, "--json", "--timeout-ms", "1"], {
+        cwd,
+        env: runEnv(server.baseUrl)
+      });
+      return { result, paths };
+    }
+
+    it("exits 0 when the graded report passed", async () => {
+      const { result, paths } = await waitWithReport(gradedReport(RUN_ID, WORKSPACE));
+      expect(result.exitCode).toBe(EXIT.OK);
+      expect(JSON.parse(result.stdout)).toMatchObject({ assessment: "passed", outcome: "passed" });
+      expect(paths).toContain(`GET ${reportPathFor(RUN_ID)}`);
+    });
+
+    it("exits 10 when a graded required check failed", async () => {
+      const { result } = await waitWithReport(gradedReport(RUN_ID, WORKSPACE, { outcome: "failed" }));
+      expect(result.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+      expect(JSON.parse(result.stdout)).toMatchObject({ assessment: "failed", outcome: "failed" });
+    });
+
+    it("never passes without a ready report", async () => {
+      for (const report of [undefined, gradedReport(RUN_ID, WORKSPACE, { reportReady: false })]) {
+        const { result } = await waitWithReport(report);
+        expect(result.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+      }
+    });
   });
 });

@@ -20,6 +20,7 @@
     { "$ref": "#/$defs/authorizedPacket" },
     { "$ref": "#/$defs/localAuthorizedPacket" },
     { "$ref": "#/$defs/targetRegistration" },
+    { "$ref": "#/$defs/executionScopeResponse" },
     { "$ref": "#/$defs/realDataError" }
   ],
   "$defs": {
@@ -497,8 +498,8 @@
       "properties": {
         "schemaVersion": { "const": "aw-capabilities/1" },
         "contractRevision": { "const": 1 },
-        "runtimeEnforced": { "const": false },
-        "releaseEnabled": { "const": false },
+        "runtimeEnforced": { "const": true },
+        "releaseEnabled": { "const": true },
         "executionScopes": { "type": "array", "items": { "type": "string" } },
         "suiteSchemas": { "type": "array", "items": { "type": "string" } },
         "packetSchemas": { "type": "array", "items": { "type": "string" } },
@@ -687,6 +688,36 @@
             "nonce": { "type": "string" },
             "expiresAt": { "$ref": "#/$defs/utcZ" }
           }
+        }
+      }
+    },
+    "executionScopeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "targetBoundary is the admitted aw-target-boundary/1 for scope.targetRevision. Its targetId, revision and boundaryHash equal scope.targetId, scope.targetRevision and scope.targetBoundaryHash.",
+      "required": [
+        "schemaVersion",
+        "scope",
+        "authority",
+        "dataPolicy",
+        "redactionProfile",
+        "actionPolicy",
+        "targetBoundary",
+        "availability"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "aw-execution-scope-response/1" },
+        "scope": { "$ref": "#/$defs/executionScope" },
+        "authority": { "$ref": "#/$defs/targetAuthority" },
+        "dataPolicy": { "$ref": "#/$defs/dataPolicy" },
+        "redactionProfile": { "$ref": "#/$defs/redactionProfile" },
+        "actionPolicy": {
+          "oneOf": [{ "$ref": "#/$defs/actionPolicy" }, { "type": "null" }]
+        },
+        "targetBoundary": { "$ref": "#/$defs/targetBoundary" },
+        "availability": {
+          "type": "string",
+          "enum": ["ready", "revoked", "expired", "release_unavailable"]
         }
       }
     },

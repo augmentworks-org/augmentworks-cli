@@ -10,7 +10,8 @@ export type ReleaseAssessment =
   | "evaluator_error"
   | "incompatible"
   | "unsupported"
-  | "unknown";
+  | "unknown"
+  | "reported";
 
 export interface ReleaseClassification {
   readonly observation: "succeeded";
@@ -46,7 +47,9 @@ export function classifyReleasePolicy(document: NormalizedReleasePolicy): Releas
 
   if (
     evaluation === "pending" ||
+    evaluation === "running" ||
     evaluation === "partial" ||
+    evaluation === "cancelled" ||
     evaluation === "absent" ||
     reasonCodes.includes("evaluation_pending")
   ) {
@@ -132,15 +135,48 @@ export function classifyReleasePolicy(document: NormalizedReleasePolicy): Releas
   };
 }
 
+/**
+ * `compare` reports what changed between two graded runs. Only `gate` turns a
+ * comparison into a release decision, so a regression here is not a failure.
+ */
+export function classifyComparison(document: NormalizedReleasePolicy): ReleaseClassification {
+  const policy = classifyReleasePolicy(document);
+  if (
+    policy.assessment === "unsupported" ||
+    policy.assessment === "evaluator_error" ||
+    policy.assessment === "incompatible" ||
+    (policy.assessment === "incomplete" && policy.reasonCodes.includes("evaluation_pending"))
+  ) {
+    return policy;
+  }
+  return {
+    observation: "succeeded",
+    assessment: "reported",
+    exitCode: EXIT.OK,
+    reasonCodes: unique([...document.reasonCodes, ...deriveReasonCodes(document)])
+  };
+}
+
 function deriveReasonCodes(document: NormalizedReleasePolicy): StableReasonCode[] {
   const codes: StableReasonCode[] = [];
   if (groupSize(document, "new_required_regressions") > 0) codes.push("new_required_regression");
   if (groupSize(document, "incompatible_scope") > 0) codes.push("incompatible_scope");
   if (groupSize(document, "unresolved") > 0) codes.push("evaluation_incomplete");
-  if (document.coverageChange === "removed" || document.coverageChange === "missing_required") {
+  // The server's removed_cases also covers advisory cases, so only a removed
+  // required case counts as missing coverage.
+  if (
+    document.coverageChange === "removed" ||
+    document.coverageChange === "missing_required" ||
+    document.groups.coverage_changes.some(isRemovedRequiredCase)
+  ) {
     codes.push("missing_required_coverage");
   }
-  if (document.evaluationStatus === "pending" || document.evaluationStatus === "partial") {
+  if (
+    document.evaluationStatus === "pending" ||
+    document.evaluationStatus === "running" ||
+    document.evaluationStatus === "partial" ||
+    document.evaluationStatus === "cancelled"
+  ) {
     codes.push("evaluation_pending");
   }
   if (document.evaluationStatus === "error") codes.push("evaluator_error");
@@ -154,11 +190,19 @@ function groupSize(document: NormalizedReleasePolicy, group: "new_required_regre
   return document.groups[group]?.length ?? 0;
 }
 
+function isRemovedRequiredCase(entry: unknown): boolean {
+  if (entry === null || typeof entry !== "object") return false;
+  const record = entry as Record<string, unknown>;
+  return record["category"] === "removed_case" && record["requirement"] === "required";
+}
+
 function isKnownEvaluation(value: string): boolean {
   return (
     value === "complete" ||
     value === "pending" ||
+    value === "running" ||
     value === "partial" ||
+    value === "cancelled" ||
     value === "error" ||
     value === "absent" ||
     value === "unsupported"
