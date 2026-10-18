@@ -70,30 +70,3 @@ jobs:
     name: Packed package
     uses: ./.github/workflows/packed-package.yml
 
-  provenance-rehearsal:
-    name: Provenance rehearsal (temporary)
-    needs: packed
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: Download tested tarball
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: ${{ needs.packed.outputs.artifact }}
-          path: ${{ runner.temp }}/packed
-
-      - name: npm publish the tarball with provenance to a local throwaway registry
-        run: |
-          npm --version
-          node scripts/provenance-rehearsal.mjs "$RUNNER_TEMP/packed/${{ needs.packed.outputs.tarball }}"
