@@ -28,17 +28,16 @@ accurate extra term.
 
 ## npm
 
-Do not run `npm publish` ad hoc. `@augmentworks/cli@0.3.9` is published from
-GitHub tag `v0.3.9` (`9e7919cbfe583cc15701904580be9d36da3bcaf4`) and
-independently inspected. The trusted workflow's OIDC publish returned 404
-after the repository moved to `augmentworks-org`; the same tag bytes were
-published by the package owner and have no SLSA provenance attestation. Do not
-republish 0.3.9; it stays the last version for Node.js 20.
-`@augmentworks/cli@0.4.0` is the next immutable artifact: publish it only from
-GitHub release `v0.4.0` through `.github/workflows/release.yml`, then inspect
-that new tarball. Do not overwrite or relabel `@augmentworks/cli@0.3.9`,
-`0.3.8`, `0.3.7`, `0.3.6`, `0.3.5`, `0.3.4`, or `0.3.3`. The npm trusted
-publisher must allow `augmentworks-org/augmentworks-cli`.
+Do not run `npm publish` ad hoc. `@augmentworks/cli@0.4.0` is published from
+GitHub release `v0.4.0` (`afb23c37ffe99289c75b3769b50447c3e403c50f`) by
+`.github/workflows/release.yml` through npm trusted publishing, with SLSA
+provenance from `augmentworks-org/augmentworks-cli`, and independently
+inspected. Do not republish 0.4.0. `@augmentworks/cli@0.3.9` stays the last
+version for Node.js 20; its tag bytes were published by the package owner
+after the trusted workflow's OIDC publish returned 404, and it has no SLSA
+provenance attestation. Do not overwrite or relabel `@augmentworks/cli@0.4.0`,
+`0.3.9`, `0.3.8`, `0.3.7`, `0.3.6`, `0.3.5`, `0.3.4`, or `0.3.3`. The next
+release still needs a new tag and `.github/workflows/release.yml`.
 
 ## Release history
 

@@ -15,7 +15,7 @@ constants. Packaged identity versus post-publication inspection is defined in
 | `capabilities.localDemo` | `true` |
 | Demo invocation | `node dist/index.js demo` |
 | Provenance | `sourceCommit: null`, `verifiedAt: null` |
-| Last independently inspected npm | `@augmentworks/cli@0.3.9` (tag `v0.3.9` commit `9e7919cbfe583cc15701904580be9d36da3bcaf4`, published 2026-10-13T20:31:53.099Z, integrity `sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA==`, tarball SHA-256 `176e0b6e1ae6e68b98e1ee363568241ac6534ceb5317ebd9f618980ef0efe72b`, 74 files). The registry document omitted `gitHead`. That artifact stays `lastIndependentlyInspected`. `thisPackageIdentity` for this 0.4.0 checkout is `pending-protected-publish`. The published 0.3.9 tarball still embeds the prior `LAST_VERIFIED` 0.3.8 snapshot; that inspection commit is not inside that artifact. |
+| Last independently inspected npm | `@augmentworks/cli@0.4.0` (tag `v0.4.0` commit `afb23c37ffe99289c75b3769b50447c3e403c50f`, published 2026-10-18T17:41:10.515Z, integrity `sha512-MquWMHbfZQTQ6QMIV4shagYUBLKcUfyIMhMR+zEcl46vfqn/LIjHICtPldCD9kaAn8GY+nhSFC8jjP9sLy4NCw==`, tarball SHA-256 `525af59db88046fceb38512dde85cf209a84170eddc3c3c42120892c9bf92216`, 74 files, SLSA provenance from `augmentworks-org/augmentworks-cli` `.github/workflows/release.yml`). The registry document omitted `gitHead`. `thisPackageIdentity` is `independently-inspected`. The published 0.4.0 tarball still embeds the prior `LAST_VERIFIED` 0.3.9 snapshot; this inspection commit is not inside that artifact. |
 | Immutable prior npm | `@augmentworks/cli@0.3.9`, `@augmentworks/cli@0.3.8`, `@augmentworks/cli@0.3.7`, `@augmentworks/cli@0.3.6`, `@augmentworks/cli@0.3.5`, `@augmentworks/cli@0.3.4`, and `@augmentworks/cli@0.3.3` (gitHead `4a08ea0d352f2515e725cb9ca946807112422436`). Do not overwrite or relabel. |
 
 The committed discovery manifest stays `development` for a source checkout. A
@@ -31,9 +31,9 @@ node scripts/verify-published-discovery.mjs --version 0.3.7
 ```
 
 `verify-published-discovery` emits metadata and does not replace executable
-inspection. Independently inspected 0.3.9 registry evidence stays
-`lastIndependentlyInspected`. `thisPackageIdentity` for this checkout is
-`0.4.0` / `pending-protected-publish` in
+inspection. Independently inspected 0.4.0 registry evidence is
+`lastIndependentlyInspected` and `thisPackageIdentity`
+(`independently-inspected`) in
 `docs/feature-readiness/published-registry-evidence.json`. Independently
 inspected 0.3.6 remains historical (capabilities, no saved-suite `/2`).
 Independently inspected 0.3.5 remains historical (it omits suite-selection
@@ -91,8 +91,7 @@ npm test
 
 ## Changed resources in this source revision
 
-- `lastIndependentlyInspected` remains independently inspected `@augmentworks/cli@0.3.9`
-- `thisPackageIdentity` is `@augmentworks/cli@0.4.0` with status `pending-protected-publish`
+- `lastIndependentlyInspected` and `thisPackageIdentity` record independently inspected `@augmentworks/cli@0.4.0`
 - Immutable 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, and 0.3.3 records stay unchanged
 - Source discovery stays `development`
 

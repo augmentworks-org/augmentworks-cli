@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Recorded the independent inspection of npm `@augmentworks/cli@0.4.0`,
+  published by the `v0.4.0` release workflow with SLSA provenance from
+  `augmentworks-org/augmentworks-cli`. The published tarball is unchanged and
+  still embeds the prior 0.3.9 `LAST_VERIFIED` snapshot.
+
 ## [0.4.0] - 2026-10-17
 
 Minor release. Requires Node.js 22.12 or newer. Hosted authorized real-data

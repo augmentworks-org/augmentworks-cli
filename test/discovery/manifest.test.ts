@@ -31,23 +31,23 @@ describe("discovery manifest", () => {
     }
   });
 
-  it("keeps the last independently inspected published 0.3.9 snapshot with demo", () => {
+  it("keeps the last independently inspected published 0.4.0 snapshot with demo", () => {
     const parsed = parseDiscoveryManifest(LAST_VERIFIED_PUBLISHED_DISCOVERY);
     expect(parsed.ok).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.3.9");
+    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.4.0");
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.releaseStatus).toBe("published");
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.capabilities.localDemo).toBe(true);
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.commands.localDemo).toEqual([
       "npx",
       "--yes",
-      "@augmentworks/cli@0.3.9",
+      "@augmentworks/cli@0.4.0",
       "demo"
     ]);
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.provenance.verifiedAt).toBe(
-      "2026-10-13T20:31:53.099Z"
+      "2026-10-18T17:41:10.515Z"
     );
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.provenance.sourceCommit).toBe(
-      "9e7919cbfe583cc15701904580be9d36da3bcaf4"
+      "afb23c37ffe99289c75b3769b50447c3e403c50f"
     );
   });
 
@@ -102,7 +102,7 @@ describe("discovery manifest", () => {
     ) as { engines: { node: string } };
     expect(source.runtime.node).toBe(">=22.12");
     expect(source.runtime.node).toBe(packageJson.engines.node);
-    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.runtime.node).toBe(">=20");
+    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.runtime.node).toBe(">=22.12");
     for (const node of [">=20", ">=22", ">=22.12", ">=22.12.0", ">=24"]) {
       expect(parseDiscoveryManifest({ ...source, runtime: { node } }).ok).toBe(true);
     }
@@ -117,7 +117,7 @@ describe("discovery manifest", () => {
     expect(source.package.releaseStatus).toBe("development");
     expect(source.provenance.verifiedAt).toBeNull();
     expect(source.provenance.sourceCommit).toBeNull();
-    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.3.9");
+    expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version).toBe("0.4.0");
     expect(LAST_VERIFIED_PUBLISHED_DISCOVERY.capabilities.localDemo).toBe(true);
     expect(source.capabilities.localDemo).toBe(true);
   });
