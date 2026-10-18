@@ -1,34 +1,48 @@
 {
   "schemaVersion": "aw-cli-registry-evidence/1",
-  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.3.9 tarball embeds the prior LAST_VERIFIED 0.3.8 snapshot; this file records the later inspection and is not inside that tarball. thisPackageIdentity for 0.4.0 stays pending-protected-publish until the trusted publish is inspected.",
+  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.4.0 tarball embeds the prior LAST_VERIFIED 0.3.9 snapshot; this file records the later inspection and is not inside that tarball.",
   "lastIndependentlyInspected": {
     "packageName": "@augmentworks/cli",
-    "version": "0.3.9",
-    "gitHead": "9e7919cbfe583cc15701904580be9d36da3bcaf4",
-    "integrity": "sha512-ZDXMg5etb3UNGGrakJ5Iz+oYAkAOHqOt2DIVn41MvFnLjmlz/AIUL05pYGJHnDISo1At5Cik6Kjkses4hB4CYA==",
-    "verifiedAt": "2026-10-13T20:31:53.099Z",
-    "githubRelease": "v0.3.9",
-    "githubReleasePublishedAt": "2026-10-13T20:16:25Z",
-    "githubReleaseUrl": "https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.3.9",
-    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.3.9",
-    "tarballUrl": "https://registry.npmjs.org/@augmentworks/cli/-/cli-0.3.9.tgz",
-    "shasum": "196d1c0eaa59a6c7a89166cdd0991ff1debbb82d",
-    "tarballSha256": "176e0b6e1ae6e68b98e1ee363568241ac6534ceb5317ebd9f618980ef0efe72b",
+    "version": "0.4.0",
+    "gitHead": "afb23c37ffe99289c75b3769b50447c3e403c50f",
+    "integrity": "sha512-MquWMHbfZQTQ6QMIV4shagYUBLKcUfyIMhMR+zEcl46vfqn/LIjHICtPldCD9kaAn8GY+nhSFC8jjP9sLy4NCw==",
+    "verifiedAt": "2026-10-18T17:41:10.515Z",
+    "githubRelease": "v0.4.0",
+    "githubReleasePublishedAt": "2026-10-18T17:34:34Z",
+    "githubReleaseUrl": "https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.4.0",
+    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.4.0",
+    "tarballUrl": "https://registry.npmjs.org/@augmentworks/cli/-/cli-0.4.0.tgz",
+    "shasum": "04c78bdebf100a45c456cccf917d9ff9a28f17a6",
+    "tarballSha256": "525af59db88046fceb38512dde85cf209a84170eddc3c3c42120892c9bf92216",
     "fileCount": 74,
-    "notes": "Downloaded registry tarball. GitHub tag v0.3.9 is 9e7919cbfe583cc15701904580be9d36da3bcaf4. The npm version document omitted gitHead. The tarball shasum matches the pack of that tag. No SLSA provenance attestation: the trusted workflow's OIDC publish returned 404 after the repository moved to augmentworks-org, and the registry version document has no attestations. The same tag bytes were published by the package owner. Do not republish 0.3.9 or 0.3.8. Do not use @latest."
+    "nodeRange": ">=22.12",
+    "provenance": {
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "attestationsUrl": "https://registry.npmjs.org/-/npm/v1/attestations/@augmentworks%2fcli@0.4.0",
+      "repository": "https://github.com/augmentworks-org/augmentworks-cli",
+      "workflow": ".github/workflows/release.yml",
+      "ref": "refs/tags/v0.4.0",
+      "gitCommit": "afb23c37ffe99289c75b3769b50447c3e403c50f",
+      "workflowRun": "https://github.com/augmentworks-org/augmentworks-cli/actions/runs/39150220225/attempts/1",
+      "publisher": "GitHub Actions trusted publisher (npm-oidc-no-reply@github.com)"
+    },
+    "notes": "Downloaded registry tarball. GitHub tag v0.4.0 is afb23c37ffe99289c75b3769b50447c3e403c50f, the merge of PR #95; it contains the AUG-370 merge 252efd84c958eebacec6ca8cf66a8ddabe6fe088. The npm version document omitted gitHead; the SLSA provenance names the tag commit. The tarball SHA-256 matches the tarball the release workflow packed and tested on Node 22.12.0, and npm pack of the tag. npm audit signatures verified the registry signature and the attestation. Published only by .github/workflows/release.yml through npm trusted publishing; nobody ran npm publish by hand. The tarball still embeds the prior LAST_VERIFIED 0.3.9 snapshot. Do not republish 0.4.0 or 0.3.9. Do not use @latest."
   },
   "thisPackageIdentity": {
     "packageName": "@augmentworks/cli",
     "version": "0.4.0",
     "publishedPackageVerifiedMeaning": "published-line identity, not inspection of this tarball",
-    "gitHead": null,
-    "integrity": null,
-    "verifiedAt": null,
-    "status": "pending-protected-publish",
-    "githubRelease": null,
-    "githubReleasePublishedAt": null,
+    "gitHead": "afb23c37ffe99289c75b3769b50447c3e403c50f",
+    "integrity": "sha512-MquWMHbfZQTQ6QMIV4shagYUBLKcUfyIMhMR+zEcl46vfqn/LIjHICtPldCD9kaAn8GY+nhSFC8jjP9sLy4NCw==",
+    "verifiedAt": "2026-10-18T17:41:10.515Z",
+    "status": "independently-inspected",
+    "githubRelease": "v0.4.0",
+    "githubReleasePublishedAt": "2026-10-18T17:34:34Z",
     "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.4.0",
-    "notes": "Source 0.4.0 requires Node.js 22.12 or newer and ships hosted authorized real-data testing (target add, target verify, target list, target pull, scope create) against aw-real-data/1 from main 16d767967c9d000b81f10ddb09800b0273277b68. Fill gitHead, integrity, and verifiedAt after the protected v0.4.0 GitHub release and npm trusted publish. Do not overwrite 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
+    "shasum": "04c78bdebf100a45c456cccf917d9ff9a28f17a6",
+    "tarballSha256": "525af59db88046fceb38512dde85cf209a84170eddc3c3c42120892c9bf92216",
+    "fileCount": 74,
+    "notes": "Same immutable artifact as lastIndependentlyInspected. The inspection commit is later than the tag and is not inside the tarball. The registry document omitted gitHead. Do not overwrite 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
   },
   "immutableArtifacts": [
     {
@@ -94,6 +108,16 @@
       "tarballSha256": "176e0b6e1ae6e68b98e1ee363568241ac6534ceb5317ebd9f618980ef0efe72b",
       "fileCount": 74,
       "notes": "Independently inspected hosted run-scope lookup patch. Registry metadata omitted gitHead. No SLSA provenance attestation. Do not republish or relabel."
+    },
+    {
+      "version": "0.4.0",
+      "gitHead": "afb23c37ffe99289c75b3769b50447c3e403c50f",
+      "integrity": "sha512-MquWMHbfZQTQ6QMIV4shagYUBLKcUfyIMhMR+zEcl46vfqn/LIjHICtPldCD9kaAn8GY+nhSFC8jjP9sLy4NCw==",
+      "verifiedAt": "2026-10-18T17:41:10.515Z",
+      "shasum": "04c78bdebf100a45c456cccf917d9ff9a28f17a6",
+      "tarballSha256": "525af59db88046fceb38512dde85cf209a84170eddc3c3c42120892c9bf92216",
+      "fileCount": 74,
+      "notes": "Independently inspected Node.js 22.12 and hosted real-data testing release. Registry metadata omitted gitHead. SLSA provenance from augmentworks-org/augmentworks-cli .github/workflows/release.yml at refs/tags/v0.4.0. Do not republish or relabel."
     }
   ]
 }

@@ -24,9 +24,9 @@ coordinator) should link here. This file does not replace
 
 Package identity of a checkout is `package.json` (currently `0.4.0`). That
 version string alone is not registry proof. The last independently inspected
-npm tarball recorded in-tree is `@augmentworks/cli@0.3.9` in
-`docs/feature-readiness/published-registry-evidence.json` (tag `v0.3.9`
-commit `9e7919cbfe583cc15701904580be9d36da3bcaf4`; the registry document
+npm tarball recorded in-tree is `@augmentworks/cli@0.4.0` in
+`docs/feature-readiness/published-registry-evidence.json` (tag `v0.4.0`
+commit `afb23c37ffe99289c75b3769b50447c3e403c50f`; the registry document
 omitted `gitHead`). Confirm with `npm view` before
 treating a pin as installed. Never run `npx @augmentworks/cli@latest`.
 `npx --yes` only skips the npm prompt; it is not a spending ceiling.
@@ -196,10 +196,9 @@ is not a normal offline check).
 
 Independently inspect registry identity with `npm view` and compare
 `gitHead` / `dist.integrity` / tarball SHA-256 to
-`docs/feature-readiness/published-registry-evidence.json`. npm `0.3.9`
-is independently inspected. Source `0.4.0` stays `pending-protected-publish`
-until the `v0.4.0` tarball is inspected. That gap is not a local-runner
-pass, and the 0.3.9 receipt is not inside the published tarball.
+`docs/feature-readiness/published-registry-evidence.json`. npm `0.4.0`
+is independently inspected. That receipt is not a substitute for a local-runner
+pass, and it is not inside the published tarball.
 Customer-facing `init` next steps on an npm install must not tell the user to
 run `node dist/index.js` from an empty project.
 
