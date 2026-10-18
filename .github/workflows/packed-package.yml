@@ -1,0 +1,168 @@
+name: Packed package
+
+# Shared by ci.yml and release.yml so pull requests exercise the same
+# build-once, test-on-the-minimum path that gates npm publish.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build. Empty means the commit that triggered the caller.
+        type: string
+        default: ""
+      release-tag:
+        description: When set, package.json must declare this tag's version (tag = "v" + version).
+        type: string
+        default: ""
+    outputs:
+      artifact:
+        description: Name of the artifact holding the tarball and SHA256SUMS.
+        value: ${{ jobs.pack.outputs.artifact }}
+      tarball:
+        description: File name of the packed tarball inside the artifact.
+        value: ${{ jobs.pack.outputs.tarball }}
+      sha256:
+        description: SHA-256 of the packed tarball.
+        value: ${{ jobs.pack.outputs.sha256 }}
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Verify, build, and pack on Node 24
+    runs-on: ubuntu-latest
+    outputs:
+      artifact: packed-cli
+      tarball: ${{ steps.pack.outputs.tarball }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Verify tag matches package version
+        if: inputs.release-tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: node -e "const p=require('./package.json'); if(process.env.RELEASE_TAG !== 'v'+p.version) throw new Error('Release tag must equal v'+p.version)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck, test, and build
+        run: npm run check
+
+      - name: Audit dependency tree
+        run: npm run audit:ci
+
+      - name: Validate committed examples
+        env:
+          CHATBOT_BASE_URL: http://127.0.0.1:8000
+          CHATBOT_API_KEY: ci-placeholder-only
+        run: |
+          node dist/index.js doctor --offline -c examples/basic-chat/augmentworks.yaml
+          node dist/index.js doctor --offline -c examples/refund-agent/augmentworks.yaml
+
+      - name: Pack tarball
+        id: pack
+        run: |
+          packed="$RUNNER_TEMP/packed"
+          mkdir -p "$packed"
+          npm pack --json --ignore-scripts --pack-destination "$packed" > "$RUNNER_TEMP/pack-report.json"
+          tarball="$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))[0].filename)' "$RUNNER_TEMP/pack-report.json")"
+          sha256="$(sha256sum "$packed/$tarball" | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$sha256" "$tarball" > "$packed/SHA256SUMS"
+          cat "$packed/SHA256SUMS"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test the packed tarball
+        run: npm run smoke:pack -- --tarball "$RUNNER_TEMP/packed/${{ steps.pack.outputs.tarball }}"
+
+      - name: Upload packed tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packed-cli
+          path: ${{ runner.temp }}/packed/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  minimum-node:
+    name: Packed tarball on Node 22.12.0 (${{ matrix.os }})
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARBALL: ${{ needs.pack.outputs.tarball }}
+      EXPECTED_SHA256: ${{ needs.pack.outputs.sha256 }}
+    steps:
+      # The checkout supplies the smoke scripts and fixtures only. Dev dependencies are
+      # deliberately not installed, so this job never needs the build toolchain to run on 22.12.0.
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Node.js 22.12.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.12.0
+          package-manager-cache: false
+
+      - name: Confirm Node.js version
+        run: test "$(node --version)" = "v22.12.0"
+
+      - name: Download packed tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.pack.outputs.artifact }}
+          path: ${{ runner.temp }}/packed
+
+      - name: Verify tarball checksum
+        run: |
+          tarball_path="$(node -p 'require("path").join(process.env.RUNNER_TEMP, "packed", process.env.TARBALL)')"
+          node -e '
+            const { createHash } = require("crypto");
+            const actual = createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex");
+            if (actual !== process.env.EXPECTED_SHA256) {
+              throw new Error(`tarball sha256 ${actual} does not match packed ${process.env.EXPECTED_SHA256}`);
+            }
+            console.log(`sha256 ${actual} matches the packed tarball`);
+          ' "$tarball_path"
+          echo "TARBALL_PATH=$tarball_path" >> "$GITHUB_ENV"
+
+      - name: Install with --engine-strict and run the CLI
+        env:
+          CHATBOT_BASE_URL: http://127.0.0.1:8000
+          CHATBOT_API_KEY: ci-placeholder-only
+        run: |
+          consumer="$RUNNER_TEMP/consumer"
+          mkdir -p "$consumer"
+          cd "$consumer"
+          npm init -y > /dev/null
+          npm install --engine-strict --ignore-scripts --no-audit --no-fund "$TARBALL_PATH"
+          npx --no-install augmentworks --version
+          npx --no-install augmentworks doctor --offline -c "$GITHUB_WORKSPACE/examples/basic-chat/augmentworks.yaml"
+          npx --no-install augmentworks doctor --offline -c "$GITHUB_WORKSPACE/examples/refund-agent/augmentworks.yaml"
+          npx --no-install augmentworks demo --json --output-dir demo-output > demo.json
+          node -e 'const s = JSON.parse(require("fs").readFileSync("demo.json", "utf8")); if (s.ok !== true) throw new Error("packed demo did not succeed"); console.log("packed demo ok");'
+
+      - name: Smoke-test the packed tarball
+        run: node scripts/smoke-pack.mjs --tarball "$TARBALL_PATH"

@@ -20,7 +20,8 @@ describe("source-map-js release audit", () => {
 
     expect(root?.dependencies?.["source-map-js"]).toBeUndefined();
     expect(root?.devDependencies && "source-map-js" in (root.devDependencies ?? {})).toBe(false);
-    expect(postcss?.dependencies?.["source-map-js"]).toBe("^1.2.1");
+    // postcss 8.5.29+ declares ^1.2.2; either range resolves to the audited 1.2.2 below.
+    expect(["^1.2.1", "^1.2.2"]).toContain(postcss?.dependencies?.["source-map-js"]);
     expect(sourceMap?.version).toBe("1.2.2");
     expect(sourceMap?.dev).toBe(true);
     expect(sourceMap?.version && sourceMap.version >= "1.2.2").toBe(true);

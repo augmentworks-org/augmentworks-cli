@@ -65,3 +65,8 @@ jobs:
       - name: Smoke-test packed npx package
         if: matrix.node == 22
         run: npm run smoke:pack
+
+  packed:
+    name: Packed package
+    uses: ./.github/workflows/packed-package.yml
+

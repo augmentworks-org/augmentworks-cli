@@ -605,6 +605,24 @@ async function assertPackedActionRecovery(consumerDirectory, execCli) {
   assert(await readFile(intentFile, "utf8") === before, "packed recovery changed stored receipt bytes");
 }
 
+function parseTarballArgument(args) {
+  let tarball;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--tarball") {
+      tarball = args[index + 1];
+      index += 1;
+      assert(tarball !== undefined && tarball.length > 0, "--tarball requires a path to a packed .tgz");
+    } else if (arg.startsWith("--tarball=")) {
+      tarball = arg.slice("--tarball=".length);
+      assert(tarball.length > 0, "--tarball requires a path to a packed .tgz");
+    } else {
+      throw new SmokeFailure(`unknown argument: ${arg}`);
+    }
+  }
+  return tarball === undefined ? undefined : resolve(tarball);
+}
+
 async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "augmentworks-cli-pack-"));
   const packDirectory = join(temporaryRoot, "pack");
@@ -620,21 +638,32 @@ async function main() {
       mkdir(assessmentDirectory, { recursive: true })
     ]);
 
-    process.stdout.write("[pack smoke] building package\n");
-    runJsCli("npm", ["run", "build"]);
+    const providedTarball = parseTarballArgument(process.argv.slice(2));
+    let report;
+    let tarballPath;
+    if (providedTarball === undefined) {
+      process.stdout.write("[pack smoke] building package\n");
+      runJsCli("npm", ["run", "build"]);
 
-    process.stdout.write("[pack smoke] creating and inspecting tarball\n");
-    const packed = runJsCli("npm", [
-      "pack",
-      "--json",
-      "--ignore-scripts",
-      "--pack-destination",
-      packDirectory
-    ]);
-    const report = parsePackReport(packed.stdout);
+      process.stdout.write("[pack smoke] creating and inspecting tarball\n");
+      const packed = runJsCli("npm", [
+        "pack",
+        "--json",
+        "--ignore-scripts",
+        "--pack-destination",
+        packDirectory
+      ]);
+      report = parsePackReport(packed.stdout);
+      tarballPath = join(packDirectory, report.filename);
+    } else {
+      tarballPath = providedTarball;
+      await access(tarballPath, fsConstants.R_OK);
+      process.stdout.write(`[pack smoke] inspecting prebuilt tarball ${tarballPath}\n`);
+      // --dry-run reads the existing tarball and reports its contents without building or rewriting it.
+      const inspected = runJsCli("npm", ["pack", tarballPath, "--dry-run", "--json"], { cwd: packDirectory });
+      report = parsePackReport(inspected.stdout);
+    }
     assertInventory(report);
-
-    const tarballPath = join(packDirectory, report.filename);
     await access(tarballPath, fsConstants.R_OK);
 
     const rootManifest = JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"));
