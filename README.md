@@ -13,12 +13,13 @@ The CLI runs in two ways:
 | Mode | What it does | Needs |
 | --- | --- | --- |
 | Local `test --local` | Runs and scores a data-only packet against your chatbot on your machine. Requires no AugmentWorks account and contacts no AugmentWorks service. | Node.js 22.12 or newer and a chatbot you are authorized to call |
-| Hosted `test` | Runs an assessment through AugmentWorks over outbound HTTPS, with hosted judging and a live dashboard. Paid in credits, with a ceiling you set. | An invited AugmentWorks workspace and `login`. For real data, a registered, verified target with a test scope |
+| Hosted `test` | Runs an assessment through AugmentWorks over outbound HTTPS, with hosted judging and a live dashboard. Paid in credits, with a ceiling you set. | An AugmentWorks account and `login`. For real data, a registered, verified target with a test scope |
 
 Product site: [augmentworks.ai](https://augmentworks.ai). Docs:
 [quickstart](https://augmentworks.ai/docs/quickstart),
 [local quickstart](https://augmentworks.ai/docs/local-quickstart),
 [real-data tests](https://augmentworks.ai/docs/real-data),
+[CI](https://augmentworks.ai/docs/ci),
 [agent setup](https://augmentworks.ai/docs/agent-setup). Pricing is the
 [pricing page](https://augmentworks.ai/pricing).
 
@@ -78,7 +79,8 @@ story and cleanup both succeed, and writes reports under
 
 `init` writes a starter `augmentworks.yaml`, `.env.example`, a local `.env`,
 fixtures, and an assessment file. Pick the response-only chat pattern (the
-default) or `--starter workflow` for an agent with state:
+default) or `--starter workflow` for an agent with state. `--agent` also writes
+`augmentworks.agent.md`, setup instructions for a coding assistant:
 
 ```bash
 npx --yes @augmentworks/cli@0.4.0 init --agent
@@ -181,8 +183,9 @@ file with no scripts or external assets. Treat all three files as sensitive.
 
 ## First hosted test
 
-Hosted tests need an invited AugmentWorks workspace; there is no self-serve
-signup. A person logs in once per machine:
+Hosted tests need an AugmentWorks account. Create one at
+[augmentworks.ai/auth/sign-up](https://augmentworks.ai/auth/sign-up); a new
+workspace starts with trial credits. A person then logs in once per machine:
 
 ```bash
 npx --yes @augmentworks/cli@0.4.0 login
@@ -243,7 +246,11 @@ Other hosted commands:
 
 For CI, create a workspace API key at
 https://augmentworks.ai/portal/settings/api-keys and set it as
-`AUGMENTWORKS_API_KEY`. The complete GitHub Actions recipe is
+`AUGMENTWORKS_API_KEY`. An API key can't upload a suite file, so CI runs a
+suite saved in the portal: point `selection.suite_revision_id` in the
+assessment file at its revision. The
+[CI guide](https://augmentworks.ai/docs/ci) walks through the setup, and the
+complete GitHub Actions recipe is
 [docs/examples/github-actions-hosted.yml](docs/examples/github-actions-hosted.yml).
 Don't run `logout` as CI cleanup; it revokes reusable keys.
 
@@ -284,12 +291,17 @@ npx --yes @augmentworks/cli@0.4.0 test --suite refunds.suite.yaml --max-credits 
 2. `target verify <name>` prints a code to publish as a file on the agent's
    address or as a DNS TXT record, and finishes once the server sees it. A
    private address is checked instead with one test message from your
-   machine. Verification lasts 90 days.
+   machine. Verification lasts 90 days from registration.
 3. `scope create` shows the data policy, data origin, expiry and a per-run
    budget sized to the suite, asks, and writes the scope id into the suite
    file. Pass `--data-origin customer_records` when the cases hold real
    records.
 4. `test --suite` runs the suite under that scope.
+
+Real-data runs check your agent's replies only. `scope create` refuses a suite
+whose cases declare `observations`, and a configured `prepare` or `cleanup`
+stops the run with `ACTION_NOT_ALLOWED`. To check tool calls and application
+state, use a local test.
 
 `target list` shows each target's status and scopes, and `target pull <name>`
 brings a target added in the portal into `augmentworks.yaml`. Machine keys
