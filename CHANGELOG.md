@@ -14,6 +14,10 @@ All notable changes to this project are documented here. The format follows
   The CLI refused them even after verification, and its error pointed at a
   local connector mapping that doesn't exist. Targets verified any other way
   must still be public. (AUG-399)
+- `test --assessment` and `test --manifest` on a saved real-data suite read
+  the suite's execution scope from the revision the server returns, so the
+  quote and run carry the scope's target boundary instead of being refused
+  with a boundary mismatch. (AUG-402)
 
 ### Changed
 

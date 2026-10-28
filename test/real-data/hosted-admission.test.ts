@@ -21,6 +21,14 @@ import { loadCustomerSuiteFile } from "../../src/suite/load.js";
 import { nativeSuiteContentHash, nativeSuiteSource } from "../../src/suite/native.js";
 import { canonicalize, sha256 } from "../../src/util/canonical.js";
 import type { ExecutionScopeResponse } from "../../src/real-data/documents.js";
+import {
+  CANONICAL_HASH,
+  SEMANTIC_HASH,
+  SUITE_ID as SAVED_SUITE_ID,
+  SUITE_REVISION as SAVED_SUITE_REVISION,
+  savedSuiteAssessmentYaml,
+  savedSuiteManifest
+} from "../selection/saved-suite-fixtures.js";
 import { relayCommand } from "../relay/helpers.js";
 import { listenLoopback, readJsonBody } from "../util/http-server.js";
 import { contractResponse, hostedScopeResponse, WORKSPACE_ID } from "./helpers.js";
@@ -128,6 +136,13 @@ function admittingServer(cwd: string, scopeResponse: ExecutionScopeResponse = de
         schemaVersion: "aw-customer-suite/3"
       });
     }
+    if (url.pathname === "/v1/suite-selections/compile" && method === "POST") {
+      return Response.json(savedSuiteManifest());
+    }
+    if (url.pathname === `/v1/suites/${SAVED_SUITE_ID}/revisions/${SAVED_SUITE_REVISION}`) {
+      // What the server sends: the sealed revision document itself, with no canonicalDocument wrapper.
+      return Response.json(savedRealDataRevision(scopeResponse));
+    }
     if (url.pathname === "/v1/billing/capabilities") {
       return Response.json(billing.fixtures["eligible_trial"]?.response);
     }
@@ -168,6 +183,35 @@ function admittingServer(cwd: string, scopeResponse: ExecutionScopeResponse = de
     throw new Error(`unexpected ${method} ${url.pathname}`);
   });
   return { fetchMock, recorded };
+}
+
+/**
+ * GET /v1/suites/{suiteId}/revisions/{revisionId} as the server sends it for a
+ * saved aw-customer-suite/3 revision: the revision document spread at the top
+ * level, carrying the full sealed execution scope (customer-suite-http.ts).
+ */
+function savedRealDataRevision(response: ExecutionScopeResponse): Record<string, unknown> {
+  return {
+    schemaVersion: "aw-customer-suite/3",
+    documentKind: "customer_suite_revision",
+    suiteId: SAVED_SUITE_ID,
+    displayName: "Policy suite",
+    description: "",
+    executionScope: response.scope,
+    conversationMode: "single_turn",
+    tags: [],
+    references: [],
+    cases: [{ caseId: "policy-p01" }, { caseId: "policy-p02" }],
+    workspaceId: WORKSPACE_ID,
+    suiteRevisionId: SAVED_SUITE_REVISION,
+    revisionNumber: 1,
+    createdAt: "2026-10-20T12:00:00.000Z",
+    immutable: true,
+    semanticRevisionHash: SEMANTIC_HASH,
+    canonicalHash: CANONICAL_HASH,
+    createsBillableRun: false,
+    ownership: "workspace_draft"
+  };
 }
 
 function hostedDependencies(resolved: ResolvedConfig, fetchMock: typeof fetch) {
@@ -471,3 +515,59 @@ describe("private targets verified by connector challenge (AUG-399)", () => {
   });
 });
 
+describe("saved real-data suites (AUG-402)", () => {
+  async function savedSuiteProject(): Promise<string> {
+    const cwd = await projectDir();
+    await writeFile(join(cwd, "policy.assessment.yaml"), savedSuiteAssessmentYaml(), "utf8");
+    await writeFile(join(cwd, "selection.json"), `${JSON.stringify(savedSuiteManifest(), null, 2)}\n`, "utf8");
+    return cwd;
+  }
+
+  it.each([
+    { flag: "--assessment", selection: { assessment: "policy.assessment.yaml" } },
+    { flag: "--manifest", selection: { manifest: "selection.json" } }
+  ])("test $flag quotes and admits with the saved suite scope's boundary hash", async ({ selection }) => {
+    const cwd = await savedSuiteProject();
+    const resolved = resolvedFor("https://support.example.com");
+    expect(targetBoundarySha256(resolved)).not.toBe(scopeResponse.scope.targetBoundaryHash);
+    const { fetchMock, recorded } = admittingServer(cwd);
+    const policies: Array<DispatchPolicy | undefined> = [];
+
+    const estimate = await runEstimate(
+      { cwd, ...selection, env: { AUGMENTWORKS_API_URL: API } },
+      hostedDependencies(resolved, fetchMock)
+    );
+    expect(estimate.quote.quoteId).toBeDefined();
+
+    const result = await runTest(
+      {
+        cwd,
+        ...selection,
+        maxCredits: "30",
+        yes: true,
+        stateDirectory: cwd,
+        handleSignals: false,
+        env: { AUGMENTWORKS_API_URL: API }
+      },
+      { ...hostedDependencies(resolved, fetchMock), runner: fakeRunner((policy) => policies.push(policy), "complete") }
+    );
+    expect(result.run.run_id).toBe(RUN_ID);
+    expect(recorded.paths).toContain(`GET /v1/execution-scopes/${scopeResponse.scope.scopeId}`);
+    expect(recorded.quotes).toHaveLength(2);
+    expect(recorded.creates).toHaveLength(1);
+    for (const body of [...recorded.quotes, ...recorded.creates]) {
+      expect((body["target"] as { boundary_sha256: string }).boundary_sha256).toBe(
+        scopeResponse.scope.targetBoundaryHash
+      );
+      expect((body["assessment"] as { suite_revision_id: string }).suite_revision_id).toBe(SAVED_SUITE_REVISION);
+    }
+    expect(policies[0]).toMatchObject({ kind: "authorized", origin: "https://support.example.com" });
+    const binding = await loadExecutionScopeBinding(RUN_ID, { stateDirectory: cwd });
+    expect(binding).toMatchObject({
+      scopeId: scopeResponse.scope.scopeId,
+      scopeHash: scopeResponse.scope.scopeHash,
+      suiteId: SAVED_SUITE_ID,
+      suiteRevisionId: SAVED_SUITE_REVISION
+    });
+  });
+});

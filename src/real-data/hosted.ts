@@ -10,6 +10,7 @@ import {
   type DispatchPolicy
 } from "./policy.js";
 import {
+  ExecutionScopeSchema,
   parseLocalExecutionScope,
   parseTargetBoundary,
   SuiteExecutionScopeRefSchema,
@@ -254,9 +255,19 @@ export function executionScopeRefFromNativeDocument(document: unknown): SuiteExe
   if (overlay !== "aw-packet/authorized-1" && schemaVersion !== "aw-customer-suite/3") {
     return undefined;
   }
-  const parsed = SuiteExecutionScopeRefSchema.safeParse(
-    record["executionScope"] ?? record["execution_scope"]
-  );
+  const scope = record["executionScope"] ?? record["execution_scope"];
+  // A saved hosted suite revision carries the full sealed scope; keep only the
+  // reference fields admission re-checks against the server's current scope.
+  const sealed = ExecutionScopeSchema.safeParse(scope);
+  if (sealed.success) {
+    return {
+      schemaVersion: sealed.data.schemaVersion,
+      scopeId: sealed.data.scopeId,
+      revision: sealed.data.revision,
+      scopeHash: sealed.data.scopeHash
+    };
+  }
+  const parsed = SuiteExecutionScopeRefSchema.safeParse(scope);
   return parsed.success ? parsed.data : undefined;
 }
 

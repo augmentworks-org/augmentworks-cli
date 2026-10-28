@@ -25,6 +25,7 @@ import {
 import { applyRedactionProfile, failClosedPrivacyService, minimizeForUpload, registerPrivacyService } from "../../src/real-data/privacy.js";
 import { persistExecutionScopeBinding, loadExecutionScopeBinding, hostedBinding, assertBindingMatches } from "../../src/real-data/scope-store.js";
 import {
+  executionScopeRefFromNativeDocument,
   loadPersistedDispatchPolicy,
   requireHostedAuthorizedScope,
   resolveDispatchPolicyForBinding
@@ -351,6 +352,28 @@ describe("persisted private-target permission (AUG-399)", () => {
     expect(() => assertDispatchReadyForQuote(publicPolicy, resolved)).toThrow(
       expect.objectContaining({ code: "TARGET_SCOPE_MISMATCH" })
     );
+  });
+});
+
+describe("saved suite scope reference (AUG-402)", () => {
+  const suite = (executionScope: unknown) => ({ schemaVersion: "aw-customer-suite/3", executionScope });
+
+  it("projects a saved revision's full sealed scope to the reference fields", () => {
+    const { scope } = hostedScopeResponse();
+    expect(executionScopeRefFromNativeDocument(suite(scope))).toEqual({
+      schemaVersion: scope.schemaVersion,
+      scopeId: scope.scopeId,
+      revision: scope.revision,
+      scopeHash: scope.scopeHash
+    });
+  });
+
+  it("still accepts a reference-only scope and rejects a scope with unknown fields", () => {
+    const { scope } = hostedScopeResponse();
+    const ref = { schemaVersion: scope.schemaVersion, scopeId: scope.scopeId, revision: scope.revision };
+    expect(executionScopeRefFromNativeDocument(suite(ref))).toEqual(ref);
+    expect(executionScopeRefFromNativeDocument(suite({ ...scope, unexpected: true }))).toBeUndefined();
+    expect(executionScopeRefFromNativeDocument({ schemaVersion: "aw-customer-suite/2", executionScope: scope })).toBeUndefined();
   });
 });
 
