@@ -705,6 +705,173 @@ describe("RelayRunner", () => {
   });
 });
 
+function relayUnavailable(retryAfterMs: number): AwError {
+  return new AwError({
+    code: "RELAY_UNAVAILABLE",
+    category: "relay",
+    message: "The relay is temporarily unavailable.",
+    retryable: true,
+    details: { http_status: 503, retry_after_ms: retryAfterMs }
+  });
+}
+
+describe("AUG-412 poll retry and server-proven skips", () => {
+  it("retries a poll 503 after Retry-After and still delivers sequence 2", async () => {
+    const commands = [
+      relayCommand("send"),
+      relayCommand("send", { command_id: "command-send-2", sequence: 2 })
+    ];
+    const cloud = new MockCloud(commands);
+    const polls: number[] = [];
+    let failed = false;
+    const poll = cloud.pollOperation.bind(cloud);
+    cloud.pollOperation = async (options: { afterSequence: number }) => {
+      polls.push(options.afterSequence);
+      if (options.afterSequence === 1 && !failed) {
+        failed = true;
+        throw relayUnavailable(40);
+      }
+      return await poll(options);
+    };
+    // Both sends share turn-1, so one canned result correlates with either.
+    const connector = { execute: vi.fn(async () => resultFor(commands[0]!)) };
+    const started = Date.now();
+    const run = await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector,
+      binding: binding(),
+      stateDirectory: await temporaryDirectory(),
+      pollWaitMs: 0,
+      pollRetryBaseMs: 1
+    }).run();
+    expect(run.status).toBe("completed");
+    expect(Date.now() - started).toBeGreaterThanOrEqual(40);
+    expect(polls.slice(0, 3)).toEqual([0, 1, 1]);
+    expect(cloud.completions.map((item) => item.command.sequence)).toEqual([1, 2]);
+  });
+
+  it("stops retrying at the run deadline and names the run in the error JSON", async () => {
+    const cloud = new MockCloud([]);
+    cloud.pollOperation = async () => {
+      throw relayUnavailable(60_000);
+    };
+    const error = await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector: { execute: vi.fn() },
+      binding: binding({ run_expires_at: new Date(Date.now() + 30_000).toISOString() }),
+      stateDirectory: await temporaryDirectory(),
+      pollWaitMs: 0,
+      pollRetryBaseMs: 1
+    })
+      .run()
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AwError);
+    expect((error as AwError).toSafeJSON()).toMatchObject({
+      code: "RELAY_UNAVAILABLE",
+      run_id: "run-1"
+    });
+  });
+
+  it("accepts a skipped sequence the server proves closed", async () => {
+    const commands = [
+      relayCommand("send"),
+      relayCommand("send", { command_id: "command-send-3", sequence: 3 })
+    ];
+    const cloud = new MockCloud(commands);
+    const polls: number[] = [];
+    cloud.pollOperation = async (options: { afterSequence: number }) => {
+      polls.push(options.afterSequence);
+      const command = options.afterSequence === 0 ? commands[0]! : options.afterSequence === 1 ? commands[1]! : null;
+      return {
+        protocol_version: "aw-relay/0.1" as const,
+        run_id: "run-1",
+        session_id: "session-1",
+        status: command === null ? "completed" : "running",
+        command,
+        skipped_sequences: options.afterSequence === 1 ? [2] : []
+      };
+    };
+    const connector = { execute: vi.fn(async () => resultFor(commands[0]!)) };
+    const run = await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector,
+      binding: binding(),
+      stateDirectory: await temporaryDirectory(),
+      pollWaitMs: 0
+    }).run();
+    expect(run.status).toBe("completed");
+    expect(polls).toEqual([0, 1, 3]);
+    expect(cloud.completions.map((item) => item.command.sequence)).toEqual([1, 3]);
+  });
+
+  it("still fails a sequence gap without server proof, with the run ID", async () => {
+    const commands = [
+      relayCommand("send"),
+      relayCommand("send", { command_id: "command-send-3", sequence: 3 })
+    ];
+    const cloud = new MockCloud(commands);
+    cloud.pollOperation = async (options: { afterSequence: number }) => ({
+      protocol_version: "aw-relay/0.1" as const,
+      run_id: "run-1",
+      session_id: "session-1",
+      status: "running",
+      command: options.afterSequence === 0 ? commands[0]! : commands[1]!
+    });
+    const connector = { execute: vi.fn(async () => resultFor(commands[0]!)) };
+    const error = await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector,
+      binding: binding(),
+      stateDirectory: await temporaryDirectory(),
+      pollWaitMs: 0
+    })
+      .run()
+      .catch((caught: unknown) => caught);
+    expect((error as AwError).toSafeJSON()).toMatchObject({
+      code: "COMMAND_SEQUENCE_GAP",
+      run_id: "run-1",
+      details: { expected_sequence: 2, actual_sequence: 3 }
+    });
+    expect(connector.execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("AUG-404 lost acknowledgements", () => {
+  it("re-sends a journaled completion when the server has already moved to the next command", async () => {
+    const stateDirectory = await temporaryDirectory();
+    const first = relayCommand("send");
+    const second = relayCommand("send", { command_id: "command-send-2", sequence: 2 });
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    await journal.accept(first);
+    await journal.markStarted(first.command_id);
+    await journal.recordSuccess(first.command_id, resultFor(first));
+    await journal.close();
+    // The server took the first upload, so it now delivers sequence 2 after cursor 0.
+    const cloud = new MockCloud([second]);
+    cloud.pollOperation = async (options: { afterSequence: number }) => ({
+      protocol_version: "aw-relay/0.1" as const,
+      run_id: "run-1",
+      session_id: "session-1",
+      status: options.afterSequence < 2 ? "running" : "completed",
+      command: options.afterSequence < 2 ? second : null
+    });
+    const connector = { execute: vi.fn(async () => resultFor(second)), isIdempotent: () => false };
+    await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector,
+      binding: binding(),
+      stateDirectory,
+      pollWaitMs: 0
+    }).run();
+    expect(connector.execute).toHaveBeenCalledTimes(1);
+    expect(cloud.completions.map((item) => item.command.command_id)).toEqual([
+      first.command_id,
+      second.command_id
+    ]);
+    expect(cloud.completions[0]?.result).toEqual(resultFor(first));
+  });
+});
+
 describe("authorized dispatch policy", () => {
   it("does not replay a timed-out authorized send even when the connector claims send is idempotent", async () => {
     const stateDirectory = await temporaryDirectory();
