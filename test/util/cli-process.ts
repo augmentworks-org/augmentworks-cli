@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,6 +15,10 @@ export interface CliProcessOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly timeoutMs?: number;
   readonly stdin?: string;
+  /** Receives the child process, for tests that kill it at a chosen moment. */
+  readonly onSpawn?: (child: ChildProcess) => void;
+  /** Report a signal-terminated child instead of throwing. */
+  readonly allowSignal?: boolean;
 }
 
 export interface CliProcessResult {
@@ -113,6 +117,7 @@ async function runNodeCli(
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true
   });
+  options.onSpawn?.(child);
 
   let stdout = "";
   let stderr = "";
@@ -151,7 +156,7 @@ async function runNodeCli(
   if (capturedBytes > maxCapturedBytes) {
     throw new Error(`CLI output exceeded ${String(maxCapturedBytes)} bytes`);
   }
-  if (result.signal !== null) {
+  if (result.signal !== null && options.allowSignal !== true) {
     throw new Error(`CLI was terminated by ${result.signal}; stderr: ${result.stderr}`);
   }
   return result;
