@@ -28,6 +28,12 @@ export type AuthorizedDispatchPolicy = {
   readonly kind: "authorized";
   /** Local scopes are customer-declared and may assess a private origin. */
   readonly local: boolean;
+  /**
+   * Whether the assessed origin may be loopback, private, or a raw IP: true for
+   * local scopes, and for hosted scopes whose target authority was verified by
+   * connector challenge (the only hosted path for private targets).
+   */
+  readonly allowPrivate: boolean;
   readonly origin: string;
   readonly expiresAt: string;
   readonly budget: LocalExecutionScope["budget"] | ExecutionScope["budget"];
@@ -58,8 +64,11 @@ export function authorizedDispatchPolicy(options: {
   readonly now?: number;
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
+  /** Hosted scopes only: the target authority was verified by connector challenge. */
+  readonly allowPrivate?: boolean;
 }): AuthorizedDispatchPolicy {
   const local = options.scope.schemaVersion === "aw-local-execution-scope/1";
+  const allowPrivate = local || options.allowPrivate === true;
   assertScopeNotExpired(
     options.scope.expiresAt,
     options.now ?? Date.now(),
@@ -68,7 +77,8 @@ export function authorizedDispatchPolicy(options: {
   return {
     kind: "authorized",
     local,
-    origin: assessedIdentityOrigin(options.boundary, { allowPrivate: local }),
+    allowPrivate,
+    origin: assessedIdentityOrigin(options.boundary, { allowPrivate }),
     expiresAt: options.scope.expiresAt,
     budget: options.scope.budget,
     boundary: options.boundary,
@@ -89,7 +99,7 @@ export function assertDispatchReadyForQuote(
     return;
   }
   assertBoundaryMatchesConfig(policy.boundary, resolved, {
-    allowPrivate: policy.local,
+    allowPrivate: policy.allowPrivate,
     effects: policy.effects
   });
 }

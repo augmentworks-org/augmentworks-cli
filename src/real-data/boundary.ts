@@ -40,7 +40,7 @@ export function canonicalAssessedOrigin(
   if (privateHost && !options.allowPrivate) {
     throw realDataError(
       "TARGET_SCOPE_MISMATCH",
-      "Hosted and browser discovery cannot use loopback, private, or raw IP origins. Register private targets through the local connector mapping only."
+      `${hostname} is a loopback, private, or raw IP address. A real-data test can reach one only when the scope's target is registered at that address and was verified from this machine (connector challenge). Register it with \`augmentworks target add\`, confirm it with \`augmentworks target verify <name>\`, then run \`augmentworks scope create --target <name> --suite <file>\`.`
     );
   }
   if (!privateHost) {

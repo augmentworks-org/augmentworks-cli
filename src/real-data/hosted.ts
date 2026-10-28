@@ -80,9 +80,19 @@ export async function assertHostedScopeUsable(
   assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now(), "This target's verification");
   if (options.resolved !== undefined) {
     assertBoundaryMatchesConfig(response.targetBoundary, options.resolved, {
+      allowPrivate: hostedScopeAllowsPrivate(response),
       effects: response.scope.effects
     });
   }
+}
+
+/**
+ * Connector challenge is the only hosted verification for loopback, private, or
+ * raw IP targets, so a scope whose target authority passed it may assess one.
+ * Every other method verified a public origin and keeps the public-only check.
+ */
+export function hostedScopeAllowsPrivate(response: Pick<ExecutionScopeResponse, "authority">): boolean {
+  return response.authority.verificationMethod === "connector_challenge";
 }
 
 export async function requireHostedAuthorizedScope(
@@ -113,7 +123,8 @@ export function dispatchPolicyFromHostedScope(response: ExecutionScopeResponse):
     scope: response.scope,
     boundary: response.targetBoundary,
     dataPolicy: response.dataPolicy,
-    redactionProfile: response.redactionProfile
+    redactionProfile: response.redactionProfile,
+    allowPrivate: hostedScopeAllowsPrivate(response)
   });
 }
 
@@ -142,6 +153,7 @@ export async function persistHostedScopeForRun(options: {
       boundary: options.response.targetBoundary,
       dataPolicy: options.response.dataPolicy,
       redactionProfile: options.response.redactionProfile,
+      allowPrivate: hostedScopeAllowsPrivate(options.response),
       ...(options.quoteId === undefined ? {} : { quoteId: options.quoteId }),
       ...(options.suiteId === undefined ? {} : { suiteId: options.suiteId }),
       ...(options.suiteRevisionId === undefined ? {} : { suiteRevisionId: options.suiteRevisionId }),
@@ -182,6 +194,8 @@ export async function loadPersistedDispatchPolicy(options: {
   if (options.resolved !== undefined && binding.bindingKind === "hosted") {
     if (binding.targetBoundary !== undefined) {
       assertBoundaryMatchesConfig(storedBoundary(binding), options.resolved, {
+        // Bindings written before allowPrivate was stored only ever admitted public targets.
+        allowPrivate: binding.allowPrivate === true,
         effects: binding.admitted.effects
       });
     } else if (targetBoundarySha256(options.resolved) !== binding.targetBoundaryHash) {
