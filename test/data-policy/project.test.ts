@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { projectAssessmentReferencePayload, projectRelayResult } from "../../src/data-policy/index.js";
+import { PLACEHOLDERS } from "../../src/data-policy/types.js";
 import { CANARIES, makeContext } from "./helpers.js";
 
 describe("projection hooks", () => {
@@ -121,5 +122,90 @@ describe("projection hooks", () => {
     expect(payload.entries[0]?.content).not.toContain(CANARIES.email);
     expect(payload.entries[0]?.contentHash).not.toBe("a".repeat(64));
     expect(payload.entries[0]?.contentHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+});
+
+describe("string-leaf masking under the default ingress profile (AUG-400)", () => {
+  const context = makeContext(
+    "personal",
+    "minimized",
+    [
+      { id: "mask-credential-content", selector: "/content", action: "mask", detector: "credential" },
+      { id: "mask-email-content", selector: "/content", action: "mask", detector: "email" },
+      { id: "mask-phone-content", selector: "/content", action: "mask", detector: "phone" },
+      { id: "mask-local-secret-content", selector: "/content", action: "mask", detector: "exact_local_secret" }
+    ],
+    ["/path", "/content"]
+  );
+
+  it("masks only the email and phone inside a { role, content } reply, metadata and events", () => {
+    const projected = projectRelayResult(
+      "send",
+      {
+        protocol_version: "aw-target/0.1",
+        turn_id: "turn-1",
+        message: {
+          role: "assistant",
+          content: "Email a@b.co or call +1 555 0197 4242. Your refund posts on 2026-10-18.",
+          finish_reason: "stop"
+        },
+        events: [
+          {
+            event_id: "event-1",
+            type: "tool_call",
+            tool_name: "lookup_customer",
+            call_id: "call-1",
+            arguments: { email: "a@b.co", region: "EU" }
+          }
+        ],
+        finished: true,
+        metadata: { escalation: "+44 20 7946 0958", model: "stub" }
+      },
+      context
+    );
+    expect(projected.disposition).toBe("completed");
+    expect(projected.result).toEqual({
+      protocol_version: "aw-target/0.1",
+      turn_id: "turn-1",
+      message: {
+        role: "assistant",
+        content: `Email ${PLACEHOLDERS.email} or call ${PLACEHOLDERS.phone}. Your refund posts on 2026-10-18.`,
+        finish_reason: "stop"
+      },
+      events: [
+        {
+          event_id: "event-1",
+          type: "tool_call",
+          tool_name: "lookup_customer",
+          call_id: "call-1",
+          arguments: { email: PLACEHOLDERS.email, region: "EU" }
+        }
+      ],
+      finished: true,
+      metadata: { escalation: PLACEHOLDERS.phone, model: "stub" }
+    });
+    expect(projected.receipt.outcome).toBe("transformed");
+    expect(JSON.stringify(projected)).not.toContain("a@b.co");
+    expect(JSON.stringify(projected)).not.toContain("0197 4242");
+  });
+
+  it("does not mask a date", () => {
+    const projected = projectRelayResult(
+      "send",
+      {
+        protocol_version: "aw-target/0.1",
+        turn_id: "turn-1",
+        message: { role: "assistant", content: "Your refund posts on 2026-10-18." },
+        events: [],
+        finished: true,
+        metadata: {}
+      },
+      context
+    );
+    expect(projected.disposition).toBe("completed");
+    expect(projected.result).toMatchObject({
+      message: { role: "assistant", content: "Your refund posts on 2026-10-18." }
+    });
+    expect(projected.receipt.outcome).toBe("accepted");
   });
 });

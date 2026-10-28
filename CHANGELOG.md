@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Email and phone redaction rules now reach every text field under the
+  selected node, so a reply (`{ role, content }`), its metadata and its tool
+  events are masked before upload. Only the matched email or phone is
+  replaced; the rest of the reply stays readable for grading (AUG-400).
+- The phone detector now matches international numbers (10 to 15 digits,
+  such as `+44 20 7946 0958`), not only US formats. It uses the same pattern
+  as the server and does not match dates such as `2026-10-18` (AUG-400).
+
 ### Changed
 
 - Recorded the independent inspection of npm `@augmentworks/cli@0.4.0`,
