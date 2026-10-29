@@ -5,7 +5,8 @@ import { CLI_VERSION } from "../version.js";
 import {
   classifyHostedOutcome,
   coverageKnowledge,
-  type HostedOutcomeClassification
+  type HostedOutcomeClassification,
+  type JudgeJobProgress
 } from "../outcome/classify.js";
 import type { AccessTokenProvider } from "../auth/types.js";
 import { remapAuthError } from "../auth/client.js";
@@ -154,7 +155,25 @@ const AUTH_FAILURE_CODES = new Set([
   "CREDENTIAL_STORE_UNAVAILABLE"
 ]);
 
-export function classifyRunReportExport(document: RunReportExport): HostedOutcomeClassification & {
+/**
+ * The attempt has no reply to show: the server reports its reply missing and
+ * the attempt did not pass. Execution that did not complete, or a native
+ * outcome of error or not_run, means no reply was captured.
+ */
+function attemptHasNoReply(attempt: RunReport["attempts"][number]): boolean {
+  if (attempt.mappedResponse.availability !== "missing") return false;
+  if (attempt.outcome === "pass") return false;
+  return (
+    attempt.executionStatus !== "completed" ||
+    attempt.outcome === "error" ||
+    attempt.outcome === "not_run"
+  );
+}
+
+export function classifyRunReportExport(
+  document: RunReportExport,
+  judgeJobs?: JudgeJobProgress | null
+): HostedOutcomeClassification & {
   readonly retrieved: boolean;
   readonly complete: boolean;
 } {
@@ -197,7 +216,8 @@ export function classifyRunReportExport(document: RunReportExport): HostedOutcom
     executionStatus: document.report.executionStatus,
     evaluationStatus: document.report.evaluationStatus,
     outcome: document.report.outcome,
-    coverageKnown: coverageKnowledge(document.report.coverage)
+    coverageKnown: coverageKnowledge(document.report.coverage),
+    judgeJobs
   });
   if (classified.exitCode === EXIT.OK && document.report.reportReady !== true) {
     return {
@@ -935,6 +955,12 @@ class RunReportClient {
     diagnostics: ExportDiagnostic[]
   ): boolean {
     let complete = true;
+    // AUG-403: an attempt that never got a reply (it timed out, failed or did
+    // not run) has no reply to export. That is the result, not an evidence
+    // gap. A passing attempt still needs its reply, and purged stays a gap.
+    const noReplyAttempts = new Set(
+      report.attempts.filter((attempt) => attemptHasNoReply(attempt)).map((attempt) => attempt.attemptId)
+    );
     for (const attempt of report.attempts) {
       if (attempt.mappedResponse.truncated) {
         diagnostics.push({
@@ -944,7 +970,7 @@ class RunReportClient {
         complete = false;
       }
       if (
-        attempt.mappedResponse.availability === "missing" ||
+        (attempt.mappedResponse.availability === "missing" && !noReplyAttempts.has(attempt.attemptId)) ||
         attempt.mappedResponse.availability === "purged"
       ) {
         diagnostics.push({
@@ -973,7 +999,11 @@ class RunReportClient {
         });
         complete = false;
       }
-      if (criterion.required && (criterion.evidence.availability === "missing" || criterion.evidence.availability === "purged")) {
+      if (
+        criterion.required &&
+        ((criterion.evidence.availability === "missing" && !noReplyAttempts.has(criterion.attemptId)) ||
+          criterion.evidence.availability === "purged")
+      ) {
         diagnostics.push({
           code: "CRITERION_EVIDENCE_MISSING",
           message: `Required criterion ${criterion.criterionId} evidence is ${criterion.evidence.availability}.`

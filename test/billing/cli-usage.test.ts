@@ -124,7 +124,9 @@ describe("augmentworks usage CLI", () => {
     expect(result.stdout).toContain("Acme");
     expect(result.stdout).toContain("東京");
     expect(result.stdout).not.toContain("\u001b[31m");
-    expect(result.stdout).not.toContain("180");
+    // The mock server's random port can contain "180" (e.g. :51806), so check
+    // the output without the API origin line.
+    expect(result.stdout.replace(server.baseUrl, "")).not.toContain("180");
     expect(result.stdout).toContain("server snapshot");
     expect(result.stdout).toContain("read-only");
     expect(result.stdout).not.toContain(TOKEN);

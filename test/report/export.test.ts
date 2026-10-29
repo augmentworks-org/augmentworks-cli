@@ -17,7 +17,8 @@ import {
   fixtureIdentity,
   fixtureResponse,
   mutatedFixtureResponse,
-  rewriteOrigin
+  rewriteOrigin,
+  timedOutAttemptReport
 } from "./fixtures.js";
 
 const TOKEN = "aw_api_test_report_export_token";
@@ -937,5 +938,74 @@ describe("hosted report consistency aw-report-consistency/1", () => {
     expect(document.complete).toBe(true);
     expect(document.report?.aggregate).toBeNull();
     expect(classifyRunReportExport(document).exitCode).toBe(EXIT.OK);
+  });
+});
+
+describe("finished grading with a timed-out attempt (AUG-403)", () => {
+  async function exportTimedOut(evaluationStatus: "complete" | "partial") {
+    const { server } = await startMock((_request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        send(response, 200, timedOutAttemptReport(server.baseUrl, evaluationStatus));
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_fail", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    return await exportFrom(server);
+  }
+
+  it("does not count the missing reply as an evidence gap and exits 10", async () => {
+    const document = await exportTimedOut("complete");
+    expect(document.retrieved).toBe(true);
+    expect(document.diagnostics.map((item) => item.code)).not.toContain("MAPPED_RESPONSE_UNAVAILABLE");
+    expect(document.diagnostics).toEqual([]);
+    expect(document.complete).toBe(true);
+    const classified = classifyRunReportExport(document);
+    expect(classified.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+    expect(classified.waitTerminal).toBe(true);
+  });
+
+  it("treats an older server's partial with every judge job done as finished", async () => {
+    const document = await exportTimedOut("partial");
+    expect(document.complete).toBe(true);
+    // Without judge-job progress, partial still reads as grading pending.
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(classifyRunReportExport(document, { planned: 1, completed: 0 }).exitCode).toBe(
+      EXIT.EVALUATION_INCOMPLETE
+    );
+    const finished = classifyRunReportExport(document, { planned: 1, completed: 1 });
+    expect(finished.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+    expect(finished.waitTerminal).toBe(true);
+  });
+
+  it("still treats a missing reply on a passing attempt as an evidence gap", async () => {
+    const { server } = await startMock((_request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
+          const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+          attempt["mappedResponse"] = {
+            availability: "missing",
+            text: null,
+            sha256: null,
+            truncated: false,
+            turnId: null,
+            evidenceId: null
+          };
+        });
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        serveFixture(response, "criterion_index_r01_pass", server.baseUrl);
+        return true;
+      }
+      return false;
+    });
+    const document = await exportFrom(server);
+    expect(document.complete).toBe(false);
+    expect(document.diagnostics.map((item) => item.code)).toContain("MAPPED_RESPONSE_UNAVAILABLE");
+    expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
   });
 });

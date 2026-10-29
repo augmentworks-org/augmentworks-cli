@@ -69,3 +69,48 @@ export function fixtureIdentity(name: string): Record<string, unknown> {
   if (identity === undefined) throw new Error(`missing identity ${name}`);
   return identity;
 }
+
+export const TIMED_OUT_ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+/**
+ * AUG-403 reproduction: `report_required_fail` plus a second attempt that
+ * timed out. It got no reply and no judgment, so the report is not ready and
+ * the evaluation either completed (fixed server) or stayed `partial` with no
+ * judge job left (older server).
+ */
+export function timedOutAttemptReport(
+  origin: string,
+  evaluationStatus: "complete" | "partial"
+): Record<string, unknown> {
+  return mutatedFixtureResponse("report_required_fail", origin, (body) => {
+    const attempts = body["attempts"] as Record<string, unknown>[];
+    attempts.push({
+      attemptId: TIMED_OUT_ATTEMPT_ID,
+      scenarioId: "response-quality/0.1.0/R01",
+      repetitionIndex: 1,
+      attemptNumber: 1,
+      executionStatus: "failed",
+      cleanupState: "not_required",
+      criterionIndexUrl: null,
+      mappedResponse: {
+        availability: "missing",
+        text: null,
+        sha256: null,
+        truncated: false,
+        turnId: null,
+        evidenceId: null
+      },
+      outcome: "error"
+    });
+    body["evaluationStatus"] = evaluationStatus;
+    body["aggregate"] = { passed: 0, failed: 1, error: 1 };
+    body["coverage"] = {
+      plannedAttempts: 2,
+      completedAttempts: 2,
+      requiredJudgmentsPlanned: 2,
+      requiredJudgmentsComplete: 1
+    };
+    body["reportReady"] = false;
+    body["page"] = { nextCursor: null, hasMore: false, totalAttempts: 2 };
+  }).body as Record<string, unknown>;
+}

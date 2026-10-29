@@ -182,6 +182,38 @@ const cases: readonly Case[] = [
     exitCode: EXIT.EVALUATION_INCOMPLETE
   },
   {
+    name: "partial with every judge job done is finished, never a pass (AUG-403)",
+    status: status({
+      executionStatus: "completed",
+      evaluationStatus: "partial",
+      outcome: "passed",
+      completedAttempts: 4,
+      plannedAttempts: 4,
+      completedJudgeJobs: 3,
+      plannedJudgeJobs: 3
+    }),
+    waitTerminal: true,
+    work: "terminal",
+    assessment: "failed",
+    exitCode: EXIT.ASSESSMENT_FAILED
+  },
+  {
+    name: "partial with no judge jobs planned is finished (AUG-403)",
+    status: status({
+      executionStatus: "completed",
+      evaluationStatus: "partial",
+      outcome: null,
+      completedAttempts: 4,
+      plannedAttempts: 4,
+      completedJudgeJobs: 0,
+      plannedJudgeJobs: 0
+    }),
+    waitTerminal: true,
+    work: "terminal",
+    assessment: "failed",
+    exitCode: EXIT.ASSESSMENT_FAILED
+  },
+  {
     name: "complete hybrid success",
     status: status({
       executionStatus: "completed",
