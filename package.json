@@ -1,6 +1,6 @@
 {
   "name": "@augmentworks/cli",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Deterministic local and hosted regression checks for support and FAQ chatbots",
   "type": "module",
   "bin": {

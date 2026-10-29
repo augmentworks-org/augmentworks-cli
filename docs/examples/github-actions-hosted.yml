@@ -5,12 +5,12 @@
 # augmentworks.yaml, own-chatbot.suite.yaml, server.mjs, fixtures/, and
 # references/). Do not paste it into this CLI repository's development CI.
 #
-# This 0.4.0 package: explicit AUGMENTWORKS_API_KEY mode, --headless, quoted
+# This 0.4.1 package: explicit AUGMENTWORKS_API_KEY mode, --headless, quoted
 # --max-credits, run wait/report, gate, suite validate, and investigation
 # inspect/export. npm --yes is not a spending ceiling. Do not use
 # pull_request_target. Do not run logout from automation cleanup.
 #
-# Installs @augmentworks/cli@0.4.0 (this package). Independent inspection of
+# Installs @augmentworks/cli@0.4.1 (this package). Independent inspection of
 # published 0.3.5 is recorded in docs/feature-readiness/published-registry-evidence.json.
 # Do not pin @latest or overwrite npm 0.3.5, 0.3.4, or 0.3.3.
 #
@@ -110,7 +110,7 @@ jobs:
       - name: Offline doctor, mapping preview, and suite validation
         run: |
           export CHATBOT_API_KEY="$(cat "$RUNNER_TEMP/chatbot-api-key")"
-          AW=(npx --yes @augmentworks/cli@0.4.0)
+          AW=(npx --yes @augmentworks/cli@0.4.1)
           "${AW[@]}" doctor --offline -c augmentworks.yaml
           "${AW[@]}" preview-mapping -c augmentworks.yaml --operation send --fixture ./fixtures/send-response.json --json > .augmentworks/ci/preview-mapping.json
           "${AW[@]}" suite validate own-chatbot.suite.yaml --json > .augmentworks/ci/suite-validate.json
@@ -119,7 +119,7 @@ jobs:
         id: hosted
         run: |
           export CHATBOT_API_KEY="$(cat "$RUNNER_TEMP/chatbot-api-key")"
-          AW=(npx --yes @augmentworks/cli@0.4.0)
+          AW=(npx --yes @augmentworks/cli@0.4.1)
           set +e
           "${AW[@]}" whoami --json > .augmentworks/ci/whoami.json
           whoami_code=$?
@@ -193,8 +193,8 @@ jobs:
             echo "- admit exit: \`$admit_code\`"
             echo "- wait exit: \`$wait_code\`"
             echo "- gate exit: \`$gate_code\`"
-            echo "- recover: \`npx --yes @augmentworks/cli@0.4.0 recover --json\` (does not start a run)"
-            echo "- wait: \`npx --yes @augmentworks/cli@0.4.0 run wait $run_id\`"
+            echo "- recover: \`npx --yes @augmentworks/cli@0.4.1 recover --json\` (does not start a run)"
+            echo "- wait: \`npx --yes @augmentworks/cli@0.4.1 run wait $run_id\`"
             echo "- gate records CI provenance through POST /v1/release-gates/evaluate; pending or partial evaluation never reaches this step"
             echo
             echo "Summaries omit credentials, private target URLs, and excluded evidence."
