@@ -22,7 +22,7 @@ coordinator) should link here. This file does not replace
 | **Hosted** (`login`, `test` without `--local`, `run report`, billing) | Relayed assessment against the live control plane | Local packet oracle or an unpublished source SHA |
 | **Browser** | Portal / session-door / consent UI owned by the main application | CLI stdout. This repo has no first-party web UI |
 
-Package identity of a checkout is `package.json` (currently `0.4.0`). That
+Package identity of a checkout is `package.json` (currently `0.4.1`). That
 version string alone is not registry proof. The last independently inspected
 npm tarball recorded in-tree is `@augmentworks/cli@0.4.0` in
 `docs/feature-readiness/published-registry-evidence.json` (tag `v0.4.0`
@@ -197,8 +197,9 @@ is not a normal offline check).
 Independently inspect registry identity with `npm view` and compare
 `gitHead` / `dist.integrity` / tarball SHA-256 to
 `docs/feature-readiness/published-registry-evidence.json`. npm `0.4.0`
-is independently inspected. That receipt is not a substitute for a local-runner
-pass, and it is not inside the published tarball.
+is independently inspected. Source `0.4.1` stays `pending-protected-publish`
+until the `v0.4.1` tarball is inspected. That gap is not a local-runner
+pass, and the 0.4.0 receipt is not inside the published tarball.
 Customer-facing `init` next steps on an npm install must not tell the user to
 run `node dist/index.js` from an empty project.
 

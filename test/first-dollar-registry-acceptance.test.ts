@@ -99,7 +99,7 @@ describe("first-dollar registry acceptance handoff", () => {
     expect(JSON.stringify(evidence)).not.toMatch(/npx --yes @augmentworks\/cli@0\.3\.2\b/u);
   });
 
-  it("does not treat packaged identity as a live 0.4.0 registry probe", async () => {
+  it("does not treat packaged identity as a live 0.4.1 registry probe", async () => {
     const evidence = JSON.parse(await readFile(firstDollarUrl, "utf8")) as FirstDollarEvidence;
     const registryIdentity = evidence.checks.find(
       (check) => check.name === "registry-tarball-gitHead-integrity"
@@ -127,7 +127,7 @@ describe("first-dollar registry acceptance handoff", () => {
 });
 
 describe("published registry evidence record", () => {
-  it("records independently inspected 0.4.0 with provenance without relabeling 0.3.9", async () => {
+  it("keeps this package identity separate from last independently inspected 0.4.0", async () => {
     const record = JSON.parse(await readFile(registryEvidenceUrl, "utf8")) as PublishedRegistryEvidence & {
       immutableArtifacts: Array<{ version: string; gitHead: string }>;
     };
@@ -149,14 +149,12 @@ describe("published registry evidence record", () => {
       gitCommit: "afb23c37ffe99289c75b3769b50447c3e403c50f"
     });
     expect(record.thisPackageIdentity.version).toBe(SOURCE_PACKAGE_VERSION);
-    expect(record.thisPackageIdentity.version).toBe("0.4.0");
-    expect(record.thisPackageIdentity.gitHead).toBe("afb23c37ffe99289c75b3769b50447c3e403c50f");
-    expect(record.thisPackageIdentity.integrity).toBe(
-      "sha512-MquWMHbfZQTQ6QMIV4shagYUBLKcUfyIMhMR+zEcl46vfqn/LIjHICtPldCD9kaAn8GY+nhSFC8jjP9sLy4NCw=="
-    );
-    expect(record.thisPackageIdentity.verifiedAt).toBe("2026-10-18T17:41:10.515Z");
-    expect(record.thisPackageIdentity.status).toBe("independently-inspected");
-    expect(record.thisPackageIdentity.version).toBe(record.lastIndependentlyInspected.version);
+    expect(record.thisPackageIdentity.version).toBe("0.4.1");
+    expect(record.thisPackageIdentity.gitHead).toBeNull();
+    expect(record.thisPackageIdentity.integrity).toBeNull();
+    expect(record.thisPackageIdentity.verifiedAt).toBeNull();
+    expect(record.thisPackageIdentity.status).toBe("pending-protected-publish");
+    expect(record.thisPackageIdentity.version).not.toBe(record.lastIndependentlyInspected.version);
     expect(record.immutableArtifacts.find((artifact) => artifact.version === "0.4.0")?.gitHead).toBe(
       "afb23c37ffe99289c75b3769b50447c3e403c50f"
     );
