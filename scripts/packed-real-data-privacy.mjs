@@ -303,8 +303,13 @@ target:
 `;
 }
 
-function expectNoCanaries(text, label) {
+// Verbatim content handling keeps permitted customer content such as email and
+// phone, as the server contract does (AUG-417). Credentials never leave.
+const CONTACT_CANARIES = new Set(["email", "phone"]);
+
+function expectNoCanaries(text, label, { keepContact = false } = {}) {
   for (const [name, canary] of Object.entries(CANARIES)) {
+    if (keepContact && CONTACT_CANARIES.has(name)) continue;
     assert(!String(text).includes(canary), `${label} leaked ${name}`);
   }
 }
@@ -440,14 +445,17 @@ async function main() {
         work,
         0
       );
-      expectNoCanaries(`${run.stdout}\n${run.stderr}`, `${label} cli output`);
+      const keepContact = contentHandling === "verbatim";
+      expectNoCanaries(`${run.stdout}\n${run.stderr}`, `${label} cli output`, { keepContact });
       const report = JSON.parse(await readFile(join(output, "report.json"), "utf8"));
-      expectNoCanaries(JSON.stringify(report), `${label} report.json`);
+      expectNoCanaries(JSON.stringify(report), `${label} report.json`, { keepContact });
       assert(report.schema_version === "AW-LOCAL-RESULT-1", `${label} schema`);
       assert(report.provenance?.cloud_contacted === false, `${label} contacted cloud`);
       assert(report.provenance?.uploaded === false, `${label} uploaded`);
       if (contentHandling === "verbatim") {
         assert(JSON.stringify(report).includes("Weekday"), `${label} dropped weekday hours`);
+        assert(JSON.stringify(report).includes(CANARIES.email), `${label} masked email`);
+        assert(JSON.stringify(report).includes(CANARIES.phone), `${label} masked phone`);
       } else {
         assert(!JSON.stringify(report).includes(CANARIES.email), `${label} kept email`);
       }
