@@ -20,8 +20,8 @@ import {
   type CreateSessionRequest,
   type CreateRunRequest,
   type CreateRunResponse,
+  type PacketBinding,
   type PollResponse,
-  type RelayCommand,
   type RelayResult,
   type RelayProtocolVersion,
   type RetryEvaluationResponse,
@@ -155,6 +155,27 @@ export interface SafeRelayFailure {
 }
 
 export type FailureDisposition = "failed" | "outcome_indeterminate";
+
+/**
+ * The fields of a relay command that bind its completion on the wire. A full
+ * {@link RelayCommand} satisfies it; so does a command rebuilt from the relay
+ * journal, which stores no input or idempotency key (AUG-404).
+ */
+export interface CommandCompletionBinding {
+  readonly protocol_version: RelayProtocolVersion;
+  readonly command_id: string;
+  readonly session_id: string;
+  readonly run_id: string;
+  readonly packet: PacketBinding;
+  readonly config_sha256: string;
+  readonly sequence: number;
+  readonly fencing_epoch: number;
+}
+
+/** A poll response with `skipped_sequences` normalized: absent means none. */
+export type PolledOperation = Omit<PollResponse, "skipped_sequences"> & {
+  readonly skipped_sequences: readonly number[];
+};
 
 export class CloudClient {
   readonly apiUrl: URL;
@@ -336,7 +357,7 @@ export class CloudClient {
     return parseResponse(ConnectorSessionResponseSchema, value, "connector-session close response");
   }
 
-  async pollOperation(options: PollOperationOptions): Promise<PollResponse | null> {
+  async pollOperation(options: PollOperationOptions): Promise<PolledOperation | null> {
     if (!Number.isInteger(options.afterSequence) || options.afterSequence < 0) {
       throw new AwError({
         code: "INVALID_RELAY_CURSOR",
@@ -361,13 +382,35 @@ export class CloudClient {
     );
     if (value === undefined) return null;
     const response = parseResponse(PollResponseSchema, value, "poll response");
-    return response.command === null
-      ? response
-      : { ...response, command: parseRelayCommand(response.command) };
+    const skipped = response.skipped_sequences ?? [];
+    const command = response.command === null ? null : parseRelayCommand(response.command);
+    const ascending = skipped.every(
+      (sequence, index) => index === 0 || sequence > (skipped[index - 1] ?? 0)
+    );
+    if (
+      !ascending ||
+      skipped.some((sequence) => sequence <= options.afterSequence) ||
+      (command !== null && skipped.includes(command.sequence))
+    ) {
+      throw new AwError({
+        code: "INVALID_CLOUD_RESPONSE",
+        category: "protocol",
+        message: "AugmentWorks returned an invalid poll response."
+      });
+    }
+    return {
+      protocol_version: response.protocol_version,
+      run_id: response.run_id,
+      session_id: response.session_id,
+      status: response.status,
+      command,
+      ...(response.retry_after_ms === undefined ? {} : { retry_after_ms: response.retry_after_ms }),
+      skipped_sequences: skipped
+    };
   }
 
   async completeOperation(
-    command: RelayCommand,
+    command: CommandCompletionBinding,
     result: RelayResult,
     resultSha256 = sha256(canonicalize(result)),
     signal?: AbortSignal
@@ -382,7 +425,7 @@ export class CloudClient {
   }
 
   async failOperation(
-    command: RelayCommand,
+    command: CommandCompletionBinding,
     failure: SafeRelayFailure,
     disposition: FailureDisposition,
     failureSha256 = sha256(canonicalize({ disposition, error: failure })),
@@ -1180,7 +1223,10 @@ function segment(value: string): string {
   return encodeURIComponent(value);
 }
 
-function commandBoundBody(command: RelayCommand, extra: Record<string, unknown>): Record<string, unknown> {
+function commandBoundBody(
+  command: CommandCompletionBinding,
+  extra: Record<string, unknown>
+): Record<string, unknown> {
   return {
     protocol_version: command.protocol_version,
     command_id: command.command_id,

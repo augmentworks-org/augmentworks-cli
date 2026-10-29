@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CloudClient } from "../../src/cloud/client.js";
 import { RELAY_PROTOCOL_VERSION } from "../../src/cloud/protocol.js";
 import { RUN_INTENT_RECONCILE_PROTOCOL_VERSION } from "../../src/cloud/recovery-protocol.js";
-import { runRecover } from "../../src/commands/recover.js";
+import { createRecoverCommand, runRecover } from "../../src/commands/recover.js";
 import { runTest } from "../../src/commands/test.js";
 import { targetBoundarySha256 } from "../../src/config/boundary.js";
 import { resolveConfig } from "../../src/config/resolve.js";
@@ -1189,7 +1189,7 @@ describe("generic create errors are not treated as no-create", () => {
     await store.close();
   });
 
-  it("CLI-06: terminal server status with outstanding local cleanup keeps intent", async () => {
+  it("CLI-06/AUG-404: a refused saved completion keeps the intent; once settled, a terminal run with outstanding cleanup is released with a warning", async () => {
     const stateDirectory = await stateDir();
     const store = new RunIntentStore({
       apiOrigin: new URL("http://127.0.0.1:8787/"),
@@ -1228,8 +1228,24 @@ describe("generic create errors are not treated as no-create", () => {
     await journal.recordSuccess(prepare.command_id, resultFor(prepare));
     await journal.close();
 
+    const completionBodies: unknown[] = [];
+    let refuseCompletion = true;
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
       const url = new URL(String(input));
+      if (url.pathname === `/v1/relay/commands/${prepare.command_id}:complete`) {
+        completionBodies.push(JSON.parse(String(init?.body)));
+        if (refuseCompletion) {
+          return Response.json(
+            { error: { code: "FENCE_BINDING_MISMATCH", message: "Unknown future epoch." } },
+            { status: 409 }
+          );
+        }
+        return Response.json({
+          protocol_version: RELAY_PROTOCOL_VERSION,
+          command_id: prepare.command_id,
+          accepted: true
+        });
+      }
       if (url.pathname === "/v1/relay/run-intents:reconcile") {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         return Response.json({
@@ -1297,7 +1313,11 @@ describe("generic create errors are not treated as no-create", () => {
           stderr: { write: () => true }
         }
       )
-    ).rejects.toMatchObject({ code: "CLEANUP_INCOMPLETE" });
+    ).rejects.toMatchObject({
+      code: "RELAY_JOURNAL_INCOMPLETE",
+      runId: "run-1",
+      details: { resend_error_code: "FENCE_BINDING_MISMATCH" }
+    });
 
     const remaining = new RunIntentStore({
       apiOrigin: new URL("http://127.0.0.1:8787/"),
@@ -1307,5 +1327,251 @@ describe("generic create errors are not treated as no-create", () => {
     await remaining.open();
     expect(remaining.intent?.phase).toBe("bound");
     await remaining.close();
+
+    // The re-sent body is the journaled completion, bound to the run's wire protocol.
+    expect(completionBodies[0]).toEqual({
+      protocol_version: RELAY_PROTOCOL_VERSION,
+      command_id: prepare.command_id,
+      session_id: prepare.session_id,
+      run_id: prepare.run_id,
+      packet: prepare.packet,
+      config_sha256: prepare.config_sha256,
+      sequence: prepare.sequence,
+      fencing_epoch: prepare.fencing_epoch,
+      result: resultFor(prepare),
+      result_sha256: sha256(canonicalize(resultFor(prepare)))
+    });
+
+    // The server now takes it as an identical repeat. A terminal run can never send
+    // the cleanup, so the fixture is abandoned with a warning and the run released.
+    refuseCompletion = false;
+    const notices: string[] = [];
+    const retired = await runRecover(
+      { retire: true, stateDirectory, env: {} },
+      {
+        doctor: async () => ({
+          ok: false,
+          configPath: "/tmp/missing.yaml",
+          offline: true,
+          diagnostics: [{ level: "error", code: "CONFIG_FILE_NOT_FOUND", message: "missing" }]
+        }),
+        apiOrigin: () => new URL("http://127.0.0.1:8787/"),
+        accessToken: async () => "token",
+        identity: async () => identity(),
+        cloud: ({ accessToken, accessTokenProvider }) =>
+          new CloudClient({
+            apiUrl: "http://127.0.0.1:8787/",
+            accessToken,
+            accessTokenProvider,
+            fetch: fetchMock
+          }),
+        stdout: { write: () => true },
+        stderr: {
+          write: (chunk: string | Uint8Array) => {
+            notices.push(String(chunk));
+            return true;
+          }
+        }
+      }
+    );
+    expect(retired.outcome).toBe("terminal");
+    expect(completionBodies).toHaveLength(2);
+    expect(completionBodies[1]).toEqual(completionBodies[0]);
+    expect(notices.join("")).toContain("attempt-1");
+    const released = new RunIntentStore({
+      apiOrigin: new URL("http://127.0.0.1:8787/"),
+      tenant: { workspace_id: "workspace-1", connector_id: "connector-1" },
+      stateDirectory
+    });
+    await released.open();
+    expect(released.intent).toBeUndefined();
+    await released.close();
+  });
+});
+
+describe("AUG-404 terminal-run journal settlement", () => {
+  async function boundTerminalIntent(stateDirectory: string): Promise<void> {
+    const store = new RunIntentStore({
+      apiOrigin: new URL("http://127.0.0.1:8787/"),
+      tenant: { workspace_id: "workspace-1", connector_id: "connector-1" },
+      stateDirectory,
+      createRequestId: () => `crq_${"k".repeat(32)}`
+    });
+    await store.open();
+    const loaded = await store.loadOrCreate({
+      protocol_version: RELAY_PROTOCOL_VERSION,
+      packet: { key: PACKET.key, version: PACKET.version },
+      config_sha256: "a".repeat(64),
+      target: {
+        name: "refunds",
+        boundary_sha256: "c".repeat(64),
+        capabilities: {
+          prepare: false,
+          observation: false,
+          cleanup: false,
+          tool_events: false,
+          observation_keys: []
+        }
+      }
+    });
+    await store.bind(
+      bindingFor(loaded.intent.request as unknown as Record<string, unknown>, {
+        status: "failed"
+      }) as never
+    );
+    await store.close();
+  }
+
+  function recoverDependencies(
+    fetchMock: typeof fetch,
+    stdout: { write: (chunk: string) => boolean } = { write: () => true }
+  ) {
+    return {
+      doctor: async () => ({
+        ok: false as const,
+        configPath: "/tmp/missing.yaml",
+        offline: true as const,
+        diagnostics: [{ level: "error" as const, code: "CONFIG_FILE_NOT_FOUND", message: "missing" }]
+      }),
+      apiOrigin: () => new URL("http://127.0.0.1:8787/"),
+      accessToken: async () => "token",
+      identity: async () => identity(),
+      cloud: ({
+        accessToken,
+        accessTokenProvider
+      }: Pick<ConstructorParameters<typeof CloudClient>[0], "accessToken" | "accessTokenProvider">) =>
+        new CloudClient({
+          apiUrl: "http://127.0.0.1:8787/",
+          accessToken,
+          ...(accessTokenProvider === undefined ? {} : { accessTokenProvider }),
+          fetch: fetchMock
+        }),
+      connector: () => {
+        throw new Error("recover must never execute a target operation on a terminal run");
+      },
+      stdout,
+      stderr: { write: () => true }
+    };
+  }
+
+  function terminalRelay(completion: () => Response, seen: string[]) {
+    return vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      seen.push(url.pathname);
+      if (url.pathname === "/v1/relay/runs") throw new Error("recover must never create a run");
+      if (url.pathname.endsWith(":complete") || url.pathname.endsWith(":fail")) return completion();
+      if (url.pathname === "/v1/relay/run-intents:reconcile") {
+        return Response.json({ error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
+      }
+      return Response.json(statusFor({ status: "failed", outcome: "error" }));
+    });
+  }
+
+  async function journalWithUnacknowledgedSend(stateDirectory: string, complete: boolean) {
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    const send = relayCommand("send");
+    await journal.accept(send);
+    await journal.markStarted(send.command_id);
+    if (complete) await journal.recordSuccess(send.command_id, resultFor(send));
+    await journal.close();
+    return send;
+  }
+
+  async function intentAfter(stateDirectory: string) {
+    const store = new RunIntentStore({
+      apiOrigin: new URL("http://127.0.0.1:8787/"),
+      tenant: { workspace_id: "workspace-1", connector_id: "connector-1" },
+      stateDirectory
+    });
+    await store.open();
+    const intent = store.intent;
+    await store.close();
+    return intent;
+  }
+
+  for (const [label, status, code] of [
+    ["RUN_TERMINAL", 409, "RUN_TERMINAL"],
+    ["RELAY_CONFLICT (server closed it with another result)", 409, "RELAY_CONFLICT"],
+    ["STALE_FENCE (session replaced) while the run is terminal", 409, "STALE_FENCE"],
+    ["RUN_BINDING_MISMATCH while the run is terminal", 409, "RUN_BINDING_MISMATCH"]
+  ] as const) {
+    it(`releases the run when the saved completion is answered with ${label}`, async () => {
+      const stateDirectory = await stateDir();
+      await boundTerminalIntent(stateDirectory);
+      const send = await journalWithUnacknowledgedSend(stateDirectory, true);
+      const seen: string[] = [];
+      const fetchMock = terminalRelay(
+        () => Response.json({ error: { code, message: "Refused." } }, { status }),
+        seen
+      );
+      const report = await runRecover(
+        { retire: true, stateDirectory, env: {} },
+        recoverDependencies(fetchMock) as never
+      );
+      expect(report.outcome).toBe("terminal");
+      expect(seen).toContain(`/v1/relay/commands/${send.command_id}:complete`);
+      expect(await intentAfter(stateDirectory)).toBeUndefined();
+      const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+      expect(journal.state(send.command_id)).toMatchObject({ acknowledged: true });
+      await journal.close();
+    });
+  }
+
+  it("records an accepted-but-never-completed command as abandoned without re-running it", async () => {
+    const stateDirectory = await stateDir();
+    await boundTerminalIntent(stateDirectory);
+    const send = await journalWithUnacknowledgedSend(stateDirectory, false);
+    const seen: string[] = [];
+    const fetchMock = terminalRelay(() => {
+      throw new Error("an uncompleted command has nothing to re-send");
+    }, seen);
+    const report = await runRecover(
+      { retire: true, stateDirectory, env: {} },
+      recoverDependencies(fetchMock) as never
+    );
+    expect(report.outcome).toBe("terminal");
+    expect(seen.some((path) => path.includes("/v1/relay/commands/"))).toBe(false);
+    expect(await intentAfter(stateDirectory)).toBeUndefined();
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    expect(journal.state(send.command_id)).toMatchObject({ abandoned: "run_terminal_uncompleted" });
+    await journal.close();
+  });
+
+  it("AUG-412: recover --json writes the run ID in its error output", async () => {
+    const stateDirectory = await stateDir();
+    await boundTerminalIntent(stateDirectory);
+    await journalWithUnacknowledgedSend(stateDirectory, true);
+    const fetchMock = terminalRelay(
+      () => Response.json({ error: { code: "COMMAND_BINDING_MISMATCH", message: "No." } }, { status: 409 }),
+      []
+    );
+    const written: string[] = [];
+    let exitCode = 0;
+    const command = createRecoverCommand({
+      ...recoverDependencies(fetchMock, {
+        write: (chunk: string) => {
+          written.push(chunk);
+          return true;
+        }
+      }),
+      setExitCode: (code: number) => {
+        exitCode = code;
+      }
+    } as never);
+    process.env["AUGMENTWORKS_STATE_DIR"] = stateDirectory;
+    try {
+      await command.parseAsync(["node", "recover", "--retire", "--json"]);
+    } finally {
+      delete process.env["AUGMENTWORKS_STATE_DIR"];
+    }
+    const payload = JSON.parse(written.join("")) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "RELAY_JOURNAL_INCOMPLETE",
+      run_id: "run-1",
+      details: { resend_error_code: "COMMAND_BINDING_MISMATCH" }
+    });
+    expect(exitCode).toBe(6);
+    expect(await intentAfter(stateDirectory)).toBeDefined();
   });
 });

@@ -9,10 +9,11 @@ import {
   type RelayResult,
   type RunStatusResponse
 } from "../cloud/protocol.js";
-import { AwError } from "../errors.js";
+import { AwError, withRunId } from "../errors.js";
 import { canonicalize } from "../util/canonical.js";
 import { LIMITS } from "../util/limits.js";
 import { RelayJournal, type JournalCompletion } from "./journal.js";
+import { resendJournaledCompletion } from "./completion-resend.js";
 import type { JournalRunDeadline } from "./journal.js";
 import { type LiveExecutionPolicy } from "../suite/live-policy.js";
 import {
@@ -31,6 +32,14 @@ import type { JsonValue } from "../config/types.js";
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 const CLEANUP_RETRY_DELAYS_MS = [100, 250] as const;
+/** AUG-412: backoff between retries of a failed poll or status read: first pause, then cap. */
+const POLL_RETRY_BASE_MS = 500;
+const POLL_RETRY_CAP_MS = 15_000;
+/**
+ * AUG-405: how long a cancelled run keeps polling for its cleanup commands before
+ * giving up. One minute was too short to drain them reliably.
+ */
+const DEFAULT_CANCELLATION_DRAIN_MS = 5 * 60_000;
 type RelayConnector = {
   execute: HttpConnector["execute"];
   isIdempotent?: (kind: RelayCommand["kind"]) => boolean;
@@ -46,6 +55,8 @@ export interface RelayRunnerOptions {
   pollWaitMs?: number;
   statusEveryEmptyPolls?: number;
   cancellationDrainMs?: number;
+  /** First pause before retrying a failed poll; doubles per failure up to 15 s. */
+  pollRetryBaseMs?: number;
   signal?: AbortSignal;
   onProgress?: (event: RelayProgressEvent) => void;
   livePolicy?: LiveExecutionPolicy;
@@ -76,6 +87,7 @@ export class RelayRunner {
   readonly #pollWaitMs: number;
   readonly #statusEveryEmptyPolls: number;
   readonly #cancellationDrainMs: number;
+  readonly #pollRetryBaseMs: number;
   readonly #signal: AbortSignal | undefined;
   readonly #onProgress: ((event: RelayProgressEvent) => void) | undefined;
   #cancelRequested = false;
@@ -112,7 +124,8 @@ export class RelayRunner {
     this.#now = options.now ?? (() => new Date());
     this.#pollWaitMs = options.pollWaitMs ?? 25_000;
     this.#statusEveryEmptyPolls = options.statusEveryEmptyPolls ?? 2;
-    this.#cancellationDrainMs = options.cancellationDrainMs ?? 60_000;
+    this.#cancellationDrainMs = options.cancellationDrainMs ?? DEFAULT_CANCELLATION_DRAIN_MS;
+    this.#pollRetryBaseMs = options.pollRetryBaseMs ?? POLL_RETRY_BASE_MS;
     this.#signal = options.signal;
     this.#onProgress = options.onProgress;
   }
@@ -152,7 +165,7 @@ export class RelayRunner {
       await this.#journal.open();
     } catch (error) {
       this.#running = false;
-      throw error;
+      throw withRunId(error, this.#binding.run_id);
     }
     try {
       this.#deadline = await this.#journal.bindRunDeadline(
@@ -165,6 +178,7 @@ export class RelayRunner {
         dashboardUrl: this.#binding.dashboard_url
       });
       let emptyPolls = 0;
+      let failedReads = 0;
       while (true) {
         this.#throwIfStopped();
         this.#pollAbort = new AbortController();
@@ -182,15 +196,19 @@ export class RelayRunner {
           });
         } catch (error) {
           if (this.#cancelRequested && isCancellationError(error)) continue;
-          throw error;
+          if (!isRetryableRead(error)) throw error;
+          await this.#pauseBeforeRetry(error, failedReads, pollSignal);
+          failedReads += 1;
+          continue;
         } finally {
           this.#pollAbort = undefined;
         }
+        failedReads = 0;
 
         if (poll === null) {
           emptyPolls += 1;
           if (emptyPolls % this.#statusEveryEmptyPolls !== 0) continue;
-          const status = await this.#cloud.getRunStatus(this.#binding.run_id, this.#signal);
+          const status = await this.#readStatusWithRetry();
           if (TERMINAL_STATUSES.has(status.status)) return this.#finish(status);
           continue;
         }
@@ -206,15 +224,60 @@ export class RelayRunner {
           this.#cancelRequested = true;
           this.#cancelRequestedAt ??= this.#now().getTime();
         }
+        // AUG-412: sequences the server proved it closed advance the poll cursor.
+        const skipped = poll.skipped_sequences ?? [];
+        if (skipped.length > 0) await this.#journal.recordServerSkips(skipped);
         if (poll.command !== null) await this.#processCommand(poll.command);
         if (TERMINAL_STATUSES.has(poll.status) && poll.command === null) {
-          const status = await this.#cloud.getRunStatus(this.#binding.run_id, this.#signal);
+          const status = await this.#readStatusWithRetry();
           return this.#finish(status);
         }
       }
+    } catch (error) {
+      throw withRunId(error, this.#binding.run_id);
     } finally {
       this.#running = false;
       await this.#journal.close({ purge: this.#purgeJournalOnClose });
+    }
+  }
+
+  /**
+   * AUG-412: waits before retrying a failed poll or status read. The pause is at
+   * least the server's Retry-After, with capped exponential backoff, and never
+   * runs past the run deadline: the read fails instead.
+   */
+  async #pauseBeforeRetry(error: unknown, failures: number, signal: AbortSignal): Promise<void> {
+    const advertised =
+      error instanceof AwError && typeof error.details?.["retry_after_ms"] === "number"
+        ? Math.max(0, error.details["retry_after_ms"])
+        : 0;
+    const backoff = Math.min(
+      this.#pollRetryBaseMs * 2 ** Math.min(failures, 16),
+      POLL_RETRY_CAP_MS
+    );
+    const pause = Math.max(advertised, backoff);
+    const deadline = this.#deadline?.expiresAtMs;
+    if (deadline === undefined || this.#now().getTime() + pause >= deadline) throw error;
+    try {
+      await delay(pause, signal);
+    } catch (interrupted) {
+      // A cancellation request ends the pause early; the loop then polls again.
+      if (this.#cancelRequested && this.#signal?.aborted !== true) return;
+      throw interrupted;
+    }
+  }
+
+  async #readStatusWithRetry(): Promise<RunStatusResponse> {
+    let failures = 0;
+    while (true) {
+      try {
+        return await this.#cloud.getRunStatus(this.#binding.run_id, this.#signal);
+      } catch (error) {
+        if (!isRetryableRead(error)) throw error;
+        await this.#pauseBeforeRetry(error, failures, this.#signal ?? new AbortController().signal);
+        failures += 1;
+        this.#throwIfStopped();
+      }
     }
   }
 
@@ -224,6 +287,7 @@ export class RelayRunner {
     if (this.#dispatchPolicy !== undefined && durable?.started !== true) {
       assertCommandAllowed(command, this.#dispatchPolicy, this.#journal);
     }
+    await this.#settleLostAcknowledgement(command);
     let state = await this.#journal.accept(command);
     let replayed = durable !== undefined;
     const wasStarted = state.started;
@@ -350,6 +414,32 @@ export class RelayRunner {
         code: completion.error.code
       });
     }
+  }
+
+  /**
+   * AUG-404: after a crash between uploading a completion and journaling its
+   * acknowledgement, the server has moved on and delivers the next command. Re-send
+   * the journaled completion first; once the server accepts it as an identical
+   * repeat (or proves the command closed) the journal can take the next command.
+   */
+  async #settleLostAcknowledgement(command: RelayCommand): Promise<void> {
+    const pending = this.#journal.pending();
+    if (
+      pending === undefined ||
+      pending.completion === undefined ||
+      pending.accepted.command_id === command.command_id ||
+      command.sequence <= pending.accepted.sequence
+    ) {
+      return;
+    }
+    await resendJournaledCompletion({
+      cloud: this.#cloud,
+      journal: this.#journal,
+      state: pending,
+      protocolVersion: commandProtocolForCreate(this.#binding.protocol_version),
+      runTerminal: false,
+      signal: this.#signal
+    });
   }
 
   async #executeConnectorCommand(command: RelayCommand, idempotent: boolean): Promise<unknown> {
@@ -650,6 +740,11 @@ function isIndeterminate(error: unknown): boolean {
 
 function isCancellationError(error: unknown): boolean {
   return error instanceof AwError && error.code === "RELAY_REQUEST_CANCELLED";
+}
+
+/** A relay read that failed in a way the server says is worth retrying (AUG-412). */
+function isRetryableRead(error: unknown): boolean {
+  return error instanceof AwError && error.retryable && !isCancellationError(error);
 }
 
 function combineSignals(first: AbortSignal | undefined, second: AbortSignal): AbortSignal {
