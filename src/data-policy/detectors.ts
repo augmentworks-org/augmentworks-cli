@@ -4,7 +4,24 @@ import { PLACEHOLDERS, type RedactionDetector } from "./types.js";
 export { isSensitiveKey };
 
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu;
-const PHONE_PATTERN = /(?<!\d)(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?!\d)/gu;
+
+/**
+ * International phone pattern (AUG-400). The server's `PHONE_PATTERN_SOURCE`
+ * (augmentworks src/lib/data-policy/contract.ts) carries the same source so
+ * both sides mask the same text. Keep them identical.
+ *
+ * - 10 to 15 digits (E.164 allows at most 15), optionally led by `+` and/or
+ *   `(`, with at most two of space, `.`, `-`, `(`, `)` or NBSP between digits.
+ * - Never starts inside a word or number, or right after `word.`/`word-`, so
+ *   UUID segments and `call_0123456789` style identifiers are left alone.
+ * - Never starts on a date (`2026-10-18`, `18.10.2026`), so dates followed by
+ *   a time are not joined into a phone-length run.
+ */
+export const PHONE_PATTERN_SOURCE = String.raw`(?<![\w+]|\w[.\-])(?!\d{4}[.\-]\d{1,2}[.\-]\d{1,2}(?!\d)|\d{1,2}[.\-]\d{1,2}[.\-]\d{4}(?!\d))\+?\(?\d(?:[ .\-()\u00A0]{0,2}\d){9,14}(?!\w)`;
+const PHONE_PATTERN = new RegExp(PHONE_PATTERN_SOURCE, "gu");
+
+/** Detectors whose rules mask only the matched text in every string leaf. */
+export const STRING_LEAF_DETECTORS: ReadonlySet<RedactionDetector> = new Set(["email", "phone"]);
 const QUERY_SECRET_KEYS = /^(?:access[_-]?token|api[_-]?key|auth|password|secret|token|key)$/iu;
 
 export const PROTOCOL_ENUMS = new Set([
@@ -100,7 +117,7 @@ export function detectorMatches(
     case "email":
       return typeof value === "string" && regexTest(EMAIL_PATTERN, value);
     case "phone":
-      return typeof value === "string" && countDigits(value) >= 10 && regexTest(PHONE_PATTERN, value);
+      return typeof value === "string" && regexTest(PHONE_PATTERN, value);
     case "exact_local_secret":
       return typeof value === "string" && secrets.some((secret) => secret.length > 0 && value.includes(secret));
   }
@@ -214,10 +231,6 @@ function maskUrlSecrets(
     }
   }
   return parsed.toString();
-}
-
-function countDigits(value: string): number {
-  return (value.match(/\d/gu) ?? []).length;
 }
 
 function regexTest(pattern: RegExp, value: string): boolean {
