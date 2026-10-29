@@ -18,6 +18,7 @@ export class AwError extends Error {
   readonly operation: OperationKind | undefined;
   readonly commandId: string | undefined;
   readonly details: Readonly<Record<string, string | number | boolean>> | undefined;
+  #runId: string | undefined;
 
   constructor(options: {
     code: string;
@@ -27,6 +28,7 @@ export class AwError extends Error {
     operation?: OperationKind | undefined;
     commandId?: string | undefined;
     details?: Readonly<Record<string, string | number | boolean>> | undefined;
+    runId?: string | undefined;
     cause?: unknown;
   }) {
     super(options.message, { cause: options.cause });
@@ -37,6 +39,18 @@ export class AwError extends Error {
     this.operation = options.operation;
     this.commandId = options.commandId;
     this.details = options.details;
+    this.#runId = options.runId;
+  }
+
+  /** The hosted run this error happened in, when one was bound (AUG-412). */
+  get runId(): string | undefined {
+    return this.#runId;
+  }
+
+  /** Records the run this error happened in. The first run recorded wins. */
+  bindRunId(runId: string): this {
+    this.#runId ??= runId;
+    return this;
   }
 
   toSafeJSON(): Record<string, unknown> {
@@ -45,11 +59,18 @@ export class AwError extends Error {
       category: this.category,
       safe_message: this.message,
       retryable: this.retryable,
+      ...(this.#runId === undefined ? {} : { run_id: this.#runId }),
       ...(this.operation === undefined ? {} : { operation: this.operation }),
       ...(this.commandId === undefined ? {} : { command_id: this.commandId }),
       ...(this.details === undefined ? {} : { details: this.details })
     };
   }
+}
+
+/** Tags an error with the run it happened in, so the JSON error output names the run. */
+export function withRunId(error: unknown, runId: string): unknown {
+  if (error instanceof AwError) error.bindRunId(runId);
+  return error;
 }
 
 export const EXIT = {

@@ -4,7 +4,7 @@ import { Command } from "commander";
 
 import type { ResolvedConfig } from "../config/types.js";
 import { HttpConnector } from "../connector/http.js";
-import { AwError, EXIT, sanitizeTerminal } from "../errors.js";
+import { AwError, EXIT, exitCodeFor, sanitizeTerminal, withRunId } from "../errors.js";
 import {
   cancelRecovery,
   inspectRecovery,
@@ -12,6 +12,7 @@ import {
   resumeRecovery,
   retireRecovery,
   type RecoveryAction,
+  type RecoveryContext,
   type RecoveryReport
 } from "../relay/recovery.js";
 import { RunIntentStore } from "../relay/run-intent.js";
@@ -91,48 +92,72 @@ export async function runRecover(
       const status = await session.cloud.getRunStatus(legacyBinding.run_id, options.signal);
       return status.run_id === legacyBinding.run_id;
     });
+    const noticeStream = dependencies.stderr ?? process.stderr;
     const context = {
       cloud: session.cloud,
       intentStore,
       tenant: session.tenant,
       stateDirectory,
+      onNotice: (message: string) => {
+        noticeStream.write(`${sanitizeTerminal(message)}\n`);
+      },
       ...(options.signal === undefined ? {} : { signal: options.signal }),
       ...(resolvedConfig === undefined ? {} : { resolvedConfig }),
       ...(dependencies.runner === undefined ? {} : { runner: dependencies.runner }),
       ...(dependencies.onProgress === undefined ? {} : { onProgress: dependencies.onProgress })
     };
-    if (action === "inspect") return await inspectRecovery(context);
-    if (action === "retire") return await retireRecovery(context);
-    const stderr = dependencies.stderr ?? process.stderr;
-    const runnerFactory = context.runner;
-    let removeSignals = (): void => undefined;
-    const executionContext = {
-      ...context,
-      ...(resolvedConfig === undefined
-        ? {}
-        : {
-            connector: dependencies.connector?.(resolvedConfig) ?? new HttpConnector(resolvedConfig)
-          }),
-      runner: (runnerOptions: ConstructorParameters<typeof RelayRunner>[0]) => {
-        const runner = runnerFactory?.(runnerOptions) ?? new RelayRunner(runnerOptions);
-        if (options.handleSignals !== false) {
-          removeSignals();
-          removeSignals = installRelayInterruptHandler(runner, {
-            host: dependencies.signals ?? (process as SignalHost),
-            stderr
-          });
-        }
-        return runner;
-      }
-    };
+    const boundRunId = intentStore.intent?.binding?.run_id;
     try {
-      if (action === "resume") return (await resumeRecovery(executionContext)).report;
-      return (await cancelRecovery(executionContext)).report;
-    } finally {
-      removeSignals();
+      return await runRecoveryAction(action, context, options, dependencies);
+    } catch (error) {
+      // AUG-412: name the recorded run in the error output.
+      throw boundRunId === undefined ? error : withRunId(error, boundRunId);
     }
   } finally {
     await intentStore.close();
+  }
+}
+
+async function runRecoveryAction(
+  action: RecoveryAction,
+  context: RecoveryContext & {
+    readonly resolvedConfig?: ResolvedConfig;
+    readonly runner?: (options: ConstructorParameters<typeof RelayRunner>[0]) => RelayRunner;
+    readonly onProgress?: (event: RelayProgressEvent) => void;
+  },
+  options: RecoverOptions,
+  dependencies: RecoverDependencies
+): Promise<RecoveryReport> {
+  const resolvedConfig = context.resolvedConfig;
+  if (action === "inspect") return await inspectRecovery(context);
+  if (action === "retire") return await retireRecovery(context);
+  const stderr = dependencies.stderr ?? process.stderr;
+  const runnerFactory = context.runner;
+  let removeSignals = (): void => undefined;
+  const executionContext = {
+    ...context,
+    ...(resolvedConfig === undefined
+      ? {}
+      : {
+          connector: dependencies.connector?.(resolvedConfig) ?? new HttpConnector(resolvedConfig)
+        }),
+    runner: (runnerOptions: ConstructorParameters<typeof RelayRunner>[0]) => {
+      const runner = runnerFactory?.(runnerOptions) ?? new RelayRunner(runnerOptions);
+      if (options.handleSignals !== false) {
+        removeSignals();
+        removeSignals = installRelayInterruptHandler(runner, {
+          host: dependencies.signals ?? (process as SignalHost),
+          stderr
+        });
+      }
+      return runner;
+    }
+  };
+  try {
+    if (action === "resume") return (await resumeRecovery(executionContext)).report;
+    return (await cancelRecovery(executionContext)).report;
+  } finally {
+    removeSignals();
   }
 }
 
@@ -166,20 +191,30 @@ export function createRecoverCommand(dependencies: RecoverDependencies = {}): Co
           ((code: number) => {
             process.exitCode = code;
           });
-        const report = await runRecover(
-          {
-            config: values.config,
-            ...(values.retire === true ? { retire: true } : {}),
-            ...(values.resume === true ? { resume: true } : {}),
-            ...(values.cancel === true ? { cancel: true } : {}),
-            ...(values.json === true ? { json: true } : {}),
-            ...(values.allowFileCredentials === undefined
-              ? {}
-              : { allowFileCredentials: values.allowFileCredentials }),
-            ...(values.workspace === undefined ? {} : { workspace: values.workspace })
-          },
-          { ...dependencies, stdout, stderr }
-        );
+        let report: RecoveryReport;
+        try {
+          report = await runRecover(
+            {
+              config: values.config,
+              ...(values.retire === true ? { retire: true } : {}),
+              ...(values.resume === true ? { resume: true } : {}),
+              ...(values.cancel === true ? { cancel: true } : {}),
+              ...(values.json === true ? { json: true } : {}),
+              ...(values.allowFileCredentials === undefined
+                ? {}
+                : { allowFileCredentials: values.allowFileCredentials }),
+              ...(values.workspace === undefined ? {} : { workspace: values.workspace })
+            },
+            { ...dependencies, stdout, stderr }
+          );
+        } catch (error) {
+          if (values.json !== true || !(error instanceof AwError)) throw error;
+          stdout.write(
+            `${JSON.stringify({ ok: false, ...error.toSafeJSON(), exit_code: exitCodeFor(error) })}\n`
+          );
+          setExitCode(exitCodeFor(error));
+          return;
+        }
         if (values.json === true) {
           stdout.write(recoveryReportJson(report));
         } else {

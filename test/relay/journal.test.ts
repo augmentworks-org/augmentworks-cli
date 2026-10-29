@@ -288,4 +288,109 @@ describe("RelayJournal", () => {
     expect(onDisk).not.toContain('"disposition":"completed"');
     await journal.close();
   });
+
+  it("AUG-412: accepts a sequence gap only with server proof and survives a reload", async () => {
+    const stateDirectory = await temporaryDirectory();
+    const first = relayCommand("send");
+    const third = relayCommand("send", { command_id: "command-send-3", sequence: 3 });
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    await journal.accept(first);
+    await journal.markStarted(first.command_id);
+    await journal.recordSuccess(first.command_id, resultFor(first));
+    await journal.acknowledge(first.command_id);
+
+    // Without proof the gap still fails, and a non-contiguous skip proves nothing.
+    await expect(journal.accept(third)).rejects.toMatchObject({ code: "COMMAND_SEQUENCE_GAP" });
+    expect(await journal.recordServerSkips([3])).toEqual([]);
+    await expect(journal.accept(third)).rejects.toMatchObject({ code: "COMMAND_SEQUENCE_GAP" });
+    expect(journal.lastAcknowledgedSequence).toBe(1);
+
+    // With proof for sequence 2 the poll cursor moves past it and 3 is accepted.
+    expect(await journal.recordServerSkips([2])).toEqual([2]);
+    expect(await journal.recordServerSkips([2])).toEqual([]);
+    expect(journal.lastAcknowledgedSequence).toBe(2);
+    await expect(
+      journal.accept(relayCommand("send", { command_id: "command-send-2", sequence: 2 }))
+    ).rejects.toMatchObject({ code: "COMMAND_SEQUENCE_CONFLICT" });
+    await journal.accept(third);
+    await journal.markStarted(third.command_id);
+    await journal.recordSuccess(third.command_id, resultFor(third));
+    await journal.acknowledge(third.command_id);
+    expect(journal.lastAcknowledgedSequence).toBe(3);
+    await journal.close();
+
+    const reloaded = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    expect(reloaded.lastAcknowledgedSequence).toBe(3);
+    expect(reloaded.skippedSequences()).toEqual([2]);
+    expect(reloaded.pending()).toBeUndefined();
+    await reloaded.close();
+  });
+
+  it("AUG-412: a server skip closes a locally pending command the server will never deliver", async () => {
+    const stateDirectory = await temporaryDirectory();
+    const first = relayCommand("send");
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    await journal.accept(first);
+    await journal.markStarted(first.command_id);
+    expect(journal.pending()).toBeDefined();
+    expect(await journal.recordServerSkips([1, 2])).toEqual([1, 2]);
+    expect(journal.pending()).toBeUndefined();
+    expect(journal.lastAcknowledgedSequence).toBe(2);
+    await expect(journal.accept(first)).rejects.toMatchObject({ code: "COMMAND_SEQUENCE_CONFLICT" });
+    await journal.close();
+    const reloaded = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    expect(reloaded.state(first.command_id)).toMatchObject({ skipped: true, acknowledged: false });
+    expect(reloaded.lastAcknowledgedSequence).toBe(2);
+    await reloaded.close();
+  });
+
+  it("AUG-404: records abandoned work on a terminal run and keeps it across a reload", async () => {
+    const stateDirectory = await temporaryDirectory();
+    const prepare = relayCommand("prepare");
+    const send = relayCommand("send", { command_id: "command-send-2", sequence: 2 });
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    await journal.accept(prepare);
+    await journal.markStarted(prepare.command_id);
+    await journal.recordSuccess(prepare.command_id, resultFor(prepare));
+    await journal.acknowledge(prepare.command_id);
+    await journal.accept(send);
+    await journal.markStarted(send.command_id);
+    await expect(journal.abandon(prepare.command_id, "run_terminal_uncompleted")).rejects.toMatchObject({
+      code: "JOURNAL_CORRUPT"
+    });
+    await journal.abandon(send.command_id, "run_terminal_uncompleted");
+    expect(journal.pending()).toBeUndefined();
+    expect(journal.outstandingPreparedAttempts()).toEqual(["attempt-1"]);
+    expect(await journal.abandonOutstandingCleanup()).toEqual(["attempt-1"]);
+    expect(journal.outstandingPreparedAttempts()).toEqual([]);
+    await journal.close();
+
+    const reloaded = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    expect(reloaded.pending()).toBeUndefined();
+    expect(reloaded.outstandingPreparedAttempts()).toEqual([]);
+    expect(reloaded.state(send.command_id)).toMatchObject({ abandoned: "run_terminal_uncompleted" });
+    expect(reloaded.state(prepare.command_id)).toMatchObject({ abandoned: "run_terminal_cleanup" });
+    expect(reloaded.lastAcknowledgedSequence).toBe(2);
+    await reloaded.close();
+  });
+
+  it("still loads a journal written before skipped and abandoned records existed", async () => {
+    const stateDirectory = await temporaryDirectory();
+    const command = relayCommand("send");
+    const journal = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    await journal.accept(command);
+    await journal.markStarted(command.command_id);
+    await journal.recordSuccess(command.command_id, resultFor(command));
+    const path = journal.path;
+    await journal.close();
+    const events = (await readFile(path, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => (JSON.parse(line) as { event: string }).event);
+    expect(events).toEqual(["accepted", "started", "completed"]);
+    const reloaded = await new RelayJournal({ runId: "run-1", stateDirectory }).open();
+    expect(reloaded.pending()?.completion).toMatchObject({ disposition: "completed" });
+    expect(reloaded.lastAcknowledgedSequence).toBe(0);
+    await reloaded.close();
+  });
 });
