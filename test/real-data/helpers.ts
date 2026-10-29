@@ -159,10 +159,20 @@ export function sealedScope(
  * The contract's get_scope response, with a credential-only policy so the
  * fail-closed default privacy service accepts it, and a far-off expiry.
  */
-export function hostedScopeResponse(): ExecutionScopeResponse {
+export function hostedScopeResponse(
+  options: {
+    /** Overrides for the registered target boundary, such as a private assessedIdentity. */
+    readonly boundary?: Partial<TargetBoundary>;
+    readonly verificationMethod?: TargetAuthority["verificationMethod"];
+  } = {}
+): ExecutionScopeResponse {
   const { policy, profile } = publicCredentialOnlyPolicy();
-  const boundary = sealedBoundary();
-  const authority = sealedAuthority(boundary);
+  const boundary = sealedBoundary(options.boundary);
+  const verified = sealedAuthority(boundary);
+  const authority =
+    options.verificationMethod === undefined
+      ? verified
+      : sealDocumentHash({ ...verified, verificationMethod: options.verificationMethod }, "authorityHash");
   const scope = sealedScope(boundary, authority, policy);
   return {
     ...contractResponse<ExecutionScopeResponse>("get_scope"),

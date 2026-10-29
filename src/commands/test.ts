@@ -1526,7 +1526,7 @@ async function resolveHostedDispatchPolicy(options: {
   const pin = suitePinFromHostedSelection(options.selection);
   if (pin !== undefined) {
     const revision = await options.cloud.getSuiteRevision(pin.suiteId, pin.revisionId, options.signal);
-    const ref = executionScopeRefFromNativeDocument(revision.canonicalDocument);
+    const ref = executionScopeRefFromNativeDocument(revision.canonicalDocument ?? revision);
     if (ref !== undefined) {
       const response = await requireHostedAuthorizedScope(options.cloud, ref, {
         workspaceId: options.workspaceId,
@@ -1925,7 +1925,8 @@ async function executionScopeRefForSelection(
   const pin = suitePinFromHostedSelection(selection);
   if (pin === undefined) return undefined;
   const revision = await cloud.getSuiteRevision(pin.suiteId, pin.revisionId, signal);
-  return executionScopeRefFromNativeDocument(revision.canonicalDocument);
+  // The server returns the sealed revision document itself, with no canonicalDocument wrapper.
+  return executionScopeRefFromNativeDocument(revision.canonicalDocument ?? revision);
 }
 
 async function assertHostedConversationAdmission(
