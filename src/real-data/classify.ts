@@ -1,6 +1,7 @@
 import { AwError, EXIT } from "../errors.js";
 import { isRealDataErrorCode, PLAIN_RECOVERY_CODES, recoveryAdvice } from "./errors.js";
 import type { RealDataErrorCode } from "./constants.js";
+import { gradingStillPending, type JudgeJobProgress } from "../outcome/classify.js";
 
 export const REAL_DATA_FAILURE_CLASSES = [
   "blocked_setup",
@@ -132,12 +133,15 @@ export function hostedOutcomeFailureClass(options: {
   readonly executionStatus: string;
   readonly evaluationStatus?: string | null;
   readonly outcome?: string | null;
+  /** AUG-403: partial with every judge job done has finished grading. */
+  readonly judgeJobs?: JudgeJobProgress | null;
 }): RealDataFailureClass | undefined {
   const evaluation = options.evaluationStatus ?? "absent";
   if (options.executionStatus === "failed" && options.outcome === "error") return "test_failure";
-  if (evaluation === "pending" || evaluation === "partial") return "pending_grading";
+  if (gradingStillPending(evaluation, options.judgeJobs)) return "pending_grading";
   if (options.executionStatus === "failed" || options.outcome === "failed") return "test_failure";
   if (options.outcome === "inconclusive") return "insufficient_evidence";
+  if (evaluation === "partial") return "insufficient_evidence";
   return undefined;
 }
 

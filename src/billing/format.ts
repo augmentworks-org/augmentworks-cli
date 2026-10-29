@@ -1,6 +1,7 @@
 import { DEFAULT_API_ORIGIN } from "../auth/api-origin.js";
 import { sanitizeTerminal } from "../errors.js";
 import { classifyBillingRunStatus } from "./classify.js";
+import { gradingStillPending, judgeJobsFromProgress } from "../outcome/classify.js";
 import {
   grantOriginKind,
   type BillingGrantBalance,
@@ -415,7 +416,7 @@ export function formatRunStatusHuman(status: BillingRunStatus): string {
     );
   }
   if (!classification.waitTerminal) {
-    if (status.evaluationStatus === "pending" || status.evaluationStatus === "partial") {
+    if (gradingStillPending(status.evaluationStatus, judgeJobsFromProgress(status.progress))) {
       lines.push(
         `Grading is pending on the original run. Wait with: augmentworks run wait ${status.originalRunId}`
       );

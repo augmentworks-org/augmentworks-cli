@@ -1,5 +1,6 @@
 import { AwError } from "../errors.js";
 import { classifyBillingRunStatus } from "../billing/classify.js";
+import { gradingStillPending, judgeJobsFromProgress } from "../outcome/classify.js";
 import type { BillingRunStatus } from "../billing/protocol.js";
 import { capabilityIsAvailable, STATUS_V1 } from "../billing/protocol.js";
 import { statusUnsupportedError } from "../billing/errors.js";
@@ -84,7 +85,7 @@ async function readRunStatus(
 function waitIncompleteError(runId: string, status: BillingRunStatus | undefined): AwError {
   const gradingPending =
     status !== undefined &&
-    (status.evaluationStatus === "pending" || status.evaluationStatus === "partial");
+    gradingStillPending(status.evaluationStatus, judgeJobsFromProgress(status.progress));
   const reason = gradingPending
     ? "Grading is still pending"
     : "The original run is still in progress";
