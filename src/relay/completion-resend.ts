@@ -143,7 +143,7 @@ async function pause(milliseconds: number, signal?: AbortSignal): Promise<void> 
       signal?.removeEventListener("abort", onAbort);
       resolve();
     }, milliseconds);
+    // AUG-412: kept referenced so the process waits for the retry.
     signal?.addEventListener("abort", onAbort, { once: true });
-    timer.unref?.();
   });
 }

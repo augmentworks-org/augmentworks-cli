@@ -1,6 +1,9 @@
+import { spawnSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -748,6 +751,21 @@ describe("AUG-412 poll retry and server-proven skips", () => {
     expect(Date.now() - started).toBeGreaterThanOrEqual(40);
     expect(polls.slice(0, 3)).toEqual([0, 1, 1]);
     expect(cloud.completions.map((item) => item.command.sequence)).toEqual([1, 2]);
+  });
+
+  it("keeps the process alive through the retry pause after a poll 503", async () => {
+    // In a real CLI the pause is the only pending work, so an unref'd timer let
+    // Node exit 13 ("unsettled top-level await") with no run_id.
+    const fixture = fileURLToPath(new URL("./fixtures/poll-retry-process.ts", import.meta.url));
+    const tsx = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
+    const child = spawnSync(
+      process.execPath,
+      ["--disable-warning=DEP0205", "--import", tsx, fixture, await temporaryDirectory()],
+      { encoding: "utf8", timeout: 30_000 }
+    );
+    expect(child.stderr).toBe("");
+    expect(child.status).toBe(0);
+    expect(JSON.parse(child.stdout)).toEqual({ status: "completed", polls: 2 });
   });
 
   it("stops retrying at the run deadline and names the run in the error JSON", async () => {

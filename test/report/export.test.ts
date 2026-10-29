@@ -942,10 +942,13 @@ describe("hosted report consistency aw-report-consistency/1", () => {
 });
 
 describe("finished grading with a timed-out attempt (AUG-403)", () => {
-  async function exportTimedOut(evaluationStatus: "complete" | "partial") {
+  async function exportTimedOut(
+    evaluationStatus: "complete" | "partial",
+    shape?: { executionStatus: string; outcome: string; runOutcome?: string }
+  ) {
     const { server } = await startMock((_request, response, url) => {
       if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
-        send(response, 200, timedOutAttemptReport(server.baseUrl, evaluationStatus));
+        send(response, 200, timedOutAttemptReport(server.baseUrl, evaluationStatus, shape));
         return true;
       }
       if (url.pathname.includes("/criteria")) {
@@ -961,6 +964,19 @@ describe("finished grading with a timed-out attempt (AUG-403)", () => {
     const document = await exportTimedOut("complete");
     expect(document.retrieved).toBe(true);
     expect(document.diagnostics.map((item) => item.code)).not.toContain("MAPPED_RESPONSE_UNAVAILABLE");
+    expect(document.diagnostics).toEqual([]);
+    expect(document.complete).toBe(true);
+    const classified = classifyRunReportExport(document);
+    expect(classified.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+    expect(classified.waitTerminal).toBe(true);
+  });
+
+  it("exits 10 when the hosted report marks the timed-out send completed and uncertain", async () => {
+    const document = await exportTimedOut("complete", {
+      executionStatus: "completed",
+      outcome: "uncertain",
+      runOutcome: "inconclusive"
+    });
     expect(document.diagnostics).toEqual([]);
     expect(document.complete).toBe(true);
     const classified = classifyRunReportExport(document);

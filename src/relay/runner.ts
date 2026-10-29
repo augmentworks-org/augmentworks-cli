@@ -776,7 +776,8 @@ async function delay(milliseconds: number, signal?: AbortSignal): Promise<void> 
         new AwError({ code: "INTERRUPTED", category: "local", message: "The connector was interrupted." })
       );
     };
+    // AUG-412: the pause keeps the process alive. It is often the only pending
+    // work, and an unref'd timer let Node exit 13 mid-run.
     signal?.addEventListener("abort", onAbort, { once: true });
-    timer.unref?.();
   });
 }

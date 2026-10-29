@@ -80,7 +80,12 @@ export const TIMED_OUT_ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
  */
 export function timedOutAttemptReport(
   origin: string,
-  evaluationStatus: "complete" | "partial"
+  evaluationStatus: "complete" | "partial",
+  // The hosted server reports a timed-out send as completed and uncertain.
+  shape: { executionStatus: string; outcome: string; runOutcome?: string } = {
+    executionStatus: "failed",
+    outcome: "error"
+  }
 ): Record<string, unknown> {
   return mutatedFixtureResponse("report_required_fail", origin, (body) => {
     const attempts = body["attempts"] as Record<string, unknown>[];
@@ -89,7 +94,7 @@ export function timedOutAttemptReport(
       scenarioId: "response-quality/0.1.0/R01",
       repetitionIndex: 1,
       attemptNumber: 1,
-      executionStatus: "failed",
+      executionStatus: shape.executionStatus,
       cleanupState: "not_required",
       criterionIndexUrl: null,
       mappedResponse: {
@@ -100,9 +105,10 @@ export function timedOutAttemptReport(
         turnId: null,
         evidenceId: null
       },
-      outcome: "error"
+      outcome: shape.outcome
     });
     body["evaluationStatus"] = evaluationStatus;
+    if (shape.runOutcome !== undefined) body["outcome"] = shape.runOutcome;
     body["aggregate"] = { passed: 0, failed: 1, error: 1 };
     body["coverage"] = {
       plannedAttempts: 2,
