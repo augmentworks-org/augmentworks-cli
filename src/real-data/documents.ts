@@ -410,6 +410,12 @@ export const ExecutionScopeBindingSchema = z
     redactionProfile: RedactionProfileSchema.optional(),
     /** The admitted boundary: the server's for hosted, the one rebuilt from augmentworks.yaml for local. */
     targetBoundary: TargetBoundarySchema.optional(),
+    /**
+     * Hosted only: the target authority was verified by connector challenge, so
+     * the boundary may name a private origin. Absent in bindings written before
+     * 0.4.1, which are read as false.
+     */
+    allowPrivate: z.boolean().optional(),
     availability: z.enum(SCOPE_AVAILABILITY),
     fetchedAt: UtcZSchema
   })
