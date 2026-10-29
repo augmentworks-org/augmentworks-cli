@@ -678,7 +678,8 @@ class RunReportClient {
         attempt.attemptId,
         binding,
         diagnostics,
-        report.workspaceId
+        report.workspaceId,
+        attemptHasNoReply(report, attempt)
       );
       for (const detail of details) {
         const key = `${detail.attemptId}:${detail.criterionId}`;
@@ -703,7 +704,8 @@ class RunReportClient {
     attemptId: string,
     binding: EvaluationBinding,
     diagnostics: ExportDiagnostic[],
-    workspaceId?: string
+    workspaceId?: string,
+    noReply = false
   ): Promise<{ details: CriterionDetail[]; complete: boolean }> {
     const details: CriterionDetail[] = [];
     const seenCursors = new Set<string>();
@@ -732,7 +734,8 @@ class RunReportClient {
         return this.#finishAttemptCriteria(details, diagnostics, {
           runId,
           claimedTotal: null,
-          requireClaimedTotal: false
+          requireClaimedTotal: false,
+          noReply
         });
       }
       const index = indexParsed.index;
@@ -826,7 +829,8 @@ class RunReportClient {
     return this.#finishAttemptCriteria(details, diagnostics, {
       runId,
       claimedTotal: criterionTotals.value,
-      requireClaimedTotal: true
+      requireClaimedTotal: true,
+      noReply
     });
   }
 
@@ -837,6 +841,7 @@ class RunReportClient {
       readonly runId: string;
       readonly claimedTotal: number | null;
       readonly requireClaimedTotal: boolean;
+      readonly noReply: boolean;
     }
   ): { details: CriterionDetail[]; complete: boolean } {
     const uniqueIds = new Set(details.map((item) => item.criterionId));
@@ -871,7 +876,9 @@ class RunReportClient {
         return { details, complete: false };
       }
     }
-    const verdictDiagnostics = criterionWireVerdictDiagnostics(details);
+    // AUG-403: an attempt that never replied is judged inconclusive. That
+    // verdict is the result (exit 10), not grading still to come.
+    const verdictDiagnostics = options.noReply ? [] : criterionWireVerdictDiagnostics(details);
     if (verdictDiagnostics.length > 0) {
       diagnostics.push(...verdictDiagnostics);
       return { details, complete: false };

@@ -71,6 +71,25 @@ export function fixtureIdentity(name: string): Record<string, unknown> {
 }
 
 export const TIMED_OUT_ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const REPORT_FIXTURE_RUN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const REPORT_FIXTURE_EVALUATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+/** The judge's inconclusive (uncertain) verdict on a timed-out attempt that never replied. */
+export function timedOutCriterionIndex(origin: string): Record<string, unknown> {
+  return mutatedFixtureResponse("criterion_index_r01_fail", origin, (body) => {
+    body["attemptId"] = TIMED_OUT_ATTEMPT_ID;
+    body["criteria"] = [
+      {
+        criterionId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        criterionKey: "response-quality/0.1.0/R01/facts",
+        required: true,
+        verdict: "uncertain",
+        detailUrl: null,
+        evidence: { availability: "missing", text: null, sha256: null, truncated: false }
+      }
+    ];
+  }).body as Record<string, unknown>;
+}
 
 /**
  * AUG-403 reproduction: `report_required_fail` plus a second attempt that
@@ -82,7 +101,7 @@ export function timedOutAttemptReport(
   origin: string,
   evaluationStatus: "complete" | "partial",
   // The hosted server reports a timed-out send as completed and uncertain.
-  shape: { executionStatus: string; outcome: string; runOutcome?: string } = {
+  shape: { executionStatus: string; outcome: string; runOutcome?: string; graded?: boolean } = {
     executionStatus: "failed",
     outcome: "error"
   }
@@ -96,7 +115,11 @@ export function timedOutAttemptReport(
       attemptNumber: 1,
       executionStatus: shape.executionStatus,
       cleanupState: "not_required",
-      criterionIndexUrl: null,
+      // The hosted server grades a timed-out attempt, so it has criteria.
+      criterionIndexUrl:
+        shape.graded === true
+          ? `${origin}/v1/runs/${REPORT_FIXTURE_RUN_ID}/evaluations/${REPORT_FIXTURE_EVALUATION_ID}/attempts/${TIMED_OUT_ATTEMPT_ID}/criteria`
+          : null,
       mappedResponse: {
         availability: "missing",
         text: null,

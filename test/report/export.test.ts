@@ -18,7 +18,9 @@ import {
   fixtureResponse,
   mutatedFixtureResponse,
   rewriteOrigin,
-  timedOutAttemptReport
+  TIMED_OUT_ATTEMPT_ID,
+  timedOutAttemptReport,
+  timedOutCriterionIndex
 } from "./fixtures.js";
 
 const TOKEN = "aw_api_test_report_export_token";
@@ -944,11 +946,15 @@ describe("hosted report consistency aw-report-consistency/1", () => {
 describe("finished grading with a timed-out attempt (AUG-403)", () => {
   async function exportTimedOut(
     evaluationStatus: "complete" | "partial",
-    shape?: { executionStatus: string; outcome: string; runOutcome?: string }
+    shape?: { executionStatus: string; outcome: string; runOutcome?: string; graded?: boolean }
   ) {
     const { server } = await startMock((_request, response, url) => {
       if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
         send(response, 200, timedOutAttemptReport(server.baseUrl, evaluationStatus, shape));
+        return true;
+      }
+      if (url.pathname.includes(`/attempts/${TIMED_OUT_ATTEMPT_ID}/criteria`)) {
+        send(response, 200, timedOutCriterionIndex(server.baseUrl));
         return true;
       }
       if (url.pathname.includes("/criteria")) {
@@ -975,7 +981,9 @@ describe("finished grading with a timed-out attempt (AUG-403)", () => {
     const document = await exportTimedOut("complete", {
       executionStatus: "completed",
       outcome: "uncertain",
-      runOutcome: "inconclusive"
+      runOutcome: "inconclusive",
+      // As on the deployed server: the judge rated it inconclusive.
+      graded: true
     });
     expect(document.diagnostics).toEqual([]);
     expect(document.complete).toBe(true);
