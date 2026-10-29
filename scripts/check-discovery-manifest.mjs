@@ -29,9 +29,9 @@ if (!published.ok) {
 if (!LAST_VERIFIED_PUBLISHED_DISCOVERY.capabilities.localDemo) {
   throw new Error("The last independently inspected published snapshot must advertise localDemo.");
 }
-if (LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version !== "0.4.0") {
+if (LAST_VERIFIED_PUBLISHED_DISCOVERY.package.version !== "0.4.1") {
   throw new Error(
-    "The last independently inspected published snapshot must remain 0.4.0 until a later registry tarball is inspected. Do not relabel 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3 provenance."
+    "The last independently inspected published snapshot must remain 0.4.1 until a later registry tarball is inspected. Do not relabel 0.4.1, 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3 provenance."
   );
 }
 if (committed.package.releaseStatus === "published") {
