@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createServer } from "node:http";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CloudClient } from "../../src/cloud/client.js";
@@ -11,12 +13,24 @@ import { runEstimate, runTest, type TestDependencies } from "../../src/commands/
 import { targetBoundarySha256 } from "../../src/config/boundary.js";
 import { resolveConfig } from "../../src/config/resolve.js";
 import type { ResolvedConfig } from "../../src/config/types.js";
+import { loadPersistedDispatchPolicy } from "../../src/real-data/hosted.js";
 import { loadExecutionScopeBinding } from "../../src/real-data/scope-store.js";
 import type { DispatchPolicy } from "../../src/real-data/policy.js";
 import type { RelayRunner } from "../../src/relay/runner.js";
 import { loadCustomerSuiteFile } from "../../src/suite/load.js";
 import { nativeSuiteContentHash, nativeSuiteSource } from "../../src/suite/native.js";
 import { canonicalize, sha256 } from "../../src/util/canonical.js";
+import type { ExecutionScopeResponse } from "../../src/real-data/documents.js";
+import {
+  CANONICAL_HASH,
+  SEMANTIC_HASH,
+  SUITE_ID as SAVED_SUITE_ID,
+  SUITE_REVISION as SAVED_SUITE_REVISION,
+  savedSuiteAssessmentYaml,
+  savedSuiteManifest
+} from "../selection/saved-suite-fixtures.js";
+import { relayCommand } from "../relay/helpers.js";
+import { listenLoopback, readJsonBody } from "../util/http-server.js";
 import { contractResponse, hostedScopeResponse, WORKSPACE_ID } from "./helpers.js";
 
 const projectRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
@@ -28,25 +42,28 @@ const API = "http://127.0.0.1:8787";
 const SUITE_REVISION = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const RUN_ID = "run-authorized";
 const temporaryDirectories: string[] = [];
+const closers: Array<() => Promise<void>> = [];
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  await Promise.all(closers.splice(0).map((close) => close()));
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))
   );
 });
 
 const scopeResponse = hostedScopeResponse();
+const defaultScopeResponse = scopeResponse;
 
-async function projectDir(): Promise<string> {
+async function projectDir(response: ExecutionScopeResponse = scopeResponse): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "aw-authorized-admit-"));
   temporaryDirectories.push(directory);
   const fixture = await readFile(resolve(projectRoot, "test/fixtures/customer-suites/authorized.yaml"), "utf8");
   await writeFile(
     join(directory, "authorized.yaml"),
     fixture
-      .replace(/scope_id: .*/u, `scope_id: ${scopeResponse.scope.scopeId}`)
-      .replace(/revision: 1/u, `revision: ${String(scopeResponse.scope.revision)}`),
+      .replace(/scope_id: .*/u, `scope_id: ${response.scope.scopeId}`)
+      .replace(/revision: 1/u, `revision: ${String(response.scope.revision)}`),
     "utf8"
   );
   return directory;
@@ -88,7 +105,7 @@ type Recorded = {
 };
 
 /** A server that admits only the boundary the execution scope registered, as hosted admission does. */
-function admittingServer(cwd: string) {
+function admittingServer(cwd: string, scopeResponse: ExecutionScopeResponse = defaultScopeResponse) {
   const recorded: Recorded = { paths: [], quotes: [], creates: [], suites: [] };
   const mismatch = () =>
     Response.json(
@@ -118,6 +135,13 @@ function admittingServer(cwd: string) {
         canonicalHash: nativeSuiteContentHash(nativeSuiteSource(loaded, scopeResponse.scope)),
         schemaVersion: "aw-customer-suite/3"
       });
+    }
+    if (url.pathname === "/v1/suite-selections/compile" && method === "POST") {
+      return Response.json(savedSuiteManifest());
+    }
+    if (url.pathname === `/v1/suites/${SAVED_SUITE_ID}/revisions/${SAVED_SUITE_REVISION}`) {
+      // What the server sends: the sealed revision document itself, with no canonicalDocument wrapper.
+      return Response.json(savedRealDataRevision(scopeResponse));
     }
     if (url.pathname === "/v1/billing/capabilities") {
       return Response.json(billing.fixtures["eligible_trial"]?.response);
@@ -159,6 +183,35 @@ function admittingServer(cwd: string) {
     throw new Error(`unexpected ${method} ${url.pathname}`);
   });
   return { fetchMock, recorded };
+}
+
+/**
+ * GET /v1/suites/{suiteId}/revisions/{revisionId} as the server sends it for a
+ * saved aw-customer-suite/3 revision: the revision document spread at the top
+ * level, carrying the full sealed execution scope (customer-suite-http.ts).
+ */
+function savedRealDataRevision(response: ExecutionScopeResponse): Record<string, unknown> {
+  return {
+    schemaVersion: "aw-customer-suite/3",
+    documentKind: "customer_suite_revision",
+    suiteId: SAVED_SUITE_ID,
+    displayName: "Policy suite",
+    description: "",
+    executionScope: response.scope,
+    conversationMode: "single_turn",
+    tags: [],
+    references: [],
+    cases: [{ caseId: "policy-p01" }, { caseId: "policy-p02" }],
+    workspaceId: WORKSPACE_ID,
+    suiteRevisionId: SAVED_SUITE_REVISION,
+    revisionNumber: 1,
+    createdAt: "2026-10-20T12:00:00.000Z",
+    immutable: true,
+    semanticRevisionHash: SEMANTIC_HASH,
+    canonicalHash: CANONICAL_HASH,
+    createsBillableRun: false,
+    ownership: "workspace_draft"
+  };
 }
 
 function hostedDependencies(resolved: ResolvedConfig, fetchMock: typeof fetch) {
@@ -280,5 +333,241 @@ describe("authorized hosted admission (AUG-356)", () => {
     expect(recorded.paths).not.toContain("POST /v1/suites");
     expect(recorded.quotes).toHaveLength(0);
     expect(recorded.creates).toHaveLength(0);
+  });
+});
+
+describe("private targets verified by connector challenge (AUG-399)", () => {
+  const privateScope = (verificationMethod: "connector_challenge" | "https_challenge") =>
+    hostedScopeResponse({ boundary: { assessedIdentity: "http://127.0.0.1:8000" }, verificationMethod });
+
+  it("quotes and runs a verified 127.0.0.1 target, and recover --resume keeps it allowed", async () => {
+    const response = privateScope("connector_challenge");
+    const cwd = await projectDir(response);
+    const resolved = resolvedFor("http://127.0.0.1:8000");
+    const { fetchMock, recorded } = admittingServer(cwd, response);
+    const policies: Array<DispatchPolicy | undefined> = [];
+
+    const estimate = await runEstimate(
+      { cwd, suite: "authorized.yaml", env: { AUGMENTWORKS_API_URL: API } },
+      hostedDependencies(resolved, fetchMock)
+    );
+    expect(estimate.quote.quoteId).toBeDefined();
+
+    await expect(
+      runTest(
+        {
+          cwd,
+          suite: "authorized.yaml",
+          maxCredits: "30",
+          yes: true,
+          stateDirectory: cwd,
+          handleSignals: false,
+          env: { AUGMENTWORKS_API_URL: API }
+        },
+        { ...hostedDependencies(resolved, fetchMock), runner: fakeRunner((policy) => policies.push(policy), "interrupt") }
+      )
+    ).rejects.toThrow("interrupted");
+    expect(recorded.quotes).toHaveLength(2);
+    expect(recorded.creates).toHaveLength(1);
+    for (const body of [...recorded.quotes, ...recorded.creates]) {
+      expect((body["target"] as { boundary_sha256: string }).boundary_sha256).toBe(
+        response.scope.targetBoundaryHash
+      );
+    }
+    expect(policies[0]).toMatchObject({
+      kind: "authorized",
+      local: false,
+      allowPrivate: true,
+      origin: "http://127.0.0.1:8000"
+    });
+    const binding = await loadExecutionScopeBinding(RUN_ID, { stateDirectory: cwd });
+    expect(binding?.allowPrivate).toBe(true);
+    await expect(
+      loadPersistedDispatchPolicy({
+        runId: RUN_ID,
+        configSha256: resolved.configDigest,
+        workspaceId: WORKSPACE_ID,
+        resolved,
+        stateDirectory: cwd
+      })
+    ).resolves.toBeUndefined();
+
+    const report = await runRecover(
+      { resume: true, stateDirectory: cwd, env: {}, handleSignals: false },
+      { ...hostedDependencies(resolved, fetchMock), runner: fakeRunner((policy) => policies.push(policy), "complete") }
+    );
+    expect(report.outcome).toBe("resumed");
+    expect(policies[1]).toMatchObject({ kind: "authorized", allowPrivate: true, origin: "http://127.0.0.1:8000" });
+    expect(recorded.creates).toHaveLength(1);
+  });
+
+  it("sends a relay command to the verified 127.0.0.1 target with the real runner and connector", async () => {
+    const targetRequests: unknown[] = [];
+    const target = await listenLoopback(
+      createServer((request, response) => {
+        void readJsonBody(request).then((body) => {
+          targetRequests.push(body);
+          const reply = JSON.stringify({ answer: "Weekday hours are 9:00-17:00 UTC." });
+          response.writeHead(200, { "content-type": "application/json", "content-length": Buffer.byteLength(reply) });
+          response.end(reply);
+        });
+      })
+    );
+    closers.push(() => target.close());
+    const scoped = hostedScopeResponse({
+      boundary: { assessedIdentity: target.baseUrl },
+      verificationMethod: "connector_challenge"
+    });
+    const cwd = await projectDir(scoped);
+    const resolved = resolvedFor(target.baseUrl);
+    const { fetchMock: admit, recorded } = admittingServer(cwd, scoped);
+    const completions: Array<Record<string, unknown>> = [];
+    let created: Record<string, unknown> | undefined;
+    let polls = 0;
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = new URL(String(input));
+      const body =
+        init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as Record<string, unknown>);
+      if (url.pathname === "/v1/relay/sessions/session-1/commands:poll") {
+        polls += 1;
+        const command =
+          polls === 1 && created !== undefined
+            ? {
+                ...relayCommand("send"),
+                run_id: RUN_ID,
+                session_id: "session-1",
+                packet: { ...(created["packet"] as object), sha256: "a".repeat(64) },
+                config_sha256: created["config_sha256"],
+                fencing_epoch: 1
+              }
+            : null;
+        return Response.json({
+          protocol_version: "aw-relay/0.1",
+          run_id: RUN_ID,
+          session_id: "session-1",
+          status: command === null ? "completed" : "running",
+          command
+        });
+      }
+      if (url.pathname.startsWith("/v1/relay/commands/") && url.pathname.endsWith(":complete")) {
+        completions.push(body ?? {});
+        return Response.json({ protocol_version: "aw-relay/0.1", command_id: body?.["command_id"], accepted: true });
+      }
+      if (url.pathname === `/v1/relay/runs/${RUN_ID}` && completions.length > 0) {
+        return Response.json({
+          protocol_version: "aw-relay/0.1",
+          run_id: RUN_ID,
+          status: "completed",
+          credit_state: "consumed",
+          outcome: "passed",
+          evaluation_status: "complete"
+        });
+      }
+      const forwarded = await admit(input, init);
+      if (url.pathname === "/v1/relay/runs" && forwarded.ok) created = body;
+      return forwarded;
+    });
+
+    const result = await runTest(
+      {
+        cwd,
+        suite: "authorized.yaml",
+        maxCredits: "30",
+        yes: true,
+        stateDirectory: cwd,
+        handleSignals: false,
+        env: { AUGMENTWORKS_API_URL: API }
+      },
+      hostedDependencies(resolved, fetchMock)
+    );
+    expect(recorded.creates).toHaveLength(1);
+    expect(result.run.status).toBe("completed");
+    expect(targetRequests).toEqual([{ message: "Refund the order" }]);
+    expect(completions).toHaveLength(1);
+    expect(JSON.stringify(completions[0])).toContain("Weekday hours are 9:00-17:00 UTC.");
+  });
+
+  it("still refuses a private target whose authority was verified any other way, before uploading or quoting", async () => {
+    const response = privateScope("https_challenge");
+    const cwd = await projectDir(response);
+    const resolved = resolvedFor("http://127.0.0.1:8000");
+    const { fetchMock, recorded } = admittingServer(cwd, response);
+    await expect(
+      runTest(
+        {
+          cwd,
+          suite: "authorized.yaml",
+          maxCredits: "30",
+          yes: true,
+          stateDirectory: cwd,
+          handleSignals: false,
+          env: { AUGMENTWORKS_API_URL: API }
+        },
+        hostedDependencies(resolved, fetchMock)
+      )
+    ).rejects.toMatchObject({
+      code: "TARGET_SCOPE_MISMATCH",
+      message: expect.stringContaining("verified from this machine (connector challenge)")
+    });
+    expect(recorded.paths).not.toContain("POST /v1/suites");
+    expect(recorded.quotes).toHaveLength(0);
+    expect(recorded.creates).toHaveLength(0);
+  });
+});
+
+describe("saved real-data suites (AUG-402)", () => {
+  async function savedSuiteProject(): Promise<string> {
+    const cwd = await projectDir();
+    await writeFile(join(cwd, "policy.assessment.yaml"), savedSuiteAssessmentYaml(), "utf8");
+    await writeFile(join(cwd, "selection.json"), `${JSON.stringify(savedSuiteManifest(), null, 2)}\n`, "utf8");
+    return cwd;
+  }
+
+  it.each([
+    { flag: "--assessment", selection: { assessment: "policy.assessment.yaml" } },
+    { flag: "--manifest", selection: { manifest: "selection.json" } }
+  ])("test $flag quotes and admits with the saved suite scope's boundary hash", async ({ selection }) => {
+    const cwd = await savedSuiteProject();
+    const resolved = resolvedFor("https://support.example.com");
+    expect(targetBoundarySha256(resolved)).not.toBe(scopeResponse.scope.targetBoundaryHash);
+    const { fetchMock, recorded } = admittingServer(cwd);
+    const policies: Array<DispatchPolicy | undefined> = [];
+
+    const estimate = await runEstimate(
+      { cwd, ...selection, env: { AUGMENTWORKS_API_URL: API } },
+      hostedDependencies(resolved, fetchMock)
+    );
+    expect(estimate.quote.quoteId).toBeDefined();
+
+    const result = await runTest(
+      {
+        cwd,
+        ...selection,
+        maxCredits: "30",
+        yes: true,
+        stateDirectory: cwd,
+        handleSignals: false,
+        env: { AUGMENTWORKS_API_URL: API }
+      },
+      { ...hostedDependencies(resolved, fetchMock), runner: fakeRunner((policy) => policies.push(policy), "complete") }
+    );
+    expect(result.run.run_id).toBe(RUN_ID);
+    expect(recorded.paths).toContain(`GET /v1/execution-scopes/${scopeResponse.scope.scopeId}`);
+    expect(recorded.quotes).toHaveLength(2);
+    expect(recorded.creates).toHaveLength(1);
+    for (const body of [...recorded.quotes, ...recorded.creates]) {
+      expect((body["target"] as { boundary_sha256: string }).boundary_sha256).toBe(
+        scopeResponse.scope.targetBoundaryHash
+      );
+      expect((body["assessment"] as { suite_revision_id: string }).suite_revision_id).toBe(SAVED_SUITE_REVISION);
+    }
+    expect(policies[0]).toMatchObject({ kind: "authorized", origin: "https://support.example.com" });
+    const binding = await loadExecutionScopeBinding(RUN_ID, { stateDirectory: cwd });
+    expect(binding).toMatchObject({
+      scopeId: scopeResponse.scope.scopeId,
+      scopeHash: scopeResponse.scope.scopeHash,
+      suiteId: SAVED_SUITE_ID,
+      suiteRevisionId: SAVED_SUITE_REVISION
+    });
   });
 });

@@ -147,7 +147,9 @@ execution_scope:
   different workspace stops the run before anything is sent.
 - `target.base_url` must point at the address the target was registered with.
   A loopback address is transport only and can't stand in for a registered
-  public address.
+  public address. A target registered at a private or loopback address runs
+  real-data tests once `target verify` confirmed it from your machine
+  (connector challenge).
 - Every configured operation must call a registered endpoint (same method
   and path). Real-data runs check replies only: `scope create` refuses a
   suite whose cases declare `observations`, and a configured `prepare` or

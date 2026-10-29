@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -24,9 +24,18 @@ import {
 } from "../../src/real-data/capabilities.js";
 import { applyRedactionProfile, failClosedPrivacyService, minimizeForUpload, registerPrivacyService } from "../../src/real-data/privacy.js";
 import { persistExecutionScopeBinding, loadExecutionScopeBinding, hostedBinding, assertBindingMatches } from "../../src/real-data/scope-store.js";
-import { requireHostedAuthorizedScope, resolveDispatchPolicyForBinding } from "../../src/real-data/hosted.js";
+import {
+  executionScopeRefFromNativeDocument,
+  loadPersistedDispatchPolicy,
+  requireHostedAuthorizedScope,
+  resolveDispatchPolicyForBinding
+} from "../../src/real-data/hosted.js";
 import { consumeProbeAllowance } from "../../src/real-data/budget.js";
-import { assertCommandAllowed, authorizedDispatchPolicy } from "../../src/real-data/policy.js";
+import {
+  assertCommandAllowed,
+  assertDispatchReadyForQuote,
+  authorizedDispatchPolicy
+} from "../../src/real-data/policy.js";
 import { classifyRealDataFailure } from "../../src/real-data/classify.js";
 import { realDataError } from "../../src/real-data/errors.js";
 import { revokeLocalScope, loadRevokedLocalScopeIds } from "../../src/real-data/local-revoke.js";
@@ -250,6 +259,121 @@ describe("persisted scope binding", () => {
         configSha256: "b".repeat(64)
       })
     ).toThrow(expect.objectContaining({ code: "TARGET_SCOPE_MISMATCH" }));
+  });
+});
+
+describe("persisted private-target permission (AUG-399)", () => {
+  const privateResponse = () =>
+    hostedScopeResponse({
+      boundary: { assessedIdentity: "http://127.0.0.1:8000" },
+      verificationMethod: "connector_challenge"
+    });
+
+  async function persistRaw(directory: string, binding: Record<string, unknown>): Promise<void> {
+    await mkdir(join(directory, "execution-scopes"), { recursive: true });
+    await writeFile(
+      join(directory, "execution-scopes", `${String(binding["runId"])}.json`),
+      `${JSON.stringify(binding, null, 2)}\n`,
+      "utf8"
+    );
+  }
+
+  it("stores allowPrivate only when true, and still loads bindings written before the field existed", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "aw-scope-"));
+    temporaryDirectories.push(directory);
+    const resolved = resolvedTarget("https://support.example.com");
+    const response = hostedScopeResponse();
+    const legacy = hostedBinding({
+      runId: "run-legacy",
+      configSha256: resolved.configDigest,
+      workspaceId: WORKSPACE_ID,
+      scope: response.scope,
+      boundary: response.targetBoundary
+    });
+    expect(legacy).not.toHaveProperty("allowPrivate");
+    await persistRaw(directory, legacy);
+    const loaded = await loadExecutionScopeBinding("run-legacy", { stateDirectory: directory });
+    expect(loaded?.allowPrivate).toBeUndefined();
+    await expect(
+      loadPersistedDispatchPolicy({ runId: "run-legacy", configSha256: resolved.configDigest, resolved, stateDirectory: directory })
+    ).resolves.toBeUndefined();
+  });
+
+  it("resumes a connector-verified private binding, and reads a binding without the field as public-only", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "aw-scope-"));
+    temporaryDirectories.push(directory);
+    const resolved = resolvedTarget("http://127.0.0.1:8000");
+    const response = privateResponse();
+    const binding = hostedBinding({
+      runId: "run-private",
+      configSha256: resolved.configDigest,
+      workspaceId: WORKSPACE_ID,
+      scope: response.scope,
+      boundary: response.targetBoundary,
+      allowPrivate: true
+    });
+    await persistExecutionScopeBinding(binding, { stateDirectory: directory });
+    expect((await loadExecutionScopeBinding("run-private", { stateDirectory: directory }))?.allowPrivate).toBe(true);
+    await expect(
+      loadPersistedDispatchPolicy({ runId: "run-private", configSha256: resolved.configDigest, resolved, stateDirectory: directory })
+    ).resolves.toBeUndefined();
+
+    const { allowPrivate: _dropped, ...withoutField } = { ...binding, runId: "run-private-legacy" };
+    await persistRaw(directory, withoutField);
+    await expect(
+      loadPersistedDispatchPolicy({
+        runId: "run-private-legacy",
+        configSha256: resolved.configDigest,
+        resolved,
+        stateDirectory: directory
+      })
+    ).rejects.toMatchObject({ code: "TARGET_SCOPE_MISMATCH" });
+  });
+
+  it("lets a quote go ahead for a private origin only when the hosted authority passed connector challenge", () => {
+    const resolved = resolvedTarget("http://127.0.0.1:8000");
+    const verified = privateResponse();
+    const policy = authorizedDispatchPolicy({
+      scope: verified.scope,
+      boundary: verified.targetBoundary,
+      allowPrivate: true
+    });
+    expect(policy).toMatchObject({ local: false, allowPrivate: true, origin: "http://127.0.0.1:8000" });
+    expect(() => assertDispatchReadyForQuote(policy, resolved)).not.toThrow();
+
+    expect(() =>
+      authorizedDispatchPolicy({ scope: verified.scope, boundary: verified.targetBoundary })
+    ).toThrow(expect.objectContaining({ code: "TARGET_SCOPE_MISMATCH" }));
+    const publicPolicy = authorizedDispatchPolicy({
+      scope: hostedScopeResponse().scope,
+      boundary: hostedScopeResponse().targetBoundary
+    });
+    expect(publicPolicy.allowPrivate).toBe(false);
+    expect(() => assertDispatchReadyForQuote(publicPolicy, resolved)).toThrow(
+      expect.objectContaining({ code: "TARGET_SCOPE_MISMATCH" })
+    );
+  });
+});
+
+describe("saved suite scope reference (AUG-402)", () => {
+  const suite = (executionScope: unknown) => ({ schemaVersion: "aw-customer-suite/3", executionScope });
+
+  it("projects a saved revision's full sealed scope to the reference fields", () => {
+    const { scope } = hostedScopeResponse();
+    expect(executionScopeRefFromNativeDocument(suite(scope))).toEqual({
+      schemaVersion: scope.schemaVersion,
+      scopeId: scope.scopeId,
+      revision: scope.revision,
+      scopeHash: scope.scopeHash
+    });
+  });
+
+  it("still accepts a reference-only scope and rejects a scope with unknown fields", () => {
+    const { scope } = hostedScopeResponse();
+    const ref = { schemaVersion: scope.schemaVersion, scopeId: scope.scopeId, revision: scope.revision };
+    expect(executionScopeRefFromNativeDocument(suite(ref))).toEqual(ref);
+    expect(executionScopeRefFromNativeDocument(suite({ ...scope, unexpected: true }))).toBeUndefined();
+    expect(executionScopeRefFromNativeDocument({ schemaVersion: "aw-customer-suite/2", executionScope: scope })).toBeUndefined();
   });
 });
 
