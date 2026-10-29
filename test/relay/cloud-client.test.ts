@@ -114,6 +114,99 @@ describe("CloudClient", () => {
     ]);
   });
 
+  it("AUG-412: reads skipped_sequences from a poll, treating an old server's absent field as none", async () => {
+    const command = relayCommand("send", { sequence: 3 });
+    const bodies: unknown[] = [
+      { protocol_version: RELAY_PROTOCOL_VERSION, run_id: "run-1", session_id: "session-1", status: "running", command: null },
+      {
+        protocol_version: RELAY_PROTOCOL_VERSION,
+        run_id: "run-1",
+        session_id: "session-1",
+        status: "running",
+        command,
+        skipped_sequences: [2]
+      },
+      {
+        protocol_version: RELAY_PROTOCOL_VERSION,
+        run_id: "run-1",
+        session_id: "session-1",
+        status: "running",
+        command: null,
+        skipped_sequences: [2]
+      },
+      {
+        protocol_version: RELAY_PROTOCOL_VERSION,
+        run_id: "run-1",
+        session_id: "session-1",
+        status: "running",
+        command: null,
+        skipped_sequences: [1]
+      },
+      {
+        protocol_version: RELAY_PROTOCOL_VERSION,
+        run_id: "run-1",
+        session_id: "session-1",
+        status: "running",
+        command: null,
+        skipped_sequences: [3, 2]
+      },
+      {
+        protocol_version: RELAY_PROTOCOL_VERSION,
+        run_id: "run-1",
+        session_id: "session-1",
+        status: "running",
+        command,
+        skipped_sequences: [3]
+      }
+    ];
+    const client = new CloudClient({
+      apiUrl: "http://127.0.0.1:8787",
+      accessToken: "project-token",
+      fetch: vi.fn<typeof fetch>(async () => Response.json(bodies.shift()))
+    });
+    const poll = () =>
+      client.pollOperation({
+        runId: "run-1",
+        sessionId: "session-1",
+        afterSequence: 1,
+        fencingEpoch: 2,
+        waitMs: 0
+      });
+    expect((await poll())?.skipped_sequences).toEqual([]);
+    expect(await poll()).toMatchObject({ skipped_sequences: [2], command: { sequence: 3 } });
+    expect(await poll()).toMatchObject({ skipped_sequences: [2], command: null });
+    // At or below the cursor, out of order, or naming the delivered command: invalid.
+    await expect(poll()).rejects.toMatchObject({ code: "INVALID_CLOUD_RESPONSE" });
+    await expect(poll()).rejects.toMatchObject({ code: "INVALID_CLOUD_RESPONSE" });
+    await expect(poll()).rejects.toMatchObject({ code: "INVALID_CLOUD_RESPONSE" });
+  });
+
+  it("AUG-412: a poll 503 carries retry_after_ms from Retry-After and is retryable", async () => {
+    const client = new CloudClient({
+      apiUrl: "http://127.0.0.1:8787",
+      accessToken: "project-token",
+      fetch: vi.fn<typeof fetch>(async () =>
+        Response.json(
+          { error: { code: "RELAY_UNAVAILABLE", message: "The relay is temporarily unavailable." } },
+          { status: 503, headers: { "Retry-After": "2" } }
+        )
+      )
+    });
+    await expect(
+      client.pollOperation({
+        runId: "run-1",
+        sessionId: "session-1",
+        afterSequence: 1,
+        fencingEpoch: 2,
+        waitMs: 0
+      })
+    ).rejects.toMatchObject({
+      code: "RELAY_UNAVAILABLE",
+      retryable: true,
+      details: { http_status: 503, retry_after_ms: 2_000 }
+    });
+  });
+
   it("allows only HTTPS or an HTTP loopback development relay", () => {
     expect(normalizeApiUrl("https://augmentworks.ai").origin).toBe("https://augmentworks.ai");
     expect(normalizeApiUrl("http://localhost:8787").origin).toBe("http://localhost:8787");

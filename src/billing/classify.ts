@@ -2,6 +2,7 @@ import {
   billingCoverageKnowledge,
   classifyHostedOutcome,
   isResolvedHostedOutcome,
+  judgeJobsFromProgress,
   type HostedRunAssessment,
   type HostedRunWork
 } from "../outcome/classify.js";
@@ -37,7 +38,8 @@ export type BillingRunAssessment = HostedRunAssessment;
  * | completed | absent | passed | terminal | passed (deterministic-only, known coverage) | 0 |
  * | completed | absent | failed/inconclusive/error | terminal | failed | 10 |
  * | completed | absent | null/unknown | terminal | incomplete/unknown | 11 |
- * | completed | pending/partial | any | continue | incomplete | 11 |
+ * | completed | pending, or partial with judge jobs left | any | continue | incomplete | 11 |
+ * | completed | partial, every judge job done | any | terminal | failed (inconclusive) | 10 |
  * | completed | complete | passed | terminal | passed | 0 |
  * | completed | complete | failed/inconclusive/error | terminal | failed | 10 |
  * | completed | complete | null/unknown | terminal | incomplete/unknown | 11 |
@@ -74,7 +76,8 @@ export function classifyBillingRunStatus(status: BillingRunStatus): BillingRunCl
     executionStatus: status.executionStatus,
     evaluationStatus: status.evaluationStatus,
     outcome: status.outcome ?? null,
-    coverageKnown: billingCoverageKnowledge(status.progress, status.evaluationStatus)
+    coverageKnown: billingCoverageKnowledge(status.progress, status.evaluationStatus),
+    judgeJobs: judgeJobsFromProgress(status.progress)
   });
   return {
     observation: "succeeded",

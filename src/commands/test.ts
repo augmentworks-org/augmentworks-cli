@@ -16,9 +16,13 @@ import {
 import type { ResolvedConfig } from "../config/types.js";
 import { targetBoundarySha256 } from "../config/boundary.js";
 import { HttpConnector } from "../connector/http.js";
-import { AwError, EXIT, exitCodeFor, sanitizeTerminal } from "../errors.js";
-import { classifyHostedOutcome } from "../outcome/classify.js";
-import { gradedRunStatus, waitForGradedReport } from "../outcome/graded.js";
+import { AwError, EXIT, exitCodeFor, sanitizeTerminal, withRunId } from "../errors.js";
+import {
+  classifyHostedOutcome,
+  gradingStillPending,
+  type JudgeJobProgress
+} from "../outcome/classify.js";
+import { gradedRunStatus, readJudgeJobProgress, waitForGradedReport } from "../outcome/graded.js";
 import {
   loadAssessmentFile,
   packetRequiresMultiTurn,
@@ -206,6 +210,11 @@ export interface TestResult {
   readonly execution?: SelectionExecution;
   readonly executionKind?: SelectionExecutionKind;
   readonly aggregateExitCode?: number;
+  /**
+   * Judge-job progress read from billing status when the graded run is
+   * `partial` (AUG-403). With every judge job done, grading has finished.
+   */
+  readonly judgeJobs?: JudgeJobProgress;
 }
 
 export interface EstimateResult {
@@ -351,7 +360,8 @@ async function executeHostedSelection(
       intentStore,
       tenant: session.tenant,
       stateDirectory,
-      ...(options.signal === undefined ? {} : { signal: options.signal })
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+      onNotice: (message) => writeLine(stderr, message)
     };
     const resolved = await resolveHostedCreateRequest({
       selection,
@@ -438,14 +448,20 @@ async function executeHostedSelection(
     }
 
     if (isTerminal(binding.status)) {
-      const run = await settleGradedRun(
-        session,
-        await session.cloud.getRunStatus(binding.run_id, options.signal),
-        dependencies,
-        stderr,
-        options.signal
-      );
-      await releaseTerminalIfSafe(recovery, binding, run);
+      let run: RunStatusResponse;
+      let judgeJobs: JudgeJobProgress | undefined;
+      try {
+        ({ run, judgeJobs } = await settleGradedRun(
+          session,
+          await session.cloud.getRunStatus(binding.run_id, options.signal),
+          dependencies,
+          stderr,
+          options.signal
+        ));
+        await releaseTerminalIfSafe(recovery, binding, run);
+      } catch (error) {
+        throw withRunId(error, binding.run_id);
+      }
       await emitSelectionCheckpoint(options, {
         phase: "server_terminal",
         runId: run.run_id,
@@ -454,6 +470,7 @@ async function executeHostedSelection(
       return {
         binding,
         run,
+        ...(judgeJobs === undefined ? {} : { judgeJobs }),
         ...(resolved.quote === undefined ? {} : { quoteUnits: resolved.quote.executionUnits })
       };
     }
@@ -501,7 +518,13 @@ async function executeHostedSelection(
     try {
       const finished = await runner.run();
       await releaseTerminalIfSafe(recovery, binding, finished);
-      const run = await settleGradedRun(session, finished, dependencies, stderr, options.signal);
+      const { run, judgeJobs } = await settleGradedRun(
+        session,
+        finished,
+        dependencies,
+        stderr,
+        options.signal
+      );
       await emitSelectionCheckpoint(options, {
         phase: "server_terminal",
         runId: run.run_id,
@@ -510,8 +533,12 @@ async function executeHostedSelection(
       return {
         binding,
         run,
+        ...(judgeJobs === undefined ? {} : { judgeJobs }),
         ...(resolved.quote === undefined ? {} : { quoteUnits: resolved.quote.executionUnits })
       };
+    } catch (error) {
+      // AUG-412: name the run in the JSON error so it can be recovered or reported.
+      throw withRunId(error, binding.run_id);
     } finally {
       removeSignals();
     }
@@ -532,8 +559,25 @@ async function settleGradedRun(
   dependencies: TestDependencies,
   stderr: Pick<NodeJS.WriteStream, "write">,
   signal: AbortSignal | undefined
-): Promise<RunStatusResponse> {
-  if (run.status !== "completed" || run.evaluation_status !== undefined) return run;
+): Promise<{ readonly run: RunStatusResponse; readonly judgeJobs?: JudgeJobProgress }> {
+  if (run.status !== "completed") return { run };
+  // AUG-403: neither the relay status nor the run report carries judge-job
+  // progress, so a partial result fetches it from billing status.
+  let judgeJobs: JudgeJobProgress | undefined;
+  const readJudgeJobs = async (): Promise<JudgeJobProgress | undefined> => {
+    judgeJobs = await readJudgeJobProgress({
+      cloud: session.cloud,
+      runId: run.run_id,
+      workspaceId: session.identity.workspaceId,
+      ...(signal === undefined ? {} : { signal })
+    });
+    return judgeJobs;
+  };
+  if (run.evaluation_status !== undefined) {
+    if (run.evaluation_status !== "partial") return { run };
+    await readJudgeJobs();
+    return judgeJobs === undefined ? { run } : { run, judgeJobs };
+  }
   const now = dependencies.now ?? Date.now;
   const report = await waitForGradedReport({
     cloud: session.cloud,
@@ -541,11 +585,13 @@ async function settleGradedRun(
     workspaceId: session.identity.workspaceId,
     deadline: now() + GRADING_WAIT_MS,
     now,
+    judgeJobs: readJudgeJobs,
     ...(dependencies.sleep === undefined ? {} : { sleep: dependencies.sleep }),
     ...(signal === undefined ? {} : { signal }),
     onWaiting: () => writeLine(stderr, "The target finished. Waiting for grading before reporting a result.")
   });
-  return gradedRunStatus(run, report);
+  const graded = gradedRunStatus(run, report, judgeJobs);
+  return judgeJobs === undefined ? { run: graded } : { run: graded, judgeJobs };
 }
 
 async function emitSelectionCheckpoint(
@@ -972,7 +1018,7 @@ async function runAllShardsSelection(
         await persistCoverageArtifact(options, context.cwd, extras.stateDirectory, manifest, execution);
         throw error;
       }
-      const outcome = hostedExitCode(last.run);
+      const outcome = hostedExitCode(last.run, last.judgeJobs);
       if (outcome === EXIT.OK) {
         if (last.quoteUnits === undefined && next.quotedUnits <= 0) {
           execution = await persist(interruptExecution(execution));
@@ -1009,7 +1055,7 @@ async function runAllShardsSelection(
     );
     const aggregateExitCode = aggregateExecutionExitCode(
       execution,
-      last === undefined ? undefined : hostedExitCode(last.run)
+      last === undefined ? undefined : hostedExitCode(last.run, last.judgeJobs)
     );
     if (last === undefined) {
       if (execution.state === "interrupted") {
@@ -1490,7 +1536,7 @@ async function resolveHostedDispatchPolicy(options: {
   const pin = suitePinFromHostedSelection(options.selection);
   if (pin !== undefined) {
     const revision = await options.cloud.getSuiteRevision(pin.suiteId, pin.revisionId, options.signal);
-    const ref = executionScopeRefFromNativeDocument(revision.canonicalDocument);
+    const ref = executionScopeRefFromNativeDocument(revision.canonicalDocument ?? revision);
     if (ref !== undefined) {
       const response = await requireHostedAuthorizedScope(options.cloud, ref, {
         workspaceId: options.workspaceId,
@@ -1889,7 +1935,8 @@ async function executionScopeRefForSelection(
   const pin = suitePinFromHostedSelection(selection);
   if (pin === undefined) return undefined;
   const revision = await cloud.getSuiteRevision(pin.suiteId, pin.revisionId, signal);
-  return executionScopeRefFromNativeDocument(revision.canonicalDocument);
+  // The server returns the sealed revision document itself, with no canonicalDocument wrapper.
+  return executionScopeRefFromNativeDocument(revision.canonicalDocument ?? revision);
 }
 
 async function assertHostedConversationAdmission(
@@ -2180,7 +2227,7 @@ export function createTestCommand(dependencies: TestDependencies = {}): Command 
           } else {
             writeHostedResult(stdout, result);
           }
-          const exitCode = result.aggregateExitCode ?? hostedExitCode(result.run);
+          const exitCode = result.aggregateExitCode ?? hostedExitCode(result.run, result.judgeJobs);
           if (exitCode !== EXIT.OK) setExitCode(exitCode);
         } catch (error) {
           if (values.json !== true) throw error;
@@ -2261,11 +2308,12 @@ export function parsePacketReference(value: string): {
   return { key: match[1], version: match[2] };
 }
 
-export function hostedExitCode(run: RunStatusResponse): number {
+export function hostedExitCode(run: RunStatusResponse, judgeJobs?: JudgeJobProgress): number {
   return classifyHostedOutcome({
     executionStatus: run.status,
     evaluationStatus: run.evaluation_status,
-    outcome: run.outcome ?? null
+    outcome: run.outcome ?? null,
+    judgeJobs
   }).exitCode;
 }
 
@@ -2482,7 +2530,8 @@ function hostedJsonResult(result: TestResult): Record<string, unknown> {
     ...(result.run.evaluation_status === undefined
       ? {}
       : { evaluationStatus: result.run.evaluation_status }),
-    outcome: result.run.outcome ?? null
+    outcome: result.run.outcome ?? null,
+    ...(result.judgeJobs === undefined ? {} : { judgeJobs: result.judgeJobs })
   });
   return {
     run_id: result.run.run_id,
@@ -2513,10 +2562,7 @@ function writeHostedResult(stdout: Pick<NodeJS.WriteStream, "write">, result: Te
   if (result.run.evaluation_status !== undefined) {
     writeLine(stdout, `Grading: ${sanitizeTerminal(result.run.evaluation_status)}`);
   }
-  if (
-    result.run.evaluation_status === "pending" ||
-    result.run.evaluation_status === "partial"
-  ) {
+  if (gradingStillPending(result.run.evaluation_status, result.judgeJobs)) {
     writeLine(
       stdout,
       "Your test evidence is saved. Grading is pending on the original run. Do not re-run the test command."

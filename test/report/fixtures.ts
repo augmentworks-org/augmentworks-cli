@@ -69,3 +69,79 @@ export function fixtureIdentity(name: string): Record<string, unknown> {
   if (identity === undefined) throw new Error(`missing identity ${name}`);
   return identity;
 }
+
+export const TIMED_OUT_ATTEMPT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const REPORT_FIXTURE_RUN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const REPORT_FIXTURE_EVALUATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+/** The judge's inconclusive (uncertain) verdict on a timed-out attempt that never replied. */
+export function timedOutCriterionIndex(origin: string): Record<string, unknown> {
+  return mutatedFixtureResponse("criterion_index_r01_fail", origin, (body) => {
+    body["attemptId"] = TIMED_OUT_ATTEMPT_ID;
+    body["criteria"] = [
+      {
+        criterionId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        criterionKey: "response-quality/0.1.0/R01/facts",
+        required: true,
+        verdict: "uncertain",
+        detailUrl: null,
+        evidence: { availability: "missing", text: null, sha256: null, truncated: false }
+      }
+    ];
+  }).body as Record<string, unknown>;
+}
+
+/**
+ * AUG-403 reproduction: `report_required_fail` plus a second attempt that
+ * timed out. It got no reply and no judgment, so the report is not ready and
+ * the evaluation either completed (fixed server) or stayed `partial` with no
+ * judge job left (older server).
+ */
+export function timedOutAttemptReport(
+  origin: string,
+  evaluationStatus: "complete" | "partial",
+  // The hosted server reports a timed-out send as completed and uncertain.
+  shape: { executionStatus: string; outcome: string; runOutcome?: string; graded?: boolean } = {
+    executionStatus: "failed",
+    outcome: "error"
+  }
+): Record<string, unknown> {
+  return mutatedFixtureResponse("report_required_fail", origin, (body) => {
+    const attempts = body["attempts"] as Record<string, unknown>[];
+    attempts.push({
+      attemptId: TIMED_OUT_ATTEMPT_ID,
+      scenarioId: "response-quality/0.1.0/R01",
+      repetitionIndex: 1,
+      attemptNumber: 1,
+      executionStatus: shape.executionStatus,
+      cleanupState: "not_required",
+      // The hosted server grades a timed-out attempt, so it has criteria.
+      criterionIndexUrl:
+        shape.graded === true
+          ? `${origin}/v1/runs/${REPORT_FIXTURE_RUN_ID}/evaluations/${REPORT_FIXTURE_EVALUATION_ID}/attempts/${TIMED_OUT_ATTEMPT_ID}/criteria`
+          : null,
+      mappedResponse: {
+        availability: "missing",
+        text: null,
+        sha256: null,
+        truncated: false,
+        turnId: null,
+        evidenceId: null
+      },
+      outcome: shape.outcome
+    });
+    body["evaluationStatus"] = evaluationStatus;
+    if (shape.runOutcome !== undefined) body["outcome"] = shape.runOutcome;
+    body["aggregate"] = { passed: 0, failed: 1, error: 1 };
+    body["coverage"] = {
+      plannedAttempts: 2,
+      completedAttempts: 2,
+      requiredJudgmentsPlanned: 2,
+      // The hosted server counts the judge's verdict on a timed-out attempt
+      // as a completed judgment, even when it is inconclusive.
+      requiredJudgmentsComplete: shape.graded === true ? 2 : 1
+    };
+    body["reportReady"] = false;
+    body["page"] = { nextCursor: null, hasMore: false, totalAttempts: 2 };
+  }).body as Record<string, unknown>;
+}

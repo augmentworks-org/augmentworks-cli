@@ -5,7 +5,8 @@ import { CLI_VERSION } from "../version.js";
 import {
   classifyHostedOutcome,
   coverageKnowledge,
-  type HostedOutcomeClassification
+  type HostedOutcomeClassification,
+  type JudgeJobProgress
 } from "../outcome/classify.js";
 import type { AccessTokenProvider } from "../auth/types.js";
 import { remapAuthError } from "../auth/client.js";
@@ -154,7 +155,28 @@ const AUTH_FAILURE_CODES = new Set([
   "CREDENTIAL_STORE_UNAVAILABLE"
 ]);
 
-export function classifyRunReportExport(document: RunReportExport): HostedOutcomeClassification & {
+/**
+ * The attempt has no reply to show: the server reports its reply missing and
+ * the attempt did not pass. Execution that did not complete, or a native
+ * outcome of error or not_run, means no reply was captured.
+ */
+function attemptHasNoReply(report: RunReport, attempt: RunReport["attempts"][number]): boolean {
+  if (attempt.mappedResponse.availability !== "missing") return false;
+  if (attempt.outcome === "pass") return false;
+  return (
+    attempt.executionStatus !== "completed" ||
+    attempt.outcome === "error" ||
+    attempt.outcome === "not_run" ||
+    // The hosted report marks a timed-out send completed and uncertain. On a
+    // run that still passed, a missing reply is an evidence gap instead.
+    (attempt.outcome === "uncertain" && report.outcome !== "passed")
+  );
+}
+
+export function classifyRunReportExport(
+  document: RunReportExport,
+  judgeJobs?: JudgeJobProgress | null
+): HostedOutcomeClassification & {
   readonly retrieved: boolean;
   readonly complete: boolean;
 } {
@@ -197,7 +219,8 @@ export function classifyRunReportExport(document: RunReportExport): HostedOutcom
     executionStatus: document.report.executionStatus,
     evaluationStatus: document.report.evaluationStatus,
     outcome: document.report.outcome,
-    coverageKnown: coverageKnowledge(document.report.coverage)
+    coverageKnown: coverageKnowledge(document.report.coverage),
+    judgeJobs
   });
   if (classified.exitCode === EXIT.OK && document.report.reportReady !== true) {
     return {
@@ -521,7 +544,12 @@ class RunReportClient {
       ...reportConsistencyDiagnostics({
         report: assembled,
         criteria,
-        judgmentsComparable: assembled.evaluationBinding !== null && criteriaComplete
+        judgmentsComparable: assembled.evaluationBinding !== null && criteriaComplete,
+        noReplyAttemptIds: new Set(
+          assembled.attempts
+            .filter((attempt) => attemptHasNoReply(assembled, attempt))
+            .map((attempt) => attempt.attemptId)
+        )
       })
     );
     const complete = criteriaComplete && evidenceComplete && diagnostics.length === 0;
@@ -655,7 +683,8 @@ class RunReportClient {
         attempt.attemptId,
         binding,
         diagnostics,
-        report.workspaceId
+        report.workspaceId,
+        attemptHasNoReply(report, attempt)
       );
       for (const detail of details) {
         const key = `${detail.attemptId}:${detail.criterionId}`;
@@ -680,7 +709,8 @@ class RunReportClient {
     attemptId: string,
     binding: EvaluationBinding,
     diagnostics: ExportDiagnostic[],
-    workspaceId?: string
+    workspaceId?: string,
+    noReply = false
   ): Promise<{ details: CriterionDetail[]; complete: boolean }> {
     const details: CriterionDetail[] = [];
     const seenCursors = new Set<string>();
@@ -709,7 +739,8 @@ class RunReportClient {
         return this.#finishAttemptCriteria(details, diagnostics, {
           runId,
           claimedTotal: null,
-          requireClaimedTotal: false
+          requireClaimedTotal: false,
+          noReply
         });
       }
       const index = indexParsed.index;
@@ -803,7 +834,8 @@ class RunReportClient {
     return this.#finishAttemptCriteria(details, diagnostics, {
       runId,
       claimedTotal: criterionTotals.value,
-      requireClaimedTotal: true
+      requireClaimedTotal: true,
+      noReply
     });
   }
 
@@ -814,6 +846,7 @@ class RunReportClient {
       readonly runId: string;
       readonly claimedTotal: number | null;
       readonly requireClaimedTotal: boolean;
+      readonly noReply: boolean;
     }
   ): { details: CriterionDetail[]; complete: boolean } {
     const uniqueIds = new Set(details.map((item) => item.criterionId));
@@ -848,7 +881,9 @@ class RunReportClient {
         return { details, complete: false };
       }
     }
-    const verdictDiagnostics = criterionWireVerdictDiagnostics(details);
+    // AUG-403: an attempt that never replied is judged inconclusive. That
+    // verdict is the result (exit 10), not grading still to come.
+    const verdictDiagnostics = options.noReply ? [] : criterionWireVerdictDiagnostics(details);
     if (verdictDiagnostics.length > 0) {
       diagnostics.push(...verdictDiagnostics);
       return { details, complete: false };
@@ -935,6 +970,12 @@ class RunReportClient {
     diagnostics: ExportDiagnostic[]
   ): boolean {
     let complete = true;
+    // AUG-403: an attempt that never got a reply (it timed out, failed or did
+    // not run) has no reply to export. That is the result, not an evidence
+    // gap. A passing attempt still needs its reply, and purged stays a gap.
+    const noReplyAttempts = new Set(
+      report.attempts.filter((attempt) => attemptHasNoReply(report, attempt)).map((attempt) => attempt.attemptId)
+    );
     for (const attempt of report.attempts) {
       if (attempt.mappedResponse.truncated) {
         diagnostics.push({
@@ -944,7 +985,7 @@ class RunReportClient {
         complete = false;
       }
       if (
-        attempt.mappedResponse.availability === "missing" ||
+        (attempt.mappedResponse.availability === "missing" && !noReplyAttempts.has(attempt.attemptId)) ||
         attempt.mappedResponse.availability === "purged"
       ) {
         diagnostics.push({
@@ -973,7 +1014,11 @@ class RunReportClient {
         });
         complete = false;
       }
-      if (criterion.required && (criterion.evidence.availability === "missing" || criterion.evidence.availability === "purged")) {
+      if (
+        criterion.required &&
+        ((criterion.evidence.availability === "missing" && !noReplyAttempts.has(criterion.attemptId)) ||
+          criterion.evidence.availability === "purged")
+      ) {
         diagnostics.push({
           code: "CRITERION_EVIDENCE_MISSING",
           message: `Required criterion ${criterion.criterionId} evidence is ${criterion.evidence.availability}.`

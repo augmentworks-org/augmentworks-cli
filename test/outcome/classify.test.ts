@@ -4,7 +4,10 @@ import { EXIT } from "../../src/errors.js";
 import { hostedExitCode } from "../../src/commands/test.js";
 import {
   classifyHostedOutcome,
-  coverageKnowledge
+  coverageKnowledge,
+  gradingStillPending,
+  judgeJobsDone,
+  judgeJobsFromProgress
 } from "../../src/outcome/classify.js";
 import type { RunStatusResponse } from "../../src/cloud/protocol.js";
 
@@ -182,5 +185,65 @@ describe("shared hosted outcome classification", () => {
         requiredJudgmentsComplete: null
       })
     ).toBeNull();
+  });
+});
+
+describe("partial grading with judge-job progress (AUG-403)", () => {
+  it("keeps waiting while judge jobs remain or progress is unknown", () => {
+    for (const judgeJobs of [undefined, null, { planned: 4, completed: 3 }]) {
+      const classified = classifyHostedOutcome({
+        executionStatus: "completed",
+        evaluationStatus: "partial",
+        outcome: "failed",
+        judgeJobs
+      });
+      expect(classified.waitTerminal).toBe(false);
+      expect(classified.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    }
+  });
+
+  it("finishes with exit 10 once every judge job is done, whatever the outcome", () => {
+    for (const outcome of ["passed", "failed", "inconclusive", null]) {
+      const classified = classifyHostedOutcome({
+        executionStatus: "completed",
+        evaluationStatus: "partial",
+        outcome,
+        coverageKnown: true,
+        judgeJobs: { planned: 3, completed: 3 }
+      });
+      expect(classified.waitTerminal).toBe(true);
+      expect(classified.assessment).toBe("failed");
+      expect(classified.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+    }
+  });
+
+  it("keeps interrupted and evaluator-error exits ahead of a finished partial", () => {
+    expect(
+      classifyHostedOutcome({
+        executionStatus: "cancelled",
+        evaluationStatus: "partial",
+        outcome: null,
+        judgeJobs: { planned: 1, completed: 1 }
+      }).exitCode
+    ).toBe(EXIT.INTERRUPTED);
+  });
+
+  it("reads judge-job progress conservatively", () => {
+    expect(judgeJobsDone({ planned: 0, completed: 0 })).toBe(true);
+    expect(judgeJobsDone({ planned: 2, completed: 1 })).toBe(false);
+    expect(judgeJobsDone({ planned: Number.NaN, completed: 1 })).toBe(false);
+    expect(judgeJobsDone(undefined)).toBe(false);
+    expect(gradingStillPending("pending", { planned: 1, completed: 1 })).toBe(true);
+    expect(gradingStillPending("partial", { planned: 1, completed: 1 })).toBe(false);
+    expect(gradingStillPending("complete")).toBe(false);
+    expect(
+      judgeJobsFromProgress({ plannedJudgeJobs: 4, completedJudgeJobs: 2 })
+    ).toEqual({ planned: 4, completed: 2 });
+  });
+
+  it("gives the hosted test exit 10 for a finished partial", () => {
+    const run = runStatus({ evaluation_status: "partial", outcome: "failed" });
+    expect(hostedExitCode(run)).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(hostedExitCode(run, { planned: 2, completed: 2 })).toBe(EXIT.ASSESSMENT_FAILED);
   });
 });

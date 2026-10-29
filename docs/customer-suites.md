@@ -30,12 +30,12 @@ are fictional. This text is not legal approval. Do not set
 `synthetic_only: true` on a live or authorized document, grant `suite:write`
 to a machine key, or test a third party without authority.
 
-The command exists in this `0.4.0` package. Native hosted
+The command exists in this `0.4.1` package. Native hosted
 `aw-customer-suite/1` upload translation shipped in immutable npm `0.3.7`
 and is not in immutable registry `0.3.6`. From this clone after `npm ci` and
-`npm run build`, use `node dist/index.js`. Pin `@augmentworks/cli@0.4.0`
-after the protected `v0.4.0` publish. Do not assume registry `0.3.6`
-contains the upload translation, and do not overwrite `0.3.9`, `0.3.8` or `0.3.7`.
+`npm run build`, use `node dist/index.js`. Pin `@augmentworks/cli@0.4.1`
+after the protected `v0.4.1` publish. Do not assume registry `0.3.6`
+contains the upload translation, and do not overwrite `0.4.0`, `0.3.9`, `0.3.8` or `0.3.7`.
 
 ## Commands
 
@@ -147,7 +147,9 @@ execution_scope:
   different workspace stops the run before anything is sent.
 - `target.base_url` must point at the address the target was registered with.
   A loopback address is transport only and can't stand in for a registered
-  public address.
+  public address. A target registered at a private or loopback address runs
+  real-data tests once `target verify` confirmed it from your machine
+  (connector challenge).
 - Every configured operation must call a registered endpoint (same method
   and path). Real-data runs check replies only: `scope create` refuses a
   suite whose cases declare `observations`, and a configured `prepare` or

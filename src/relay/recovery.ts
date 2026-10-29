@@ -5,12 +5,17 @@ import {
   RUN_INTENT_RECONCILE_PROTOCOL_VERSION,
   type ReconcileRunIntentResponse
 } from "../cloud/recovery-protocol.js";
-import type { CreateRunResponse, RunStatusResponse } from "../cloud/protocol.js";
+import {
+  commandProtocolForCreate,
+  type CreateRunResponse,
+  type RunStatusResponse
+} from "../cloud/protocol.js";
 import type { ResolvedConfig } from "../config/types.js";
 import { targetBoundarySha256 } from "../config/boundary.js";
 import type { HttpConnector } from "../connector/http.js";
 import { AwError } from "../errors.js";
-import { inspectRelayJournal } from "./journal.js";
+import { inspectRelayJournal, relayJournalExists, RelayJournal } from "./journal.js";
+import { resendJournaledCompletion } from "./completion-resend.js";
 import {
   intentRequestMatches,
   type CreateRunIntentRequest,
@@ -60,6 +65,8 @@ export interface RecoveryContext {
   readonly tenant: RunIntentTenantBinding;
   readonly stateDirectory: string;
   readonly signal?: AbortSignal;
+  /** Receives a one-line warning when recovery gives up on local work (AUG-404). */
+  readonly onNotice?: (message: string) => void;
 }
 
 export interface ExecutionRecoveryContext extends RecoveryContext {
@@ -143,7 +150,7 @@ export async function resumeRecovery(
   const binding = intent.binding;
   const status = await readBoundStatus(context, binding);
   if (isTargetExecutionTerminal(status.status)) {
-    await assertJournalSafeToRelease(binding.run_id, context.stateDirectory);
+    await settleJournalForRelease(context, binding);
     await context.intentStore.retireBoundTerminal(status);
     return {
       report: terminalReport(
@@ -217,7 +224,7 @@ export async function cancelRecovery(
     ? cancelled
     : await context.cloud.getRunStatus(binding.run_id, context.signal);
   if (isTargetExecutionTerminal(status.status)) {
-    await assertJournalSafeToRelease(binding.run_id, context.stateDirectory);
+    await settleJournalForRelease(context, binding);
     await context.intentStore.retireBoundTerminal(status);
   }
   return {
@@ -322,8 +329,79 @@ export async function releaseTerminalIfSafe(
   run: RunStatusResponse
 ): Promise<void> {
   if (!isTargetExecutionTerminal(run.status)) return;
-  await assertJournalSafeToRelease(binding.run_id, context.stateDirectory);
+  await settleJournalForRelease(context, binding);
   await context.intentStore.retireBoundTerminal(run);
+}
+
+/**
+ * AUG-404: settles what the local journal still holds for a run the server already
+ * finished, then checks that it is safe to release the run intent.
+ *
+ * - A completion whose acknowledgement was lost is re-sent from the journal. An
+ *   identical-repeat accept, RUN_TERMINAL, RELAY_CONFLICT (the server already closed
+ *   the command with a result) and, because the run is terminal, STALE_FENCE and
+ *   RUN_BINDING_MISMATCH all prove the server will never need it again.
+ * - A command that was accepted but never completed has nothing to re-send and is
+ *   recorded as abandoned.
+ * - A prepared fixture still awaiting cleanup can never get a cleanup command from
+ *   a terminal run, so its cleanup is recorded as abandoned and a warning is given.
+ *
+ * Nothing here creates a run or runs a target operation. Call it only once the
+ * server reports the run terminal.
+ */
+async function settleJournalForRelease(
+  context: RecoveryContext,
+  binding: CreateRunResponse
+): Promise<void> {
+  if (await relayJournalExists({ runId: binding.run_id, stateDirectory: context.stateDirectory })) {
+    const journal = await new RelayJournal({
+      runId: binding.run_id,
+      stateDirectory: context.stateDirectory
+    }).open();
+    let rejection: AwError | undefined;
+    try {
+      const protocolVersion = commandProtocolForCreate(binding.protocol_version);
+      for (const state of journal.unsettled()) {
+        if (state.completion === undefined) {
+          await journal.abandon(state.accepted.command_id, "run_terminal_uncompleted");
+          continue;
+        }
+        const outcome = await resendJournaledCompletion({
+          cloud: context.cloud,
+          journal,
+          state,
+          protocolVersion,
+          runTerminal: true,
+          signal: context.signal
+        });
+        if (outcome.kind === "rejected") {
+          rejection = outcome.error;
+          break;
+        }
+      }
+      if (rejection === undefined && journal.pending() === undefined) {
+        const abandoned = await journal.abandonOutstandingCleanup();
+        if (abandoned.length > 0) {
+          context.onNotice?.(
+            `Run ${binding.run_id} finished on the server before ${abandoned.length === 1 ? "a prepared test fixture was" : `${abandoned.length} prepared test fixtures were`} cleaned up (first attempt ${abandoned[0] ?? "unknown"}). AugmentWorks can no longer send that cleanup; remove the fixture from your target by hand if it matters.`
+          );
+        }
+      }
+    } finally {
+      await journal.close({ purge: false });
+    }
+    if (rejection !== undefined) {
+      throw new AwError({
+        code: "RELAY_JOURNAL_INCOMPLETE",
+        category: "cleanup",
+        message: `The assessment is terminal on the server, but it refused the saved completion of a local command (${rejection.code}). Local recovery state was kept. Do not delete the journal.`,
+        details: { resend_error_code: rejection.code },
+        runId: binding.run_id,
+        cause: rejection
+      });
+    }
+  }
+  await assertJournalSafeToRelease(binding.run_id, context.stateDirectory);
 }
 
 export async function assertJournalSafeToRelease(
@@ -340,7 +418,8 @@ export async function assertJournalSafeToRelease(
       details: {
         outstanding_count: inspection.outstandingPreparedAttempts.length,
         first_attempt_id: inspection.outstandingPreparedAttempts[0] ?? "unknown"
-      }
+      },
+      runId
     });
   }
   if (inspection.unacknowledged) {
@@ -348,7 +427,8 @@ export async function assertJournalSafeToRelease(
       code: "RELAY_JOURNAL_INCOMPLETE",
       category: "cleanup",
       message:
-        "The assessment is terminal on the server, but local command acknowledgements are incomplete. Local recovery state was kept. Run recover --resume with the original configuration."
+        "The assessment is terminal on the server, but local command acknowledgements are incomplete. Local recovery state was kept. Run recover --resume with the original configuration.",
+      runId
     });
   }
 }
@@ -372,7 +452,7 @@ async function settleBoundForCreate(
       "A different assessment is already active. Run recover to inspect it, recover --resume to continue the recorded assessment, or recover --cancel to request cancellation. Local state was not replaced."
     );
   }
-  await assertJournalSafeToRelease(intent.binding.run_id, context.stateDirectory);
+  await settleJournalForRelease(context, intent.binding);
   await context.intentStore.retireBoundTerminal(status);
   return { kind: "start_after_terminal" };
 }
@@ -397,7 +477,7 @@ async function inspectBoundIntent(
       return {
         outcome: "cleanup_outstanding",
         next_action:
-          "Target execution is terminal, but local cleanup or acknowledgements are incomplete. Run recover --resume or recover --cancel with the original configuration. Do not delete the journal.",
+          "Target execution is terminal, but local cleanup or acknowledgements are incomplete. Run recover --retire to re-send the saved completions and release the run; it never re-runs a target operation. Do not delete the journal.",
         run_id: reconciled.response.binding.run_id,
         create_request_id: intent.request.create_request_id,
         status: reconciled.response.run?.status ?? reconciled.response.binding.status,
@@ -422,7 +502,7 @@ async function inspectBoundIntent(
       return {
         outcome: "cleanup_outstanding",
         next_action:
-          "Target execution is terminal, but local cleanup or acknowledgements are incomplete. Run recover --resume or recover --cancel with the original configuration. Do not delete the journal.",
+          "Target execution is terminal, but local cleanup or acknowledgements are incomplete. Run recover --retire to re-send the saved completions and release the run; it never re-runs a target operation. Do not delete the journal.",
         run_id: status.run_id,
         create_request_id: intent.request.create_request_id,
         status: status.status,
@@ -488,7 +568,7 @@ async function retireBoundIfSafe(
         "recover --retire cannot cancel an active assessment. Use recover --cancel, or wait until target execution is terminal."
     });
   }
-  await assertJournalSafeToRelease(intent.binding.run_id, context.stateDirectory);
+  await settleJournalForRelease(context, intent.binding);
   await context.intentStore.retireBoundTerminal(status);
   const evaluation = bound?.evaluation ?? "unknown";
   return {

@@ -96,13 +96,43 @@ const deadlineBoundSchema = z
   })
   .strict();
 
+/**
+ * A sequence the server proved it closed and will never deliver (AUG-412). It is
+ * written only for a sequence the server listed in `skipped_sequences`. When the
+ * sequence belongs to a command this journal accepted but never acknowledged, the
+ * record closes that command; otherwise it must be the next sequence.
+ */
+const skippedSchema = z
+  .object({
+    journal_version: z.literal(JOURNAL_VERSION),
+    event: z.literal("skipped"),
+    at: z.string().datetime({ offset: true }),
+    run_id: z.string().min(1).max(300),
+    sequence: z.number().int().min(1).max(LIMITS.maxCommandsExpanded)
+  })
+  .strict();
+/**
+ * Local work the CLI gave up on because the server run is already terminal
+ * (AUG-404): a command that was accepted but never completed, or a prepared
+ * fixture whose cleanup the server can no longer send.
+ */
+const abandonedSchema = z
+  .object({
+    ...transitionBase,
+    event: z.literal("abandoned"),
+    reason: z.enum(["run_terminal_uncompleted", "run_terminal_cleanup"])
+  })
+  .strict();
+
 const journalRecordSchema = z.union([
   deadlineBoundSchema,
   acceptedSchema,
   startedSchema,
   successCompletionSchema,
   failureCompletionSchema,
-  acknowledgedSchema
+  acknowledgedSchema,
+  skippedSchema,
+  abandonedSchema
 ]);
 
 type AcceptedRecord = z.infer<typeof acceptedSchema>;
@@ -115,11 +145,16 @@ export type JournalCompletion =
       resultSha256: string;
     };
 
+export type JournalAbandonReason = z.infer<typeof abandonedSchema>["reason"];
+
 export interface JournalCommandState {
   readonly accepted: AcceptedRecord;
   readonly started: boolean;
   readonly completion?: JournalCompletion;
   readonly acknowledged: boolean;
+  /** The server proved it closed this command and will never deliver it again. */
+  readonly skipped?: true;
+  readonly abandoned?: JournalAbandonReason;
 }
 
 interface MutableCommandState {
@@ -127,6 +162,8 @@ interface MutableCommandState {
   started: boolean;
   completion?: JournalCompletion;
   acknowledged: boolean;
+  skipped?: true;
+  abandoned?: JournalAbandonReason;
 }
 
 export interface RelayJournalOptions {
@@ -155,6 +192,7 @@ export class RelayJournal {
   readonly #dataPolicy: DataPolicyContext | undefined;
   readonly #states = new Map<string, MutableCommandState>();
   readonly #sequenceOwners = new Map<number, string>();
+  readonly #skippedSequences = new Set<number>();
   #handle: FileHandle | undefined;
   #lock: SecureLockHandle | undefined;
   #deadline: z.infer<typeof deadlineBoundSchema> | undefined;
@@ -306,9 +344,22 @@ export class RelayJournal {
 
   pending(): JournalCommandState | undefined {
     for (const state of this.#states.values()) {
-      if (!state.acknowledged) return freezeState(state);
+      if (isOpenState(state)) return freezeState(state);
     }
     return undefined;
+  }
+
+  /** Commands that are neither acknowledged nor closed, in sequence order. */
+  unsettled(): JournalCommandState[] {
+    return [...this.#states.values()]
+      .filter(isOpenState)
+      .sort((left, right) => left.accepted.sequence - right.accepted.sequence)
+      .map(freezeState);
+  }
+
+  /** Sequences the server proved closed and that no accepted command owns. */
+  skippedSequences(): number[] {
+    return [...this.#skippedSequences].sort((left, right) => left - right);
   }
 
   outstandingPreparedAttempts(): readonly string[] {
@@ -317,7 +368,11 @@ export class RelayJournal {
       (left, right) => left.accepted.sequence - right.accepted.sequence
     );
     for (const state of ordered) {
-      if (state.accepted.kind === "prepare" && prepareMayHaveCreatedFixture(state)) {
+      if (
+        state.accepted.kind === "prepare" &&
+        state.abandoned === undefined &&
+        prepareMayHaveCreatedFixture(state)
+      ) {
         outstanding.add(state.accepted.attempt_id);
       }
       if (
@@ -363,6 +418,13 @@ export class RelayJournal {
     const requestSha256 = sha256(canonicalize(command));
     const existing = this.#states.get(command.command_id);
     if (existing !== undefined) {
+      if (existing.skipped === true || (existing.abandoned !== undefined && !existing.acknowledged)) {
+        throw journalError(
+          "COMMAND_SEQUENCE_CONFLICT",
+          "The relay delivered a command it had already closed.",
+          command
+        );
+      }
       if (
         existing.accepted.request_sha256 !== requestSha256 ||
         existing.accepted.sequence !== command.sequence ||
@@ -388,6 +450,13 @@ export class RelayJournal {
     this.#validateBinding(command);
     if (command.fencing_epoch < this.#currentFence) {
       throw journalError("STALE_FENCE", "The relay command uses a stale fencing epoch.", command);
+    }
+    if (this.#skippedSequences.has(command.sequence)) {
+      throw journalError(
+        "COMMAND_SEQUENCE_CONFLICT",
+        "The relay delivered a command sequence it reported as skipped.",
+        command
+      );
     }
     if (command.sequence !== this.#highestSequence + 1) {
       throw journalError(
@@ -522,6 +591,97 @@ export class RelayJournal {
     this.#recomputeAcknowledgedSequence();
   }
 
+  /**
+   * Records the sequences the server proved it closed and will never deliver
+   * (AUG-412). Sequences are taken in ascending order while they stay contiguous
+   * with what this journal already holds; the first one past a gap stops the
+   * walk, so a later command beyond it still raises COMMAND_SEQUENCE_GAP.
+   * Returns the sequences newly recorded.
+   */
+  async recordServerSkips(sequences: readonly number[]): Promise<number[]> {
+    this.#assertOpen();
+    const recorded: number[] = [];
+    let previous = 0;
+    for (const sequence of sequences) {
+      if (!Number.isInteger(sequence) || sequence <= previous || sequence < 1) {
+        throw skipError("The relay reported skipped sequences out of order.", sequence);
+      }
+      previous = sequence;
+      const ownerId = this.#sequenceOwners.get(sequence);
+      if (ownerId !== undefined) {
+        const owner = this.#states.get(ownerId);
+        if (owner === undefined) throw journalCorrupt("Relay journal sequence owner is missing.");
+        if (owner.skipped === true) continue;
+        if (owner.acknowledged) {
+          throw skipError("The relay reported an acknowledged command as skipped.", sequence);
+        }
+        await this.#appendSkip(sequence);
+        owner.skipped = true;
+        recorded.push(sequence);
+        continue;
+      }
+      if (this.#skippedSequences.has(sequence)) continue;
+      if (sequence !== this.#highestSequence + 1) break;
+      await this.#appendSkip(sequence);
+      this.#skippedSequences.add(sequence);
+      this.#highestSequence = sequence;
+      recorded.push(sequence);
+    }
+    if (recorded.length > 0) this.#recomputeAcknowledgedSequence();
+    return recorded;
+  }
+
+  /**
+   * Gives up on a command because the server run is terminal (AUG-404). Only an
+   * unacknowledged command with no completion, or a prepare whose fixture still
+   * needs cleanup, can be abandoned.
+   */
+  async abandon(commandId: string, reason: JournalAbandonReason): Promise<void> {
+    const state = this.#requireState(commandId);
+    if (state.abandoned !== undefined) return;
+    assertAbandonable(state, reason);
+    await this.#append({
+      journal_version: JOURNAL_VERSION,
+      event: "abandoned",
+      at: this.#now().toISOString(),
+      command_id: commandId,
+      reason
+    });
+    state.abandoned = reason;
+    this.#recomputeAcknowledgedSequence();
+  }
+
+  /**
+   * Abandons the cleanup of every prepared fixture still outstanding, for a run the
+   * server already finished and so will never send cleanup for. Returns the attempt
+   * IDs whose fixtures were left in place.
+   */
+  async abandonOutstandingCleanup(): Promise<string[]> {
+    const outstanding = this.outstandingPreparedAttempts();
+    const attempts = new Set(outstanding);
+    for (const state of this.#states.values()) {
+      if (
+        state.accepted.kind === "prepare" &&
+        state.abandoned === undefined &&
+        attempts.has(state.accepted.attempt_id) &&
+        prepareMayHaveCreatedFixture(state)
+      ) {
+        await this.abandon(state.accepted.command_id, "run_terminal_cleanup");
+      }
+    }
+    return [...outstanding];
+  }
+
+  async #appendSkip(sequence: number): Promise<void> {
+    await this.#append({
+      journal_version: JOURNAL_VERSION,
+      event: "skipped",
+      at: this.#now().toISOString(),
+      run_id: this.runId,
+      sequence
+    });
+  }
+
   async #recoverAndLoad(handle: FileHandle): Promise<void> {
     const bytes = await handle.readFile();
     let completeBytes = bytes.length;
@@ -578,7 +738,7 @@ export class RelayJournal {
 
   #canPurge(): boolean {
     return (
-      [...this.#states.values()].every((state) => state.acknowledged) &&
+      [...this.#states.values()].every((state) => !isOpenState(state)) &&
       this.outstandingPreparedAttempts().length === 0
     );
   }
@@ -601,6 +761,24 @@ export class RelayJournal {
         throw journalCorrupt("Relay journal run deadline binding is invalid.");
       }
       this.#deadline = record;
+      return;
+    }
+    if (record.event === "skipped") {
+      if (record.run_id !== this.runId) throw journalCorrupt("Relay journal run binding changed.");
+      const ownerId = this.#sequenceOwners.get(record.sequence);
+      if (ownerId !== undefined) {
+        const owner = this.#states.get(ownerId);
+        if (owner === undefined || owner.acknowledged || owner.skipped === true) {
+          throw journalCorrupt("Relay journal skip record is out of order.");
+        }
+        owner.skipped = true;
+        return;
+      }
+      if (record.sequence !== this.#highestSequence + 1) {
+        throw journalCorrupt("Relay journal contains a command sequence gap.");
+      }
+      this.#skippedSequences.add(record.sequence);
+      this.#highestSequence = record.sequence;
       return;
     }
     if (record.event === "accepted") {
@@ -636,6 +814,18 @@ export class RelayJournal {
     }
     const state = this.#states.get(record.command_id);
     if (state === undefined) throw journalCorrupt("Relay journal transition has no accepted command.");
+    if (record.event === "abandoned") {
+      if (state.abandoned !== undefined) {
+        throw journalCorrupt("Relay journal contains duplicate abandoned records.");
+      }
+      try {
+        assertAbandonable(state, record.reason);
+      } catch (error) {
+        throw journalCorrupt("Relay journal abandoned record is out of order.", error);
+      }
+      state.abandoned = record.reason;
+      return;
+    }
     if (record.event === "started") {
       if (state.started) throw journalCorrupt("Relay journal contains duplicate started records.");
       state.started = true;
@@ -750,12 +940,22 @@ export class RelayJournal {
     await handle.sync();
   }
 
+  /**
+   * The poll cursor: the highest sequence such that it and every sequence below it
+   * is acknowledged, proven skipped by the server, or abandoned on a terminal run.
+   */
   #recomputeAcknowledgedSequence(): void {
     let sequence = 0;
     while (true) {
-      const owner = this.#sequenceOwners.get(sequence + 1);
-      if (owner === undefined || !this.#states.get(owner)?.acknowledged) break;
-      sequence += 1;
+      const next = sequence + 1;
+      if (this.#skippedSequences.has(next)) {
+        sequence = next;
+        continue;
+      }
+      const owner = this.#sequenceOwners.get(next);
+      const state = owner === undefined ? undefined : this.#states.get(owner);
+      if (state === undefined || isOpenState(state)) break;
+      sequence = next;
     }
     this.#lastAcknowledgedSequence = sequence;
   }
@@ -767,13 +967,11 @@ export interface RelayJournalInspection {
   readonly unacknowledged: boolean;
 }
 
-export async function inspectRelayJournal(
-  options: RelayJournalOptions
-): Promise<RelayJournalInspection> {
-  const journal = new RelayJournal(options);
-  let exists = false;
+/** Whether a journal file exists for the run, without opening or locking it. */
+export async function relayJournalExists(options: RelayJournalOptions): Promise<boolean> {
+  const path = new RelayJournal(options).path;
   try {
-    const stat = await lstat(journal.path);
+    const stat = await lstat(path);
     if (stat.isSymbolicLink() || !stat.isFile()) {
       throw new AwError({
         code: "UNSAFE_JOURNAL_PATH",
@@ -781,11 +979,18 @@ export async function inspectRelayJournal(
         message: "The relay journal must be a regular file and cannot be a symbolic link."
       });
     }
-    exists = true;
+    return true;
   } catch (error) {
-    if (!isMissingPath(error)) throw error;
+    if (isMissingPath(error)) return false;
+    throw error;
   }
-  if (!exists) {
+}
+
+export async function inspectRelayJournal(
+  options: RelayJournalOptions
+): Promise<RelayJournalInspection> {
+  const journal = new RelayJournal(options);
+  if (!(await relayJournalExists(options))) {
     return { present: false, outstandingPreparedAttempts: [], unacknowledged: false };
   }
   await journal.open();
@@ -805,7 +1010,35 @@ function freezeState(state: MutableCommandState): JournalCommandState {
     accepted: state.accepted,
     started: state.started,
     ...(state.completion === undefined ? {} : { completion: state.completion }),
-    acknowledged: state.acknowledged
+    acknowledged: state.acknowledged,
+    ...(state.skipped === true ? { skipped: true as const } : {}),
+    ...(state.abandoned === undefined ? {} : { abandoned: state.abandoned })
+  });
+}
+
+/** Neither acknowledged nor closed by a server skip or a terminal-run abandon. */
+function isOpenState(state: MutableCommandState): boolean {
+  return !state.acknowledged && state.skipped !== true && state.abandoned === undefined;
+}
+
+function assertAbandonable(state: MutableCommandState, reason: JournalAbandonReason): void {
+  if (reason === "run_terminal_uncompleted") {
+    if (state.acknowledged || state.completion !== undefined) {
+      throw journalCorrupt("Only a command with no completion can be abandoned as uncompleted.");
+    }
+    return;
+  }
+  if (state.accepted.kind !== "prepare" || !prepareMayHaveCreatedFixture(state)) {
+    throw journalCorrupt("Only a prepare that may have created a fixture can abandon its cleanup.");
+  }
+}
+
+function skipError(message: string, sequence: number): AwError {
+  return new AwError({
+    code: "COMMAND_SEQUENCE_CONFLICT",
+    category: "protocol",
+    message,
+    details: { skipped_sequence: sequence }
   });
 }
 

@@ -26,6 +26,11 @@ export function reportConsistencyDiagnostics(input: {
   readonly criteria: readonly CriterionDetail[];
   /** True only after a bound evaluation's criterion reads finished. */
   readonly judgmentsComparable: boolean;
+  /**
+   * Attempts that never replied. The judge's verdict on them is final even
+   * when it is not pass or fail, and hosted coverage counts it complete.
+   */
+  readonly noReplyAttemptIds?: ReadonlySet<string>;
 }): ExportDiagnostic[] {
   const diagnostics: ExportDiagnostic[] = [];
   if (coverageMismatches(input)) {
@@ -64,14 +69,17 @@ function coverageMismatches(input: {
   readonly report: RunReport;
   readonly criteria: readonly CriterionDetail[];
   readonly judgmentsComparable: boolean;
+  readonly noReplyAttemptIds?: ReadonlySet<string>;
 }): boolean {
   const attemptIds = new Set(input.report.attempts.map((attempt) => attempt.attemptId));
   const completedAttempts = knownCount(input.report.coverage.completedAttempts);
   if (completedAttempts !== undefined && completedAttempts !== attemptIds.size) return true;
   if (!input.judgmentsComparable) return false;
   const required = distinctRequired(input.criteria);
-  const completedRequired = required.filter((item) =>
-    COMPLETED_SEMANTIC_VERDICTS.has(item.verdict)
+  const completedRequired = required.filter(
+    (item) =>
+      COMPLETED_SEMANTIC_VERDICTS.has(item.verdict) ||
+      input.noReplyAttemptIds?.has(item.attemptId) === true
   ).length;
   const judgmentsPlanned = knownCount(input.report.coverage.requiredJudgmentsPlanned);
   const judgmentsComplete = knownCount(input.report.coverage.requiredJudgmentsComplete);

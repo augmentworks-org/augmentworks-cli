@@ -4,10 +4,79 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.1] - 2026-10-29
+
+Patch release. Requires Node.js 22.12 or newer, like 0.4.0. Real-data tests
+run against a target you verified at a private address, a hosted run whose CLI
+was killed mid-command recovers without calling your target again, relay polls
+ride out brief server errors, a run whose grading ended `partial` returns a
+result instead of waiting, and email and phone redaction reaches every text
+field of a reply. `@augmentworks/cli@0.4.0` is not overwritten.
+
+### Fixed
+
+- Real-data tests against a target registered at a private or loopback
+  address, such as `http://127.0.0.1:8000`, now quote and run once
+  `target verify` confirmed it from your machine (connector challenge).
+  The CLI refused them even after verification, and its error pointed at a
+  local connector mapping that doesn't exist. Targets verified any other way
+  must still be public. (AUG-399)
+- `test --assessment` and `test --manifest` on a saved real-data suite read
+  the suite's execution scope from the revision the server returns, so the
+  quote and run carry the scope's target boundary instead of being refused
+  with a boundary mismatch. (AUG-402)
+- Email and phone redaction rules now reach every text field under the
+  selected node, so a reply (`{ role, content }`), its metadata and its tool
+  events are masked before upload. Only the matched email or phone is
+  replaced; the rest of the reply stays readable for grading (AUG-400).
+- The phone detector now matches international numbers (10 to 15 digits,
+  such as `+44 20 7946 0958`), not only US formats. It uses the same pattern
+  as the server and does not match dates such as `2026-10-18` (AUG-400).
+- A hosted run whose CLI was killed (for example with `SIGKILL`) after it
+  uploaded a result but before it saved the acknowledgement no longer gets
+  stuck. When the run goes on, the CLI re-sends the saved result instead of
+  running the target operation again. Once the server says the run is
+  finished, `recover --retire`, `recover --resume`, `recover --cancel` and
+  the next `test` re-send it and then release the run, so a new test can
+  start. A command that never completed is recorded as abandoned, and a
+  prepared test fixture that can no longer be cleaned up prints a warning
+  with the run ID so you can remove it from your target by hand. `recover`
+  now suggests `recover --retire` for this case. Recovery never starts a run
+  or calls your target. (AUG-404)
+- A hosted run no longer fails on a brief server error while it waits for
+  the next command. A poll or run-status read that fails with a network
+  error, `408`, `429` or a `5xx` such as `503` is retried until the run's
+  deadline, waiting at least the server's `Retry-After` and backing off up
+  to 15 seconds between tries. (AUG-412)
+- Sequences the server reports as closed and never to be delivered
+  (`skipped_sequences` in the poll response) are recorded in the run
+  journal, so the CLI moves past them instead of stopping with
+  `COMMAND_SEQUENCE_GAP`. A gap the server didn't report still stops the
+  run. (AUG-412)
+- A hosted run whose grading ends `partial` with every judge job done, for
+  example because a required check is inconclusive, now counts as finished.
+  `test`, `run wait`, `run status` and `run report` report a failed
+  (inconclusive) assessment and exit `10`, instead of saying grading is
+  still pending and exiting `11`, and `run wait` returns instead of waiting
+  until it times out. A `partial` run with judge jobs left still counts as
+  pending. (AUG-403)
+- `run report` on a run whose attempt timed out now exits `10` with the
+  inconclusive result. It no longer counts the missing reply as an evidence
+  gap when the attempt failed, timed out or didn't run, since there was no
+  reply to save, and it counts the judge's inconclusive verdict on that
+  attempt as finished grading, as the server does, instead of stopping with
+  `CRITERION_VERDICT_INCOMPLETE` or `REPORT_COVERAGE_MISMATCH`. A passing
+  attempt still needs its reply, and purged evidence is still a gap.
+  (AUG-403)
 
 ### Changed
 
+- `--json` errors from `test` after the run is created, from `recover`, and
+  from the relay runner include `run_id`, so you know which run to pass to
+  `recover` or `run report`. `recover --json` now writes its errors as JSON
+  too. (AUG-412)
+- A cancelled run keeps polling for its cleanup commands for up to five
+  minutes, up from one, so cleanup has time to arrive. (AUG-405)
 - Recorded the independent inspection of npm `@augmentworks/cli@0.4.0`,
   published by the `v0.4.0` release workflow with SLSA provenance from
   `augmentworks-org/augmentworks-cli`. The published tarball is unchanged and
@@ -704,6 +773,7 @@ This repository does not overwrite or relabel 0.3.3.
 - Refund-agent mock target, public documentation, schema, tests, packed-package
   smoke test, CI, and npm trusted-publishing workflow.
 
+[0.4.1]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.1
 [0.4.0]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.0
 [0.3.9]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.9
 [0.3.8]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.8
