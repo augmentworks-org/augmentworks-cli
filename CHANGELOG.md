@@ -60,10 +60,14 @@ field of a reply. `@augmentworks/cli@0.4.0` is not overwritten.
   still pending and exiting `11`, and `run wait` returns instead of waiting
   until it times out. A `partial` run with judge jobs left still counts as
   pending. (AUG-403)
-- `run report` no longer counts a missing reply as an evidence gap when the
-  attempt failed, timed out or didn't run, since there was no reply to save.
-  A passing attempt still needs its reply, and purged evidence is still a
-  gap. (AUG-403)
+- `run report` on a run whose attempt timed out now exits `10` with the
+  inconclusive result. It no longer counts the missing reply as an evidence
+  gap when the attempt failed, timed out or didn't run, since there was no
+  reply to save, and it counts the judge's inconclusive verdict on that
+  attempt as finished grading, as the server does, instead of stopping with
+  `CRITERION_VERDICT_INCOMPLETE` or `REPORT_COVERAGE_MISMATCH`. A passing
+  attempt still needs its reply, and purged evidence is still a gap.
+  (AUG-403)
 
 ### Changed
 
