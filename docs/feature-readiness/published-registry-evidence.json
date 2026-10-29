@@ -1,36 +1,36 @@
 {
   "schemaVersion": "aw-cli-registry-evidence/1",
-  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.4.0 tarball embeds the prior LAST_VERIFIED 0.3.9 snapshot; this file records the later inspection and is not inside that tarball. thisPackageIdentity for 0.4.1 stays pending-protected-publish until the trusted publish is inspected.",
+  "semantics": "Post-publication independent inspection of npm tarballs. Packaged cli-release.json is this artifact's identity, not a live registry probe of this version. Do not overwrite or relabel existing npm versions. The published 0.4.1 tarball embeds the prior LAST_VERIFIED 0.4.0 snapshot; this file records the later inspection and is not inside that tarball. thisPackageIdentity for 0.4.2 stays pending-protected-publish until the trusted publish is inspected.",
   "lastIndependentlyInspected": {
     "packageName": "@augmentworks/cli",
-    "version": "0.4.0",
-    "gitHead": "afb23c37ffe99289c75b3769b50447c3e403c50f",
-    "integrity": "sha512-MquWMHbfZQTQ6QMIV4shagYUBLKcUfyIMhMR+zEcl46vfqn/LIjHICtPldCD9kaAn8GY+nhSFC8jjP9sLy4NCw==",
-    "verifiedAt": "2026-10-18T17:41:10.515Z",
-    "githubRelease": "v0.4.0",
-    "githubReleasePublishedAt": "2026-10-18T17:34:34Z",
-    "githubReleaseUrl": "https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.4.0",
-    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.4.0",
-    "tarballUrl": "https://registry.npmjs.org/@augmentworks/cli/-/cli-0.4.0.tgz",
-    "shasum": "04c78bdebf100a45c456cccf917d9ff9a28f17a6",
-    "tarballSha256": "525af59db88046fceb38512dde85cf209a84170eddc3c3c42120892c9bf92216",
+    "version": "0.4.1",
+    "gitHead": "043fccc59174a8d334c2cc53a7e42d8dd7523878",
+    "integrity": "sha512-bDDEBzFMSPGrxQmfioFfva4iQmI2d4MgWnZhXRbayhtvMhHGKmLTL32ypdTJZ8ErbV6ngR1YhSrcw52DF9eJMQ==",
+    "verifiedAt": "2026-10-29T19:04:18.067Z",
+    "githubRelease": "v0.4.1",
+    "githubReleasePublishedAt": "2026-10-29T18:58:29Z",
+    "githubReleaseUrl": "https://github.com/augmentworks-org/augmentworks-cli/releases/tag/v0.4.1",
+    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.4.1",
+    "tarballUrl": "https://registry.npmjs.org/@augmentworks/cli/-/cli-0.4.1.tgz",
+    "shasum": "492cd1f4afeee00a8085b466082e1ec21391aacd",
+    "tarballSha256": "1aa14c690be6233ea4164f34d0ff22daba5fbd1fb5902a4791ebb866023571f3",
     "fileCount": 74,
     "nodeRange": ">=22.12",
     "provenance": {
       "predicateType": "https://slsa.dev/provenance/v1",
-      "attestationsUrl": "https://registry.npmjs.org/-/npm/v1/attestations/@augmentworks%2fcli@0.4.0",
+      "attestationsUrl": "https://registry.npmjs.org/-/npm/v1/attestations/@augmentworks%2fcli@0.4.1",
       "repository": "https://github.com/augmentworks-org/augmentworks-cli",
       "workflow": ".github/workflows/release.yml",
-      "ref": "refs/tags/v0.4.0",
-      "gitCommit": "afb23c37ffe99289c75b3769b50447c3e403c50f",
-      "workflowRun": "https://github.com/augmentworks-org/augmentworks-cli/actions/runs/39150220225/attempts/1",
+      "ref": "refs/tags/v0.4.1",
+      "gitCommit": "043fccc59174a8d334c2cc53a7e42d8dd7523878",
+      "workflowRun": "https://github.com/augmentworks-org/augmentworks-cli/actions/runs/40935793680/attempts/1",
       "publisher": "GitHub Actions trusted publisher (npm-oidc-no-reply@github.com)"
     },
-    "notes": "Downloaded registry tarball. GitHub tag v0.4.0 is afb23c37ffe99289c75b3769b50447c3e403c50f, the merge of PR #95; it contains the AUG-370 merge 252efd84c958eebacec6ca8cf66a8ddabe6fe088. The npm version document omitted gitHead; the SLSA provenance names the tag commit. The tarball SHA-256 matches the tarball the release workflow packed and tested on Node 22.12.0, and npm pack of the tag. npm audit signatures verified the registry signature and the attestation. Published only by .github/workflows/release.yml through npm trusted publishing; nobody ran npm publish by hand. The tarball still embeds the prior LAST_VERIFIED 0.3.9 snapshot. Do not republish 0.4.0 or 0.3.9. Do not use @latest."
+    "notes": "Downloaded registry tarball. GitHub tag v0.4.1 is 043fccc59174a8d334c2cc53a7e42d8dd7523878, the merge of PR #106. The npm version document omitted gitHead; the SLSA provenance names the tag commit, and its subject sha512 equals dist.integrity. The downloaded tarball's SHA-256, SHA-1 (shasum) and SHA-512 match the registry document, and it is byte-identical to npm pack of the tag after npm ci. The release workflow run 40935793680 (Publish npm package, event release) succeeded on that commit. The registry names the GitHub Actions trusted publisher; nobody ran npm publish by hand. npm audit signatures could not download its verification material from this environment, so the Sigstore bundle was read but not cryptographically verified here. The tarball still embeds the prior LAST_VERIFIED 0.4.0 snapshot. Do not republish 0.4.1 or 0.4.0. Do not use @latest."
   },
   "thisPackageIdentity": {
     "packageName": "@augmentworks/cli",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "publishedPackageVerifiedMeaning": "published-line identity, not inspection of this tarball",
     "gitHead": null,
     "integrity": null,
@@ -38,8 +38,8 @@
     "status": "pending-protected-publish",
     "githubRelease": null,
     "githubReleasePublishedAt": null,
-    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.4.1",
-    "notes": "Source 0.4.1 is a patch on 0.4.0: real-data runs against connector-verified private targets (AUG-399), saved real-data suite scopes read from the server's revision (AUG-402), recovery that re-sends a saved completion after a hard kill and releases the run (AUG-404), relay poll and status retries until the run deadline and run_id in runner errors (AUG-412), finished partial runs (AUG-403), and email and phone redaction across every reply text field (AUG-400). Fill gitHead, integrity, and verifiedAt after the protected v0.4.1 GitHub release and npm trusted publish. Do not overwrite 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
+    "registryUrl": "https://registry.npmjs.org/@augmentworks/cli/0.4.2",
+    "notes": "Source 0.4.2 is a patch on 0.4.1: verbatim data policies keep permitted email and phone content and still mask credentials and exact local secrets (AUG-417), and run report counts a truncated reply excerpt as complete evidence, so a finished run exits 0 or 10 instead of 11 (AUG-418). Fill gitHead, integrity, and verifiedAt after the protected v0.4.2 GitHub release and npm trusted publish. Do not overwrite 0.4.1, 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, or 0.3.3."
   },
   "immutableArtifacts": [
     {
@@ -115,6 +115,16 @@
       "tarballSha256": "525af59db88046fceb38512dde85cf209a84170eddc3c3c42120892c9bf92216",
       "fileCount": 74,
       "notes": "Independently inspected Node.js 22.12 and hosted real-data testing release. Registry metadata omitted gitHead. SLSA provenance from augmentworks-org/augmentworks-cli .github/workflows/release.yml at refs/tags/v0.4.0. Do not republish or relabel."
+    },
+    {
+      "version": "0.4.1",
+      "gitHead": "043fccc59174a8d334c2cc53a7e42d8dd7523878",
+      "integrity": "sha512-bDDEBzFMSPGrxQmfioFfva4iQmI2d4MgWnZhXRbayhtvMhHGKmLTL32ypdTJZ8ErbV6ngR1YhSrcw52DF9eJMQ==",
+      "verifiedAt": "2026-10-29T19:04:18.067Z",
+      "shasum": "492cd1f4afeee00a8085b466082e1ec21391aacd",
+      "tarballSha256": "1aa14c690be6233ea4164f34d0ff22daba5fbd1fb5902a4791ebb866023571f3",
+      "fileCount": 74,
+      "notes": "Independently inspected recovery, poll retry, partial-run and redaction patch. Registry metadata omitted gitHead. SLSA provenance from augmentworks-org/augmentworks-cli .github/workflows/release.yml at refs/tags/v0.4.1. Do not republish or relabel."
     }
   ]
 }

@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-10-29
+
+Patch release. Requires Node.js 22.12 or newer, like 0.4.1. A verbatim data
+policy keeps the email addresses and phone numbers it permits, and `run
+report` returns the result of a finished run whose reply was too long to store
+in full instead of asking you to retry. `@augmentworks/cli@0.4.1` is not
+overwritten.
+
+### Fixed
+
+- A verbatim data policy no longer masks email addresses and phone numbers
+  in the agent's reply. As on the server, verbatim content handling applies
+  only the profile's credential and exact-local-secret rules, so permitted
+  customer content is uploaded as written while credentials and local
+  secrets are still masked. `preview-mapping` shows the same result. Minimized
+  content handling still masks email and phone. (AUG-417)
+- `run report` on a finished run whose reply was longer than the report's
+  2,000-character excerpt now exits `0` for a pass or `10` for a failure. It
+  exited `11` on every read, because it counted the stored excerpt as an
+  evidence gap that a retry could fill. The truncation stays visible: the
+  evidence keeps `truncated: true`, `diagnostics` keeps
+  `MAPPED_RESPONSE_TRUNCATED` and `CRITERION_EVIDENCE_TRUNCATED` with
+  `retryable: false`, and stderr prints a warning instead of retry advice.
+  Pending grading and missing or purged evidence still exit `11`. (AUG-418)
+
+### Changed
+
+- Recorded the independent inspection of npm `@augmentworks/cli@0.4.1`,
+  published by the `v0.4.1` release workflow with SLSA provenance from
+  `augmentworks-org/augmentworks-cli`. The published tarball is unchanged and
+  still embeds the prior 0.4.0 `LAST_VERIFIED` snapshot.
+
 ## [0.4.1] - 2026-10-29
 
 Patch release. Requires Node.js 22.12 or newer, like 0.4.0. Real-data tests
@@ -773,6 +805,7 @@ This repository does not overwrite or relabel 0.3.3.
 - Refund-agent mock target, public documentation, schema, tests, packed-package
   smoke test, CI, and npm trusted-publishing workflow.
 
+[0.4.2]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.2
 [0.4.1]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.1
 [0.4.0]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.0
 [0.3.9]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.3.9
