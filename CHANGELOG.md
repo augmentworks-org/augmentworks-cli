@@ -18,8 +18,10 @@ overwritten.
   in the agent's reply. As on the server, verbatim content handling applies
   only the profile's credential and exact-local-secret rules, so permitted
   customer content is uploaded as written while credentials and local
-  secrets are still masked. `preview-mapping` shows the same result. Minimized
-  content handling still masks email and phone. (AUG-417)
+  secrets are still masked. Minimized content handling still masks email and
+  phone. `preview-mapping` is unchanged: it stays offline and does not load the
+  workspace data policy, so it prints contact details as they are in the
+  fixture and masks credentials as a generic `[REDACTED]`. (AUG-417)
 - `run report` on a finished run whose reply was longer than the report's
   2,000-character excerpt now exits `0` for a pass or `10` for a failure. It
   exited `11` on every read, because it counted the stored excerpt as an
