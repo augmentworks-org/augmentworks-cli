@@ -160,13 +160,16 @@ const AUTH_FAILURE_CODES = new Set([
  * the attempt did not pass. Execution that did not complete, or a native
  * outcome of error or not_run, means no reply was captured.
  */
-function attemptHasNoReply(attempt: RunReport["attempts"][number]): boolean {
+function attemptHasNoReply(report: RunReport, attempt: RunReport["attempts"][number]): boolean {
   if (attempt.mappedResponse.availability !== "missing") return false;
   if (attempt.outcome === "pass") return false;
   return (
     attempt.executionStatus !== "completed" ||
     attempt.outcome === "error" ||
-    attempt.outcome === "not_run"
+    attempt.outcome === "not_run" ||
+    // The hosted report marks a timed-out send completed and uncertain. On a
+    // run that still passed, a missing reply is an evidence gap instead.
+    (attempt.outcome === "uncertain" && report.outcome !== "passed")
   );
 }
 
@@ -959,7 +962,7 @@ class RunReportClient {
     // not run) has no reply to export. That is the result, not an evidence
     // gap. A passing attempt still needs its reply, and purged stays a gap.
     const noReplyAttempts = new Set(
-      report.attempts.filter((attempt) => attemptHasNoReply(attempt)).map((attempt) => attempt.attemptId)
+      report.attempts.filter((attempt) => attemptHasNoReply(report, attempt)).map((attempt) => attempt.attemptId)
     );
     for (const attempt of report.attempts) {
       if (attempt.mappedResponse.truncated) {
