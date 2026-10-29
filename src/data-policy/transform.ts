@@ -7,13 +7,15 @@ import {
   isProtectedStructuralValue,
   isSensitiveKey,
   isStructuralKey,
-  maskString
+  maskString,
+  STRING_LEAF_DETECTORS
 } from "./detectors.js";
 import { dataPolicyError } from "./errors.js";
 import { representationHash } from "./hash.js";
 import {
   comparePointersDeepestFirst,
   deleteAtPointer,
+  escapeSegment,
   expandSelector,
   formatPointer,
   getAtPointer,
@@ -196,17 +198,24 @@ function collectRuleActions(
 ): void {
   for (const rule of profile.rules) {
     const pointers = expandSelector(rule.selector, document);
-    for (const path of pointers) {
-      const value = path === "" ? document : getAtPointer(document, path);
-      const key = leafKey(path);
-      if (!detectorMatches(rule.detector, key, value, secrets)) continue;
-      if (isProtectedStructuralValue(key, value) && rule.detector !== "field") continue;
-      mergeAction(planned, {
-        path,
-        action: rule.action,
-        ruleId: rule.id,
-        detector: rule.detector
-      });
+    for (const pointer of pointers) {
+      const selected = pointer === "" ? document : getAtPointer(document, pointer);
+      // Email and phone rules reach every string leaf under the selected node
+      // (AUG-400): a relay reply is { role, content }, not a string.
+      const targets = STRING_LEAF_DETECTORS.has(rule.detector)
+        ? stringLeaves(pointer, selected)
+        : [{ path: pointer, value: selected }];
+      for (const { path, value } of targets) {
+        const key = leafKey(path);
+        if (!detectorMatches(rule.detector, key, value, secrets)) continue;
+        if (isProtectedStructuralValue(key, value) && rule.detector !== "field") continue;
+        mergeAction(planned, {
+          path,
+          action: rule.action,
+          ruleId: rule.id,
+          detector: rule.detector
+        });
+      }
     }
   }
 }
@@ -390,6 +399,21 @@ function walkNodes(
     assertSafeSegment(childKey, "document key");
     walkNodes(child as JsonValue, [...prefix, childKey], childKey, visit);
   }
+}
+
+function stringLeaves(pointer: string, node: unknown): Array<{ path: string; value: string }> {
+  if (typeof node === "string") return [{ path: pointer, value: node }];
+  const leaves: Array<{ path: string; value: string }> = [];
+  if (Array.isArray(node)) {
+    node.forEach((child, index) => {
+      leaves.push(...stringLeaves(`${pointer}/${index}`, child));
+    });
+  } else if (isPlainObject(node)) {
+    for (const [childKey, child] of Object.entries(node)) {
+      leaves.push(...stringLeaves(`${pointer}/${escapeSegment(childKey)}`, child));
+    }
+  }
+  return leaves;
 }
 
 function walkStrings(node: JsonValue, visit: (text: string) => void): void {

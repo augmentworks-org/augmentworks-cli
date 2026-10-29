@@ -18,6 +18,13 @@ All notable changes to this project are documented here. The format follows
   the suite's execution scope from the revision the server returns, so the
   quote and run carry the scope's target boundary instead of being refused
   with a boundary mismatch. (AUG-402)
+- Email and phone redaction rules now reach every text field under the
+  selected node, so a reply (`{ role, content }`), its metadata and its tool
+  events are masked before upload. Only the matched email or phone is
+  replaced; the rest of the reply stays readable for grading (AUG-400).
+- The phone detector now matches international numbers (10 to 15 digits,
+  such as `+44 20 7946 0958`), not only US formats. It uses the same pattern
+  as the server and does not match dates such as `2026-10-18` (AUG-400).
 
 ### Changed
 
