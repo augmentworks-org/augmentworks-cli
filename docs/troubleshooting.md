@@ -401,7 +401,11 @@ Do not fall back to a caller-authoritative v1 pass.
 `aw-run-report-export/1` document: `retrieved`, `complete`, `report`,
 `criteria`, and `diagnostics`. Retrieval success is not grading success. An
 expected failing assessment still exports mapped responses and criterion
-details and exits `10`. Incomplete or truncated required evidence exits `11`.
+details and exits `10`. Missing, purged, or still-pending required evidence
+exits `11`. A long reply is stored as a bounded excerpt marked `truncated`;
+that is permanent, so a finished run still exits `0` or `10` and the export
+keeps `MAPPED_RESPONSE_TRUNCATED` / `CRITERION_EVIDENCE_TRUNCATED` in
+`diagnostics` with `retryable: false`, plus a warning on stderr.
 A claimed pass whose completed required judgment is `fail`, a known aggregate
 `failed` count above zero on that pass (`REPORT_EVIDENCE_CONTRADICTION`), or
 coverage that claims completed attempts or finished required judgments the

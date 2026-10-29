@@ -42,10 +42,12 @@ export {
   sealProfileDocument
 } from "./schema.js";
 export {
+  activeRedactionRules,
   applyRedactionProfile,
   effectivePolicySummary,
   inspectOutbound,
-  sealDataHandlingReceipt
+  sealDataHandlingReceipt,
+  VERBATIM_RULE_DETECTORS
 } from "./transform.js";
 export {
   evaluateRetainedEvidence,

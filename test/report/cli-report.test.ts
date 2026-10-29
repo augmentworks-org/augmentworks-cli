@@ -17,7 +17,9 @@ import {
   asRecord,
   fixtureIdentity,
   fixtureResponse,
-  mutatedFixtureResponse
+  mutatedFixtureResponse,
+  truncatedCriterionIndex,
+  truncatedReplyReport
 } from "./fixtures.js";
 
 const API_KEY = "aw_api_test_packed_report_key_value";
@@ -201,6 +203,64 @@ describe("packed augmentworks run report", () => {
     expect(paths.some((path) => path.includes("/v1/billing"))).toBe(false);
     expect(paths.filter((path) => path.startsWith("POST "))).toEqual([]);
   });
+
+  for (const scenario of [
+    {
+      name: "passed",
+      report: "report_all_pass_one_page",
+      index: "criterion_index_r01_pass",
+      exitCode: EXIT.OK
+    },
+    {
+      name: "failed",
+      report: "report_required_fail",
+      index: "criterion_index_r01_fail",
+      exitCode: EXIT.ASSESSMENT_FAILED
+    }
+  ] as const) {
+    it(`exits ${String(scenario.exitCode)} for a ${scenario.name} run with truncated evidence and warns (AUG-418)`, async () => {
+      const { cwd, home, state } = await emptyHome();
+      const { server } = await startMock((_request, response, url) => {
+        if (url.pathname === "/api/v1/cli/auth/me") {
+          send(response, 200, fixtureIdentity("machine_report_only"));
+          return true;
+        }
+        if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+          send(response, 200, truncatedReplyReport(server.baseUrl, scenario.report));
+          return true;
+        }
+        if (url.pathname.includes("/criteria")) {
+          send(response, 200, truncatedCriterionIndex(server.baseUrl, scenario.index));
+          return true;
+        }
+        return false;
+      });
+      const result = await runPackedCli(["run", "report", REPORT_RUN_ID, "--json"], {
+        cwd,
+        env: {
+          HOME: home,
+          AUGMENTWORKS_STATE_DIR: state,
+          AUGMENTWORKS_API_URL: server.baseUrl,
+          AUGMENTWORKS_API_KEY: API_KEY,
+          AUGMENTWORKS_TOKEN: "",
+          AUGMENTWORKS_REFRESH_TOKEN: ""
+        }
+      });
+      expect(result.exitCode).toBe(scenario.exitCode);
+      const payload = JSON.parse(result.stdout) as {
+        complete: boolean;
+        diagnostics: Array<{ code: string; retryable?: boolean }>;
+        report?: { attempts: Array<{ mappedResponse: { truncated: boolean } }> };
+      };
+      expect(payload.complete).toBe(true);
+      expect(payload.report?.attempts[0]?.mappedResponse.truncated).toBe(true);
+      expect(payload.diagnostics.map((item) => item.code)).toContain("MAPPED_RESPONSE_TRUNCATED");
+      expect(payload.diagnostics.map((item) => item.code)).toContain("CRITERION_EVIDENCE_TRUNCATED");
+      expect(result.stderr).toContain("truncated excerpt");
+      expect(result.stderr).not.toContain("did not prove complete evidence");
+      expect(result.stderr).not.toContain("Retry:");
+    });
+  }
 
   it("does not exit 0 when a terminal page omits an attempt", async () => {
     const { cwd, home, state } = await emptyHome();

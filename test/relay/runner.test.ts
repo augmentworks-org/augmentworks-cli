@@ -1079,6 +1079,69 @@ describe("authorized dispatch policy", () => {
     expect(JSON.stringify(uploaded)).not.toContain(CANARIES.token);
   });
 
+  async function uploadUnderServerDefaultProfile(
+    contentHandling: "minimized" | "verbatim",
+    content: string
+  ): Promise<string> {
+    const command = sendRelayCommand();
+    const cloud = new MockCloud([command]);
+    const raw = {
+      protocol_version: "aw-target/0.1" as const,
+      turn_id: command.input.turn_id,
+      message: { role: "assistant" as const, content },
+      events: [],
+      finished: true,
+      metadata: {}
+    };
+    const connector = { execute: vi.fn(async () => raw), isIdempotent: () => true };
+    const response = hostedScopeResponse();
+    const { policy, profile } = serverDefaultRedactionPolicy({ dataClass: "personal", contentHandling });
+    await new RelayRunner({
+      cloud: asCloud(cloud),
+      connector,
+      binding: binding(),
+      stateDirectory: await temporaryDirectory(),
+      dispatchPolicy: authorizedDispatchPolicy({
+        scope: response.scope,
+        boundary: response.targetBoundary,
+        dataPolicy: policy,
+        redactionProfile: profile
+      }),
+      pollWaitMs: 0
+    }).run();
+    expect(cloud.failures).toHaveLength(0);
+    expect(cloud.completions).toHaveLength(1);
+    return JSON.stringify(cloud.completions[0]?.result);
+  }
+
+  it("keeps email and phone in a verbatim reply and still masks credentials (AUG-417)", async () => {
+    const phone = "+1 555 0197 4242";
+    const uploaded = await uploadUnderServerDefaultProfile(
+      "verbatim",
+      `Write to ${CANARIES.email} or call ${phone}. api_key=${CANARIES.apiKey}`
+    );
+    expect(uploaded).toContain(CANARIES.email);
+    expect(uploaded).toContain(phone);
+    expect(uploaded).not.toContain("[REDACTED:email]");
+    expect(uploaded).not.toContain("[REDACTED:phone]");
+    expect(uploaded).not.toContain(CANARIES.apiKey);
+    expect(uploaded).toContain("[REDACTED:credential]");
+  });
+
+  it("still masks email and phone in a minimized reply (AUG-400, AUG-417)", async () => {
+    const phone = "+1 555 0197 4242";
+    const uploaded = await uploadUnderServerDefaultProfile(
+      "minimized",
+      `Write to ${CANARIES.email} or call ${phone}. api_key=${CANARIES.apiKey}`
+    );
+    expect(uploaded).not.toContain(CANARIES.email);
+    expect(uploaded).not.toContain(phone);
+    expect(uploaded).not.toContain(CANARIES.apiKey);
+    expect(uploaded).toContain("[REDACTED:email]");
+    expect(uploaded).toContain("[REDACTED:phone]");
+    expect(uploaded).toContain("[REDACTED:credential]");
+  });
+
   it("excludes credentials in verbatim mode without dropping declared business text", async () => {
     const command = sendRelayCommand();
     const cloud = new MockCloud([command]);
