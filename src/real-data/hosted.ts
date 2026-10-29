@@ -10,6 +10,7 @@ import {
   type DispatchPolicy
 } from "./policy.js";
 import {
+  ExecutionScopeSchema,
   parseLocalExecutionScope,
   parseTargetBoundary,
   SuiteExecutionScopeRefSchema,
@@ -80,9 +81,19 @@ export async function assertHostedScopeUsable(
   assertScopeNotExpired(response.authority.expiresAt, options.now ?? Date.now(), "This target's verification");
   if (options.resolved !== undefined) {
     assertBoundaryMatchesConfig(response.targetBoundary, options.resolved, {
+      allowPrivate: hostedScopeAllowsPrivate(response),
       effects: response.scope.effects
     });
   }
+}
+
+/**
+ * Connector challenge is the only hosted verification for loopback, private, or
+ * raw IP targets, so a scope whose target authority passed it may assess one.
+ * Every other method verified a public origin and keeps the public-only check.
+ */
+export function hostedScopeAllowsPrivate(response: Pick<ExecutionScopeResponse, "authority">): boolean {
+  return response.authority.verificationMethod === "connector_challenge";
 }
 
 export async function requireHostedAuthorizedScope(
@@ -113,7 +124,8 @@ export function dispatchPolicyFromHostedScope(response: ExecutionScopeResponse):
     scope: response.scope,
     boundary: response.targetBoundary,
     dataPolicy: response.dataPolicy,
-    redactionProfile: response.redactionProfile
+    redactionProfile: response.redactionProfile,
+    allowPrivate: hostedScopeAllowsPrivate(response)
   });
 }
 
@@ -142,6 +154,7 @@ export async function persistHostedScopeForRun(options: {
       boundary: options.response.targetBoundary,
       dataPolicy: options.response.dataPolicy,
       redactionProfile: options.response.redactionProfile,
+      allowPrivate: hostedScopeAllowsPrivate(options.response),
       ...(options.quoteId === undefined ? {} : { quoteId: options.quoteId }),
       ...(options.suiteId === undefined ? {} : { suiteId: options.suiteId }),
       ...(options.suiteRevisionId === undefined ? {} : { suiteRevisionId: options.suiteRevisionId }),
@@ -182,6 +195,8 @@ export async function loadPersistedDispatchPolicy(options: {
   if (options.resolved !== undefined && binding.bindingKind === "hosted") {
     if (binding.targetBoundary !== undefined) {
       assertBoundaryMatchesConfig(storedBoundary(binding), options.resolved, {
+        // Bindings written before allowPrivate was stored only ever admitted public targets.
+        allowPrivate: binding.allowPrivate === true,
         effects: binding.admitted.effects
       });
     } else if (targetBoundarySha256(options.resolved) !== binding.targetBoundaryHash) {
@@ -240,9 +255,19 @@ export function executionScopeRefFromNativeDocument(document: unknown): SuiteExe
   if (overlay !== "aw-packet/authorized-1" && schemaVersion !== "aw-customer-suite/3") {
     return undefined;
   }
-  const parsed = SuiteExecutionScopeRefSchema.safeParse(
-    record["executionScope"] ?? record["execution_scope"]
-  );
+  const scope = record["executionScope"] ?? record["execution_scope"];
+  // A saved hosted suite revision carries the full sealed scope; keep only the
+  // reference fields admission re-checks against the server's current scope.
+  const sealed = ExecutionScopeSchema.safeParse(scope);
+  if (sealed.success) {
+    return {
+      schemaVersion: sealed.data.schemaVersion,
+      scopeId: sealed.data.scopeId,
+      revision: sealed.data.revision,
+      scopeHash: sealed.data.scopeHash
+    };
+  }
+  const parsed = SuiteExecutionScopeRefSchema.safeParse(scope);
   return parsed.success ? parsed.data : undefined;
 }
 

@@ -91,6 +91,8 @@ export function hostedBinding(options: {
   readonly dataPolicy?: DataPolicy;
   readonly redactionProfile?: RedactionProfile;
   readonly boundary?: TargetBoundary;
+  /** The target authority was verified by connector challenge. */
+  readonly allowPrivate?: boolean;
 }): ExecutionScopeBinding {
   return {
     schemaVersion: EXECUTION_SCOPE_BINDING_SCHEMA_VERSION,
@@ -111,6 +113,8 @@ export function hostedBinding(options: {
     ...(options.dataPolicy === undefined ? {} : { dataPolicy: options.dataPolicy }),
     ...(options.redactionProfile === undefined ? {} : { redactionProfile: options.redactionProfile }),
     ...(options.boundary === undefined ? {} : { targetBoundary: options.boundary }),
+    // Written only when true, so public-target bindings stay readable by 0.4.0.
+    ...(options.allowPrivate === true ? { allowPrivate: true } : {}),
     availability: "ready",
     fetchedAt: new Date().toISOString().replace(/\.\d+Z$/u, "Z")
   };

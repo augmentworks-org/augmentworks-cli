@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Real-data tests against a target registered at a private or loopback
+  address, such as `http://127.0.0.1:8000`, now quote and run once
+  `target verify` confirmed it from your machine (connector challenge).
+  The CLI refused them even after verification, and its error pointed at a
+  local connector mapping that doesn't exist. Targets verified any other way
+  must still be public. (AUG-399)
+- `test --assessment` and `test --manifest` on a saved real-data suite read
+  the suite's execution scope from the revision the server returns, so the
+  quote and run carry the scope's target boundary instead of being refused
+  with a boundary mismatch. (AUG-402)
 - Email and phone redaction rules now reach every text field under the
   selected node, so a reply (`{ role, content }`), its metadata and its tool
   events are masked before upload. Only the matched email or phone is
