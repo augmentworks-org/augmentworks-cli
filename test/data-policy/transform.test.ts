@@ -6,10 +6,12 @@ import { describe, expect, it } from "vitest";
 
 import { CLI_VERSION } from "../../src/version.js";
 import {
+  activeRedactionRules,
   applyRedactionProfile,
   inspectOutbound,
   PLACEHOLDERS,
-  sealDataHandlingReceipt
+  sealDataHandlingReceipt,
+  type RedactionRule
 } from "../../src/data-policy/index.js";
 import { CANARIES, makePolicy, makeProfile } from "./helpers.js";
 
@@ -45,6 +47,79 @@ describe("applyRedactionProfile", () => {
     expect(text).toContain(CANARIES.email);
     expect(text).not.toContain(CANARIES.secret);
     expect(text).toContain("passed");
+  });
+
+  describe("rule selection by content handling (AUG-417)", () => {
+    const phone = "+1 555 0197 4242";
+    const rules: RedactionRule[] = [
+      { id: "mask-credential-content", selector: "/content", action: "mask", detector: "credential" },
+      { id: "mask-email-content", selector: "/content", action: "mask", detector: "email" },
+      { id: "mask-phone-content", selector: "/content", action: "mask", detector: "phone" },
+      { id: "mask-local-secret-content", selector: "/content", action: "mask", detector: "exact_local_secret" },
+      { id: "drop-internal-notes", selector: "/internalNotes", action: "drop", detector: "field" }
+    ];
+    const document = {
+      path: "message",
+      content: { role: "assistant", content: `Write to ${CANARIES.email} or call ${phone}.` },
+      apiNote: `api_key=${CANARIES.apiKey}`,
+      localNote: `local ${CANARIES.secret}`,
+      internalNotes: "kept under verbatim"
+    };
+
+    it("verbatim keeps email, phone and fields but masks credentials and exact local secrets", () => {
+      const profile = makeProfile({ rules, allowedContentFields: ["/path", "/content"] });
+      const policy = makePolicy(profile, { contentHandling: "verbatim", dataClass: "personal" });
+      const result = applyRedactionProfile(document, profile, policy, [CANARIES.secret]);
+      const text = JSON.stringify(result.representation);
+      expect(text).toContain(CANARIES.email);
+      expect(text).toContain(phone);
+      expect(text).not.toContain(PLACEHOLDERS.email);
+      expect(text).not.toContain(PLACEHOLDERS.phone);
+      expect(text).not.toContain(CANARIES.apiKey);
+      expect(text).not.toContain(CANARIES.secret);
+      expect(text).toContain(PLACEHOLDERS.credential);
+      expect(text).toContain(PLACEHOLDERS.exact_local_secret);
+      expect((result.representation as { internalNotes?: string }).internalNotes).toBe("kept under verbatim");
+    });
+
+    it("verbatim still applies credential and exact-local-secret profile rules", () => {
+      const profile = makeProfile({
+        rules: [
+          { id: "block-credential", selector: "/content", action: "block", detector: "credential" },
+          { id: "mask-email-content", selector: "/content", action: "mask", detector: "email" }
+        ]
+      });
+      const policy = makePolicy(profile, { contentHandling: "verbatim", dataClass: "personal" });
+      const result = applyRedactionProfile(
+        { content: `Mail ${CANARIES.email} key ${CANARIES.apiKey}` },
+        profile,
+        policy,
+        []
+      );
+      expect(result.blockedPaths).toEqual([{ path: "/content", action: "block", ruleId: "block-credential" }]);
+    });
+
+    it("minimized masks email, phone and credentials and applies field rules", () => {
+      const profile = makeProfile({ rules, allowedContentFields: ["/path", "/content", "/apiNote", "/localNote"] });
+      const policy = makePolicy(profile, { contentHandling: "minimized", dataClass: "personal" });
+      const result = applyRedactionProfile(document, profile, policy, [CANARIES.secret]);
+      const text = JSON.stringify(result.representation);
+      expect(text).not.toContain(CANARIES.email);
+      expect(text).not.toContain(phone);
+      expect(text).not.toContain(CANARIES.apiKey);
+      expect(text).not.toContain(CANARIES.secret);
+      expect(text).toContain(`Write to ${PLACEHOLDERS.email} or call ${PLACEHOLDERS.phone}.`);
+      expect(text).toContain(PLACEHOLDERS.credential);
+      expect(text).not.toContain("kept under verbatim");
+    });
+
+    it("selects the same rule kinds as the server contract", () => {
+      const profile = makeProfile({ rules });
+      expect(
+        activeRedactionRules(profile, { contentHandling: "verbatim" }).map((rule) => rule.detector)
+      ).toEqual(["credential", "exact_local_secret"]);
+      expect(activeRedactionRules(profile, { contentHandling: "minimized" })).toEqual(rules);
+    });
   });
 
   it("masks email and phone only when explicit rules request it", () => {

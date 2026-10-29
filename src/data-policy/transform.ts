@@ -42,7 +42,8 @@ import {
   type InspectOutboundResult,
   type RedactionAction,
   type RedactionDetector,
-  type RedactionProfile
+  type RedactionProfile,
+  type RedactionRule
 } from "./types.js";
 
 const ACTION_RANK: Record<RedactionAction, number> = {
@@ -50,6 +51,30 @@ const ACTION_RANK: Record<RedactionAction, number> = {
   drop: 2,
   mask: 1
 };
+
+/**
+ * Detectors whose profile rules still apply under `verbatim` content handling
+ * (AUG-417). Mirrors the server's rule selection in
+ * augmentworks src/lib/data-policy/contract.ts `applyRedactionProfile`:
+ * verbatim keeps permitted customer content (email, phone, fields) and only
+ * credential and exact-local-secret rules run; minimized runs every rule.
+ * Keep the two identical.
+ */
+export const VERBATIM_RULE_DETECTORS: ReadonlySet<RedactionDetector> = new Set([
+  "credential",
+  "exact_local_secret"
+]);
+
+/** The profile rules that apply under the policy's content handling. */
+export function activeRedactionRules(
+  profile: Pick<RedactionProfile, "rules">,
+  policy: Pick<DataPolicy, "contentHandling">
+): readonly RedactionRule[] {
+  if (policy.contentHandling === "verbatim") {
+    return profile.rules.filter((rule) => VERBATIM_RULE_DETECTORS.has(rule.detector));
+  }
+  return profile.rules;
+}
 
 interface PlannedAction {
   path: string;
@@ -75,7 +100,7 @@ export function applyRedactionProfile(
   let representation = cloneJson(input);
   const planned = new Map<string, PlannedAction>();
   collectImplicitActions(representation, localSecrets, planned);
-  collectRuleActions(representation, profile, localSecrets, planned);
+  collectRuleActions(representation, activeRedactionRules(profile, policy), localSecrets, planned);
   if (policy.contentHandling === "minimized") {
     collectAllowlistDrops(representation, profile, planned);
   }
@@ -192,11 +217,11 @@ function collectImplicitActions(
 
 function collectRuleActions(
   document: JsonValue,
-  profile: RedactionProfile,
+  rules: readonly RedactionRule[],
   secrets: readonly string[],
   planned: Map<string, PlannedAction>
 ): void {
-  for (const rule of profile.rules) {
+  for (const rule of rules) {
     const pointers = expandSelector(rule.selector, document);
     for (const pointer of pointers) {
       const selected = pointer === "" ? document : getAtPointer(document, pointer);

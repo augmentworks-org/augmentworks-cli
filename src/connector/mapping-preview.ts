@@ -17,6 +17,7 @@ import {
 } from "./normalize.js";
 import type { ConnectorExecutionContext, ConnectorResult } from "./types.js";
 import {
+  activeRedactionRules,
   effectivePolicySummary,
   inspectOutbound,
   inspectRelayResult,
@@ -654,7 +655,7 @@ function applyPrivacyPreview(
     "credential",
     "exact_local_secret"
   ]);
-  for (const rule of profile.rules) detectors.add(rule.detector);
+  for (const rule of activeRedactionRules(profile, policy)) detectors.add(rule.detector);
   for (const [index, field] of inspection.extracted.entries()) {
     const selected = inspection.selected.get(field.field);
     if (selected === undefined) continue;
