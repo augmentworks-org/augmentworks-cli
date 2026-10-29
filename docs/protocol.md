@@ -265,6 +265,18 @@ The client sends `run_id`, `after_sequence`, `fencing_epoch`, and a bounded
 `wait_seconds`. The relay returns the current status and either one command or
 `command: null`. An empty `204` poll is also treated as no command.
 
+A poll response may also carry `skipped_sequences`: an ascending list of
+sequences above `after_sequence` that the relay closed and will never deliver,
+with or without a command. An absent field means none. The CLI journals a
+`skipped` record only for listed sequences that are contiguous with what it
+already holds, so its cursor moves past them; a gap the relay did not list still
+fails with `COMMAND_SEQUENCE_GAP`.
+
+A retryable poll or status failure (a network error, `408`, `429`, or `5xx`) is
+retried until the run deadline. Each pause is at least the relay's
+`Retry-After`, with capped exponential backoff. Runner errors in `--json` output
+carry the `run_id`.
+
 Every command has this binding:
 
 ```json
@@ -385,6 +397,16 @@ headers, stack traces, secrets, or arbitrary logs.
 5. A lower fencing epoch, expired command, sequence conflict, packet mismatch,
    or config mismatch is refused.
 6. A new epoch invalidates unfinished work from a previous connector lease.
+7. If the process dies after uploading a result but before journaling its
+   acknowledgement, the CLI re-sends the journaled result (same binding, result
+   and digest) instead of running the operation again: when the relay delivers
+   the next command, and before `recover` or a new `test` releases a terminal
+   run. An identical-repeat accept, `RUN_TERMINAL`, or `RELAY_CONFLICT` (the
+   relay already holds a result) closes it; on a terminal run so do
+   `STALE_FENCE` and `RUN_BINDING_MISMATCH`. On a terminal run, a command that
+   never completed and a prepared fixture still awaiting cleanup are journaled
+   as abandoned, with a warning for the fixture, because the relay can no
+   longer send that work.
 
 No retry policy can infer that a timed-out, non-idempotent target operation was
 not delivered. For `prepare`, `send`, `observe`, or `cleanup`, the CLI records

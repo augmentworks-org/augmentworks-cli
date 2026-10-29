@@ -565,7 +565,13 @@ export const PollResponseSchema = z
     session_id: identifier,
     status: RunStatusSchema,
     command: RelayCommandSchema.nullable(),
-    retry_after_ms: z.number().int().min(0).max(60_000).optional()
+    retry_after_ms: z.number().int().min(0).max(60_000).optional(),
+    // AUG-412: sequences above after_sequence that the server closed and will never
+    // deliver. Absent (older servers) means none.
+    skipped_sequences: z
+      .array(z.number().int().min(1).max(LIMITS.maxCommandsExpanded))
+      .max(LIMITS.maxCommandsExpanded)
+      .optional()
   })
   .strict();
 

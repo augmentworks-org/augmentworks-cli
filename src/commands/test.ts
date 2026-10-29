@@ -16,7 +16,7 @@ import {
 import type { ResolvedConfig } from "../config/types.js";
 import { targetBoundarySha256 } from "../config/boundary.js";
 import { HttpConnector } from "../connector/http.js";
-import { AwError, EXIT, exitCodeFor, sanitizeTerminal } from "../errors.js";
+import { AwError, EXIT, exitCodeFor, sanitizeTerminal, withRunId } from "../errors.js";
 import {
   classifyHostedOutcome,
   gradingStillPending,
@@ -360,7 +360,8 @@ async function executeHostedSelection(
       intentStore,
       tenant: session.tenant,
       stateDirectory,
-      ...(options.signal === undefined ? {} : { signal: options.signal })
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+      onNotice: (message) => writeLine(stderr, message)
     };
     const resolved = await resolveHostedCreateRequest({
       selection,
@@ -447,14 +448,20 @@ async function executeHostedSelection(
     }
 
     if (isTerminal(binding.status)) {
-      const { run, judgeJobs } = await settleGradedRun(
-        session,
-        await session.cloud.getRunStatus(binding.run_id, options.signal),
-        dependencies,
-        stderr,
-        options.signal
-      );
-      await releaseTerminalIfSafe(recovery, binding, run);
+      let run: RunStatusResponse;
+      let judgeJobs: JudgeJobProgress | undefined;
+      try {
+        ({ run, judgeJobs } = await settleGradedRun(
+          session,
+          await session.cloud.getRunStatus(binding.run_id, options.signal),
+          dependencies,
+          stderr,
+          options.signal
+        ));
+        await releaseTerminalIfSafe(recovery, binding, run);
+      } catch (error) {
+        throw withRunId(error, binding.run_id);
+      }
       await emitSelectionCheckpoint(options, {
         phase: "server_terminal",
         runId: run.run_id,
@@ -529,6 +536,9 @@ async function executeHostedSelection(
         ...(judgeJobs === undefined ? {} : { judgeJobs }),
         ...(resolved.quote === undefined ? {} : { quoteUnits: resolved.quote.executionUnits })
       };
+    } catch (error) {
+      // AUG-412: name the run in the JSON error so it can be recovered or reported.
+      throw withRunId(error, binding.run_id);
     } finally {
       removeSignals();
     }
