@@ -137,7 +137,9 @@ export function timedOutAttemptReport(
       plannedAttempts: 2,
       completedAttempts: 2,
       requiredJudgmentsPlanned: 2,
-      requiredJudgmentsComplete: 1
+      // The hosted server counts the judge's verdict on a timed-out attempt
+      // as a completed judgment, even when it is inconclusive.
+      requiredJudgmentsComplete: shape.graded === true ? 2 : 1
     };
     body["reportReady"] = false;
     body["page"] = { nextCursor: null, hasMore: false, totalAttempts: 2 };

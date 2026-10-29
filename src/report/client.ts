@@ -544,7 +544,12 @@ class RunReportClient {
       ...reportConsistencyDiagnostics({
         report: assembled,
         criteria,
-        judgmentsComparable: assembled.evaluationBinding !== null && criteriaComplete
+        judgmentsComparable: assembled.evaluationBinding !== null && criteriaComplete,
+        noReplyAttemptIds: new Set(
+          assembled.attempts
+            .filter((attempt) => attemptHasNoReply(assembled, attempt))
+            .map((attempt) => attempt.attemptId)
+        )
       })
     );
     const complete = criteriaComplete && evidenceComplete && diagnostics.length === 0;
