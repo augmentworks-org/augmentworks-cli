@@ -4,6 +4,7 @@ export {
   exportHostedLiveInformationalReport,
   exportHostedAuthorizedReport,
   classifyRunReportExport,
+  evidenceLimitDiagnostics,
   type RunReportClientOptions
 } from "./client.js";
 export {

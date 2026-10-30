@@ -386,6 +386,30 @@ describe("mapping preview service", () => {
     expect(report.ok).toBe(true);
     vi.unstubAllGlobals();
   });
+
+  it("previews a verbatim policy the way it uploads: email kept, secret masked (AUG-417)", async () => {
+    const { CANARIES, makePolicy, makeProfile } = await import("../data-policy/helpers.js");
+    const profile = makeProfile({
+      rules: [{ id: "mask-email", selector: "/content/content", action: "mask", detector: "email" }]
+    });
+    const policy = makePolicy(profile, { dataClass: "personal", contentHandling: "verbatim" });
+    const report = previewMapping({
+      config: chatConfig(),
+      operation: "send",
+      response: {
+        answer: `Hello ${CANARIES.email} token ${CANARIES.secret}`,
+        finished: true,
+        finish_reason: "stop"
+      },
+      secrets: [CANARIES.secret],
+      policy,
+      profile
+    });
+    const answer = report.extracted.find((field) => field.preview?.includes("Hello"));
+    expect(answer?.preview).toContain(CANARIES.email);
+    expect(leakText(report)).not.toContain(CANARIES.secret);
+    expect(report.ok).toBe(true);
+  });
 });
 
 describe("mapping selector locations", () => {

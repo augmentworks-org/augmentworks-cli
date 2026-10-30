@@ -14,6 +14,7 @@ import { STATUS_V1 } from "../billing/protocol.js";
 import { capabilityIsAvailable } from "../billing/protocol.js";
 import {
   classifyRunReportExport,
+  evidenceLimitDiagnostics,
   exportHostedLiveInformationalReport,
   exportHostedAuthorizedReport,
   exportHostedRunReport,
@@ -345,7 +346,19 @@ function writeReportRecoveryGuidance(
   document: RunReportExport,
   exitCode: number
 ): void {
-  if (document.retrieved && document.complete) return;
+  if (document.retrieved && document.complete) {
+    // AUG-418: a truncated excerpt is permanent. Say so, without a retry hint.
+    const limits = evidenceLimitDiagnostics(document);
+    if (limits.length > 0) {
+      const codes = [...new Set(limits.map((item) => item.code))].join(", ");
+      stderr.write(
+        `${sanitizeTerminal(
+          `Warning: hosted report evidence for ${runId} is a truncated excerpt (${codes}). The export is complete and the stored excerpt is final; retrying returns the same text.`
+        )}\n`
+      );
+    }
+    return;
+  }
   if (exitCode === EXIT.AUTH) return;
   stderr.write(
     `${sanitizeTerminal(

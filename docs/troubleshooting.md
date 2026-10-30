@@ -3,7 +3,7 @@
 Start with:
 
 ```bash
-npx --yes @augmentworks/cli@0.4.1 doctor \
+npx --yes @augmentworks/cli@0.4.2 doctor \
   -c augmentworks.yaml
 ```
 
@@ -55,7 +55,7 @@ Pass the config path explicitly. `.env` must be beside that file, not
 necessarily in the current directory.
 
 ```bash
-npx --yes @augmentworks/cli@0.4.1 doctor \
+npx --yes @augmentworks/cli@0.4.2 doctor \
   -c ./config/augmentworks.yaml
 ```
 
@@ -121,7 +121,7 @@ modules, symlinks, or executable instructions. Validate the expected data shape
 with:
 
 ```bash
-npx --yes @augmentworks/cli@0.4.1 schema --kind local-packet
+npx --yes @augmentworks/cli@0.4.2 schema --kind local-packet
 ```
 
 An `aw-packet/0.1` packet must declare `synthetic_only: true`, remain within the
@@ -132,7 +132,7 @@ packet with `evaluation_mode: hybrid` or `llm_rubric` criteria fail with
 
 ### `--assessment` requires an assessment file
 
-This `@augmentworks/cli@0.4.1` package includes `--assessment`. `init` writes
+This `@augmentworks/cli@0.4.2` package includes `--assessment`. `init` writes
 `augmentworks.assessment.yaml` and starter references.
 See `examples/response-agent/`. `--assessment` cannot be combined with `--local`.
 If hosted grading is pending after target work, the exit code is `11`, not `0`.
@@ -290,8 +290,8 @@ There is no `--rerun` flag and no force-new option.
 Inspect the existing assessment without creating another run:
 
 ```bash
-npx --yes @augmentworks/cli@0.4.1 recover
-npx --yes @augmentworks/cli@0.4.1 recover --json
+npx --yes @augmentworks/cli@0.4.2 recover
+npx --yes @augmentworks/cli@0.4.2 recover --json
 ```
 
 `--retire` retires a create only after the server proves it never became a run,
@@ -316,9 +316,9 @@ lists recorded original run IDs for authorized observation only. Start a new
 execution only after you have reconciled those runs. Unused all-pending v1
 progress may be marked migrated without charging.
 
-This pinning ships in this `0.4.1` package. Independently inspected npm
+This pinning ships in this `0.4.2` package. Independently inspected npm
 `@augmentworks/cli@0.3.6` still persists unbound `/2` documents. Immutable
-`0.4.0`, `0.3.9`, `0.3.8` and `0.3.7` are not overwritten by this patch.
+`0.4.1`, `0.4.0`, `0.3.9`, `0.3.8` and `0.3.7` are not overwritten by this patch.
 
 If the hosted service does not yet support reconciliation, `recover` keeps local
 state and reports that limitation. Re-running the same `test` command remains
@@ -340,8 +340,8 @@ support before attempting another assessment.
 
 ### `usage` cannot read billing
 
-`usage` is in this 0.4.1 package. Run `node dist/index.js usage` from a clone
-or `npx --yes @augmentworks/cli@0.4.1 usage` after install. The command uses the existing connector
+`usage` is in this 0.4.2 package. Run `node dist/index.js usage` from a clone
+or `npx --yes @augmentworks/cli@0.4.2 usage` after install. The command uses the existing connector
 credential (`connector:identity`) and does not need target YAML.
 
 A server without `usage_v1` exits `13` with `USAGE_UNSUPPORTED`. That is not a
@@ -401,7 +401,11 @@ Do not fall back to a caller-authoritative v1 pass.
 `aw-run-report-export/1` document: `retrieved`, `complete`, `report`,
 `criteria`, and `diagnostics`. Retrieval success is not grading success. An
 expected failing assessment still exports mapped responses and criterion
-details and exits `10`. Incomplete or truncated required evidence exits `11`.
+details and exits `10`. Missing, purged, or still-pending required evidence
+exits `11`. A long reply is stored as a bounded excerpt marked `truncated`;
+that is permanent, so a finished run still exits `0` or `10` and the export
+keeps `MAPPED_RESPONSE_TRUNCATED` / `CRITERION_EVIDENCE_TRUNCATED` in
+`diagnostics` with `retryable: false`, plus a warning on stderr.
 A claimed pass whose completed required judgment is `fail`, a known aggregate
 `failed` count above zero on that pass (`REPORT_EVIDENCE_CONTRADICTION`), or
 coverage that claims completed attempts or finished required judgments the
@@ -439,7 +443,7 @@ credit status; the CLI does not meter credits locally.
 
 ### Packaged `demo` failed or was not found
 
-`demo` is in this `0.4.1` package. From a clone, run `node dist/index.js demo`. The demo ignores project
+`demo` is in this `0.4.2` package. From a clone, run `node dist/index.js demo`. The demo ignores project
 YAML and `CHATBOT_*` environment variables. Exit `0` means the fail-then-pass
 story succeeded; the summary is `AW-DEMO-SUMMARY-1`, not `AW-LOCAL-RESULT-1`.
 `--mode faulty` is expected to exit `10`. A customer release gate should use

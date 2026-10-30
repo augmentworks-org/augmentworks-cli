@@ -20,7 +20,10 @@ import {
   rewriteOrigin,
   TIMED_OUT_ATTEMPT_ID,
   timedOutAttemptReport,
-  timedOutCriterionIndex
+  timedOutCriterionIndex,
+  truncatedCriterionIndex,
+  truncatedEvidence,
+  truncatedReplyReport
 } from "./fixtures.js";
 
 const TOKEN = "aw_api_test_report_export_token";
@@ -568,28 +571,6 @@ describe("hosted report retrieval completeness", () => {
     expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
   });
 
-  it("marks truncated mappedResponse incomplete, not a pass", async () => {
-    const { server } = await startMock((request, response, url) => {
-      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
-        serveMutated(response, "report_all_pass_one_page", server.baseUrl, (body) => {
-          const attempts = body["attempts"] as Array<Record<string, unknown>>;
-          asRecord(attempts[0]!["mappedResponse"])["truncated"] = true;
-        });
-        return true;
-      }
-      if (url.pathname.includes("/criteria")) {
-        serveFixture(response, "criterion_index_r01_pass", server.baseUrl);
-        return true;
-      }
-      return false;
-    });
-    const document = await exportFrom(server);
-    expect(document.retrieved).toBe(true);
-    expect(document.complete).toBe(false);
-    expect(document.diagnostics.some((item) => item.code === "MAPPED_RESPONSE_TRUNCATED")).toBe(true);
-    expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
-  });
-
   it("maps an aborted report read to interrupted, never pass", async () => {
     const { server } = await startMock((_request, response) => {
       serveFixture(response, "report_all_pass_one_page", server.baseUrl);
@@ -1031,5 +1012,139 @@ describe("finished grading with a timed-out attempt (AUG-403)", () => {
     expect(document.complete).toBe(false);
     expect(document.diagnostics.map((item) => item.code)).toContain("MAPPED_RESPONSE_UNAVAILABLE");
     expect(classifyRunReportExport(document).exitCode).not.toBe(EXIT.OK);
+  });
+});
+
+describe("truncated evidence on a finished run (AUG-418)", () => {
+  async function exportTruncated(options: {
+    readonly report: Record<string, unknown> | ((origin: string) => Record<string, unknown>);
+    readonly index?: "criterion_index_r01_pass" | "criterion_index_r01_fail";
+    readonly truncateCriteria?: boolean;
+  }) {
+    const { server } = await startMock((_request, response, url) => {
+      if (url.pathname === `/v1/relay/runs/${REPORT_RUN_ID}/report`) {
+        send(response, 200, typeof options.report === "function" ? options.report(server.baseUrl) : options.report);
+        return true;
+      }
+      if (url.pathname.includes("/criteria")) {
+        const index = options.index ?? "criterion_index_r01_pass";
+        if (options.truncateCriteria === false) serveFixture(response, index, server.baseUrl);
+        else send(response, 200, truncatedCriterionIndex(server.baseUrl, index));
+        return true;
+      }
+      return false;
+    });
+    return await exportFrom(server);
+  }
+
+  it("exits 0 for a passed, fully graded run and keeps the truncation visible", async () => {
+    const document = await exportTruncated({
+      report: (origin) => truncatedReplyReport(origin, "report_all_pass_one_page")
+    });
+    expect(document.retrieved).toBe(true);
+    expect(document.complete).toBe(true);
+    expect(document.report?.attempts[0]?.mappedResponse.truncated).toBe(true);
+    expect(document.report?.attempts[0]?.mappedResponse.text).toHaveLength(2_000);
+    expect(document.diagnostics.map((item) => item.code).sort()).toEqual([
+      "CRITERION_EVIDENCE_TRUNCATED",
+      "MAPPED_RESPONSE_TRUNCATED"
+    ]);
+    expect(document.diagnostics.every((item) => item.retryable === false)).toBe(true);
+    // The excerpt's digest covers the full reply, so it is not a hash mismatch.
+    expect(document.diagnostics.map((item) => item.code)).not.toContain("MAPPED_RESPONSE_HASH_MISMATCH");
+    expect(document.diagnostics.map((item) => item.code)).not.toContain("CRITERION_EVIDENCE_HASH_MISMATCH");
+    const classified = classifyRunReportExport(document);
+    expect(classified.exitCode).toBe(EXIT.OK);
+    expect(classified.waitTerminal).toBe(true);
+  });
+
+  it("exits 0 when only the mapped reply is truncated", async () => {
+    const document = await exportTruncated({
+      report: (origin) => truncatedReplyReport(origin, "report_all_pass_one_page"),
+      truncateCriteria: false
+    });
+    expect(document.complete).toBe(true);
+    expect(document.diagnostics.map((item) => item.code)).toEqual(["MAPPED_RESPONSE_TRUNCATED"]);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.OK);
+  });
+
+  it("exits 10 for a failed, fully graded run", async () => {
+    const document = await exportTruncated({
+      report: (origin) => truncatedReplyReport(origin, "report_required_fail"),
+      index: "criterion_index_r01_fail"
+    });
+    expect(document.complete).toBe(true);
+    expect(document.diagnostics.map((item) => item.code)).toContain("MAPPED_RESPONSE_TRUNCATED");
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+  });
+
+  it("still exits 11 while grading is pending", async () => {
+    const document = await exportTruncated({
+      report: (origin) =>
+        mutatedFixtureResponse("report_pending", origin, (body) => {
+          const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+          Object.assign(asRecord(attempt["mappedResponse"]), truncatedEvidence());
+        }).body as Record<string, unknown>
+    });
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+  });
+
+  it("still exits 11 while judge jobs remain on a partial evaluation", async () => {
+    const document = await exportTruncated({
+      report: (origin) =>
+        mutatedFixtureResponse("report_all_pass_one_page", origin, (body) => {
+          const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+          Object.assign(asRecord(attempt["mappedResponse"]), truncatedEvidence());
+          body["evaluationStatus"] = "partial";
+        }).body as Record<string, unknown>
+    });
+    expect(classifyRunReportExport(document, { planned: 2, completed: 1 }).exitCode).toBe(
+      EXIT.EVALUATION_INCOMPLETE
+    );
+  });
+
+  it("keeps purged evidence incomplete even when it is flagged truncated", async () => {
+    const document = await exportTruncated({
+      report: (origin) =>
+        mutatedFixtureResponse("report_all_pass_one_page", origin, (body) => {
+          const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+          Object.assign(asRecord(attempt["mappedResponse"]), {
+            availability: "purged",
+            text: null,
+            sha256: null,
+            truncated: true
+          });
+        }).body as Record<string, unknown>
+    });
+    expect(document.complete).toBe(false);
+    expect(document.diagnostics.map((item) => item.code)).toContain("MAPPED_RESPONSE_UNAVAILABLE");
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+  });
+
+  it("keeps a truncated reply with no retained excerpt incomplete", async () => {
+    const document = await exportTruncated({
+      report: (origin) =>
+        mutatedFixtureResponse("report_all_pass_one_page", origin, (body) => {
+          const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+          Object.assign(asRecord(attempt["mappedResponse"]), { text: null, truncated: true });
+        }).body as Record<string, unknown>
+    });
+    expect(document.complete).toBe(false);
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+  });
+
+  it("still flags a hash mismatch on a reply that is not truncated", async () => {
+    const document = await exportTruncated({
+      report: (origin) =>
+        mutatedFixtureResponse("report_all_pass_one_page", origin, (body) => {
+          const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+          const evidence = truncatedEvidence();
+          Object.assign(asRecord(attempt["mappedResponse"]), { ...evidence, truncated: false });
+        }).body as Record<string, unknown>,
+      truncateCriteria: false
+    });
+    expect(document.complete).toBe(false);
+    expect(document.diagnostics.map((item) => item.code)).toContain("MAPPED_RESPONSE_HASH_MISMATCH");
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
   });
 });

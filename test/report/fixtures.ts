@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -143,5 +144,56 @@ export function timedOutAttemptReport(
     };
     body["reportReady"] = false;
     body["page"] = { nextCursor: null, hasMore: false, totalAttempts: 2 };
+  }).body as Record<string, unknown>;
+}
+
+/** The hosted report keeps this many characters of each reply (server `REPORT_MAPPED_EXCERPT_CHARS`). */
+export const REPORT_EXCERPT_CHARS = 2_000;
+
+/** A ~6,300-character reply, as in the AUG-418 QA run. */
+export const LONG_REPLY = `Unused items in the synthetic catalog can be returned within 30 days. ${"Policy detail. ".repeat(415)}`;
+
+/**
+ * The evidence the hosted server projects for a long reply: the first 2,000
+ * characters, `truncated: true`, and `sha256` of the full reply.
+ */
+export function truncatedEvidence(reply: string = LONG_REPLY): {
+  availability: "available";
+  text: string;
+  sha256: string;
+  truncated: true;
+} {
+  return {
+    availability: "available",
+    text: [...reply].slice(0, REPORT_EXCERPT_CHARS).join(""),
+    sha256: createHash("sha256").update(reply, "utf8").digest("hex"),
+    truncated: true
+  };
+}
+
+/**
+ * AUG-418 reproduction: a finished, fully graded report whose reply and
+ * criterion evidence are the server's truncated excerpt. `reportName` is
+ * `report_all_pass_one_page` (passed) or `report_required_fail` (failed).
+ */
+export function truncatedReplyReport(
+  origin: string,
+  reportName: "report_all_pass_one_page" | "report_required_fail"
+): Record<string, unknown> {
+  return mutatedFixtureResponse(reportName, origin, (body) => {
+    const attempt = (body["attempts"] as Record<string, unknown>[])[0]!;
+    const mapped = asRecord(attempt["mappedResponse"]);
+    Object.assign(mapped, truncatedEvidence());
+  }).body as Record<string, unknown>;
+}
+
+export function truncatedCriterionIndex(
+  origin: string,
+  indexName: "criterion_index_r01_pass" | "criterion_index_r01_fail"
+): Record<string, unknown> {
+  return mutatedFixtureResponse(indexName, origin, (body) => {
+    for (const criterion of body["criteria"] as Record<string, unknown>[]) {
+      criterion["evidence"] = truncatedEvidence();
+    }
   }).body as Record<string, unknown>;
 }

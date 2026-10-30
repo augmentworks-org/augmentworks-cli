@@ -156,6 +156,39 @@ const AUTH_FAILURE_CODES = new Set([
 ]);
 
 /**
+ * Diagnostics that describe a permanent limit of the stored evidence, not a
+ * gap that a later read can fill (AUG-418). The hosted report keeps a bounded
+ * excerpt of each reply (`truncated: true`, with `sha256` covering the full
+ * reply), so retrying never returns more text. They stay in `diagnostics` with
+ * `retryable: false` but do not make the export incomplete.
+ */
+export const EVIDENCE_LIMIT_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set([
+  "MAPPED_RESPONSE_TRUNCATED",
+  "CRITERION_EVIDENCE_TRUNCATED"
+]);
+
+/** The diagnostics on a complete export that are warnings, not gaps. */
+export function evidenceLimitDiagnostics(document: RunReportExport): ExportDiagnostic[] {
+  return document.diagnostics.filter((item) => EVIDENCE_LIMIT_DIAGNOSTIC_CODES.has(item.code));
+}
+
+/**
+ * Truncated evidence still carries its excerpt. Without any retained text the
+ * truncation flag cannot stand in for the reply, so it stays a gap.
+ */
+function truncatedWithExcerpt(evidence: {
+  readonly availability: string;
+  readonly text: string | null;
+  readonly truncated: boolean;
+}): boolean {
+  return (
+    evidence.truncated &&
+    evidence.text !== null &&
+    (evidence.availability === "available" || evidence.availability === "redacted")
+  );
+}
+
+/**
  * The attempt has no reply to show: the server reports its reply missing and
  * the attempt did not pass. Execution that did not complete, or a native
  * outcome of error or not_run, means no reply was captured.
@@ -552,7 +585,12 @@ class RunReportClient {
         )
       })
     );
-    const complete = criteriaComplete && evidenceComplete && diagnostics.length === 0;
+    // AUG-418: truncated evidence is a permanent limit of the stored excerpt.
+    // It stays visible in diagnostics but does not block completeness.
+    const complete =
+      criteriaComplete &&
+      evidenceComplete &&
+      diagnostics.every((item) => EVIDENCE_LIMIT_DIAGNOSTIC_CODES.has(item.code));
     return this.#assemble([assembled], criteria, diagnostics, complete);
   }
 
@@ -978,11 +1016,14 @@ class RunReportClient {
     );
     for (const attempt of report.attempts) {
       if (attempt.mappedResponse.truncated) {
+        // AUG-418: the report keeps a bounded excerpt of a long reply. That is
+        // permanent, so it is a warning, not a reason to retry.
         diagnostics.push({
           code: "MAPPED_RESPONSE_TRUNCATED",
-          message: `Attempt ${attempt.attemptId} mappedResponse is truncated.`
+          message: `Attempt ${attempt.attemptId} mappedResponse is a truncated excerpt of the reply. The stored excerpt is final; a retry returns the same text.`,
+          retryable: false
         });
-        complete = false;
+        if (!truncatedWithExcerpt(attempt.mappedResponse)) complete = false;
       }
       if (
         (attempt.mappedResponse.availability === "missing" && !noReplyAttempts.has(attempt.attemptId)) ||
@@ -995,6 +1036,7 @@ class RunReportClient {
         complete = false;
       }
       if (
+        !attempt.mappedResponse.truncated &&
         attempt.mappedResponse.text !== null &&
         attempt.mappedResponse.sha256 !== null &&
         sha256Utf8(attempt.mappedResponse.text) !== attempt.mappedResponse.sha256
@@ -1010,9 +1052,10 @@ class RunReportClient {
       if (criterion.evidence.truncated) {
         diagnostics.push({
           code: "CRITERION_EVIDENCE_TRUNCATED",
-          message: `Criterion ${criterion.criterionId} evidence is truncated.`
+          message: `Criterion ${criterion.criterionId} evidence is a truncated excerpt of the reply. The stored excerpt is final; a retry returns the same text.`,
+          retryable: false
         });
-        complete = false;
+        if (!truncatedWithExcerpt(criterion.evidence)) complete = false;
       }
       if (
         criterion.required &&
@@ -1026,6 +1069,7 @@ class RunReportClient {
         complete = false;
       }
       if (
+        !criterion.evidence.truncated &&
         criterion.evidence.text !== null &&
         criterion.evidence.sha256 !== null &&
         sha256Utf8(criterion.evidence.text) !== criterion.evidence.sha256

@@ -276,7 +276,12 @@ export function canaryRedactionPolicy(
  * The server's default redaction profile (augmentworks default-profile.ts): it
  * keeps /path and /content of each ingress document and masks /content.
  */
-export function serverDefaultRedactionPolicy(): { policy: DataPolicy; profile: RedactionProfile } {
+export function serverDefaultRedactionPolicy(
+  options: {
+    readonly dataClass?: DataPolicy["dataClass"];
+    readonly contentHandling?: DataPolicy["contentHandling"];
+  } = {}
+): { policy: DataPolicy; profile: RedactionProfile } {
   const profile = sealDocumentHash(
     {
       schemaVersion: "aw-redaction-profile/1" as const,
@@ -307,8 +312,8 @@ export function serverDefaultRedactionPolicy(): { policy: DataPolicy; profile: R
       policyId: UUID_D,
       revision: 1,
       policyHash: "0".repeat(64),
-      dataClass: "business" as const,
-      contentHandling: "minimized" as const,
+      dataClass: options.dataClass ?? ("business" as const),
+      contentHandling: options.contentHandling ?? ("minimized" as const),
       redactionProfileId: profile.profileId,
       redactionProfileHash: profile.profileHash,
       retentionDays: 30,
