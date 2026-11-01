@@ -74,7 +74,7 @@
     "provenance": true
   },
   "devDependencies": {
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "commander": "15.0.0",
     "open": "11.0.4",
     "tsup": "8.5.1",
