@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "aw-mcp-reads/1",
+  "cases": [
+    {
+      "name": "listed applications and pinned baseline",
+      "tool": "list_applications",
+      "args": {},
+      "upstream": {
+        "ok": true,
+        "createsBillableRun": false,
+        "applications": [
+          {
+            "schemaVersion": "aw-application-identity/1",
+            "workspaceId": "00000000-0000-4000-8000-000000000001",
+            "applicationId": "00000000-0000-4000-8000-000000000002",
+            "applicationName": "Example FAQ",
+            "environmentId": "00000000-0000-4000-8000-000000000003",
+            "environmentName": "test"
+          }
+        ],
+        "baselines": [
+          {
+            "schemaVersion": "aw-baseline/1",
+            "workspaceId": "00000000-0000-4000-8000-000000000001",
+            "baselineId": "00000000-0000-4000-8000-000000000004",
+            "name": "Example policy",
+            "runId": "00000000-0000-4000-8000-000000000005",
+            "applicationId": "00000000-0000-4000-8000-000000000002",
+            "environmentId": "00000000-0000-4000-8000-000000000003"
+          }
+        ]
+      },
+      "expected": {
+        "workspaceId": "00000000-0000-4000-8000-000000000001",
+        "applicationEnvironmentCount": 1,
+        "baselineCount": 1,
+        "applications": [
+          {
+            "applicationId": "00000000-0000-4000-8000-000000000002",
+            "applicationName": "Example FAQ",
+            "environmentId": "00000000-0000-4000-8000-000000000003",
+            "environmentName": "test"
+          }
+        ],
+        "baselines": [
+          {
+            "baselineId": "00000000-0000-4000-8000-000000000004",
+            "name": "Example policy",
+            "runId": "00000000-0000-4000-8000-000000000005",
+            "applicationId": "00000000-0000-4000-8000-000000000002",
+            "environmentId": "00000000-0000-4000-8000-000000000003"
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "pending report with unknown judgment coverage",
+      "tool": "get_run_report",
+      "args": {
+        "run_id": "00000000-0000-4000-8000-000000000006"
+      },
+      "upstream": {
+        "schemaVersion": "aw-run-report/1",
+        "createsBillableRun": false,
+        "runId": "00000000-0000-4000-8000-000000000006",
+        "workspaceId": "00000000-0000-4000-8000-000000000001",
+        "executionStatus": "running",
+        "evaluationStatus": "pending",
+        "outcome": null,
+        "reportReady": false,
+        "coverage": {
+          "plannedAttempts": 1,
+          "completedAttempts": 0,
+          "requiredJudgmentsPlanned": null,
+          "requiredJudgmentsComplete": null
+        },
+        "aggregate": null,
+        "attempts": [
+          {
+            "mappedResponse": {
+              "text": "Fixture-only text excluded from the projection"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "runId": "00000000-0000-4000-8000-000000000006",
+        "workspaceId": "00000000-0000-4000-8000-000000000001",
+        "dashboardUrl": "https://augmentworks.ai/portal/runs/00000000-0000-4000-8000-000000000006",
+        "executionStatus": "running",
+        "evaluationStatus": "pending",
+        "outcome": null,
+        "reportReady": false,
+        "coverage": {
+          "plannedAttempts": 1,
+          "completedAttempts": 0,
+          "requiredJudgmentsPlanned": null,
+          "requiredJudgmentsComplete": null
+        },
+        "requirementOutcome": null,
+        "knownRequiredFailures": null,
+        "knownRequiredFailureCount": null
+      }
+    },
+    {
+      "name": "comparison includes only changed checks",
+      "tool": "compare_runs",
+      "args": {
+        "candidate_run_id": "00000000-0000-4000-8000-000000000006",
+        "baseline_run_id": "00000000-0000-4000-8000-000000000005"
+      },
+      "upstream": {
+        "schemaVersion": "aw-semantic-comparison-read/1",
+        "createsBillableRun": false,
+        "comparison": {
+          "baselineRunId": "00000000-0000-4000-8000-000000000005",
+          "candidateRunId": "00000000-0000-4000-8000-000000000006",
+          "comparability": "compatible",
+          "compatibilityReasons": [
+            "compatible_build_change_only"
+          ],
+          "coverageChange": "none",
+          "evaluationStatus": "complete",
+          "candidateRequirementOutcome": "fail",
+          "comparedCases": [
+            {
+              "caseId": "faq.greeting",
+              "criterionId": "greeting",
+              "repetitionIndex": 0,
+              "requirement": "required",
+              "baselineOutcome": "pass",
+              "candidateOutcome": "pass",
+              "change": "unchanged",
+              "category": null
+            },
+            {
+              "caseId": "faq.returns",
+              "criterionId": "return-window-30-days",
+              "repetitionIndex": 0,
+              "requirement": "required",
+              "baselineOutcome": "pass",
+              "candidateOutcome": "fail",
+              "change": "regressed",
+              "category": "new_required_failure"
+            }
+          ]
+        },
+        "inputRevisions": {
+          "baselineRunId": "00000000-0000-4000-8000-000000000005",
+          "candidateRunId": "00000000-0000-4000-8000-000000000006"
+        }
+      },
+      "expected": {
+        "baselineRunId": "00000000-0000-4000-8000-000000000005",
+        "candidateRunId": "00000000-0000-4000-8000-000000000006",
+        "comparability": "compatible",
+        "compatibilityReasons": [
+          "compatible_build_change_only"
+        ],
+        "coverageChange": "none",
+        "evaluationStatus": "complete",
+        "candidateRequirementOutcome": "fail",
+        "totalCases": 2,
+        "changedOrFlaggedCases": 1,
+        "comparedCases": [
+          {
+            "caseId": "faq.returns",
+            "criterionId": "return-window-30-days",
+            "repetitionIndex": 0,
+            "requirement": "required",
+            "baselineOutcome": "pass",
+            "candidateOutcome": "fail",
+            "change": "regressed",
+            "category": "new_required_failure"
+          }
+        ],
+        "truncated": false
+      }
+    }
+  ]
+}
