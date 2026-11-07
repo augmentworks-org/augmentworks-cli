@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aw-github-integration/1",
+  "admissionId": "00000000-0000-4000-8000-000000000016",
+  "createRequestId": "crq_ci_return_window_rehearsal_00001",
+  "bindingId": "00000000-0000-4000-8000-000000000001",
+  "suiteRevisionId": "00000000-0000-4000-8000-000000000004",
+  "quoteId": "00000000-0000-4000-8000-000000000015",
+  "maxCredits": 8,
+  "executionPlanDigest": "7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b",
+  "target": {
+    "kind": "verified_preview",
+    "origin": "https://return-window-7.example.test",
+    "deploymentId": "dpl_ExampleReturnWindow7",
+    "testedRevision": "b0a720ff72acc15a440ed3526034f39785c2f2a2"
+  },
+  "runId": null,
+  "operationId": null,
+  "baselineId": null
+}

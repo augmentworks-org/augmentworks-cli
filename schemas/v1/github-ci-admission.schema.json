@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/v1/github-ci-admission.schema.json",
+  "title": "AugmentWorks GitHub CI admission",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "aw-github-integration/1"
+    },
+    "admissionId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+    },
+    "createRequestId": {
+      "type": "string",
+      "minLength": 24,
+      "maxLength": 100,
+      "pattern": "^crq_[A-Za-z0-9_-]+$"
+    },
+    "bindingId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+    },
+    "baselineId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operationId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "suiteRevisionId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+    },
+    "quoteId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+    },
+    "maxCredits": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "executionPlanDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fixed"
+            },
+            "origin": {
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^https:\\/\\/[^/?#@\\\\\\s]+$",
+              "description": "Canonical HTTPS origin, without credentials, path, query or fragment."
+            }
+          },
+          "required": [
+            "kind",
+            "origin"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "verified_preview"
+            },
+            "origin": {
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^https:\\/\\/[^/?#@\\\\\\s]+$",
+              "description": "Canonical HTTPS origin, without credentials, path, query or fragment."
+            },
+            "deploymentId": {
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "^dpl_[A-Za-z0-9]+$"
+            },
+            "testedRevision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          },
+          "required": [
+            "kind",
+            "origin",
+            "deploymentId",
+            "testedRevision"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "runId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "admissionId",
+    "createRequestId",
+    "bindingId",
+    "baselineId",
+    "operationId",
+    "suiteRevisionId",
+    "quoteId",
+    "maxCredits",
+    "executionPlanDigest",
+    "target",
+    "runId"
+  ],
+  "additionalProperties": false,
+  "description": "The platform's admitted or already-linked CI response. A file carries the binding; the relay independently authenticates and authorizes the caller."
+}

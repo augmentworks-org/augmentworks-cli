@@ -72,6 +72,14 @@ import {
   type CreateRunIntentRequest,
   type RunIntent
 } from "../relay/run-intent.js";
+import {
+  assertCiExecutionPlan,
+  assertCiTarget,
+  ciExecutionPlanDigest,
+  loadCiAdmission,
+  type CiAdmission
+} from "../relay/ci-admission.js";
+import { startAdmittedRun } from "../relay/ci-create.js";
 import { RelayRunner, type RelayProgressEvent } from "../relay/runner.js";
 import { getStateDirectory } from "../relay/state-dir.js";
 import { assertAllowedBrowserUrl, openBrowserUrl, type BrowserOpener } from "../system/browser.js";
@@ -164,6 +172,7 @@ import type {
 import type { CreateRunAssessment } from "../cloud/protocol.js";
 
 export interface TestOptions {
+  readonly ciAdmission?: string;
   readonly config?: string;
   readonly packet?: string;
   readonly assessment?: string;
@@ -218,6 +227,7 @@ export interface TestResult {
 }
 
 export interface EstimateResult {
+  readonly executionPlanDigest?: string;
   readonly quote: BillingQuote;
   readonly localPlanHash: string;
   readonly workspaceLabel: string;
@@ -254,6 +264,7 @@ export async function runTest(
   options: TestOptions,
   dependencies: TestDependencies = {}
 ): Promise<TestResult> {
+  assertCiInvocation(options);
   const cwd = resolve(options.cwd ?? process.cwd());
   const env = options.env ?? process.env;
   const config = options.config ?? "augmentworks.yaml";
@@ -268,14 +279,27 @@ export async function runTest(
     });
   }
 
+  const ciAdmission = options.ciAdmission === undefined
+    ? undefined
+    : await loadCiAdmission(options.ciAdmission, cwd);
+  if (ciAdmission) {
+    assertCiTarget(ciAdmission, report.resolvedConfig);
+    if (parseMaxCreditsFlag(options.maxCredits) !== ciAdmission.maxCredits) {
+      throw selectionError("CI_ADMISSION_CAP_MISMATCH", "--max-credits must match the approved CI admission.");
+    }
+  }
   const selection = await loadHostedSelection(options, cwd, report.resolvedConfig);
   if (usesCompiledSelection(options, selection)) {
     return runCompiledSelectionTest(options, dependencies, {
       cwd,
       env,
       report,
-      selection
+      selection,
+      ...(ciAdmission === undefined ? {} : { ciAdmission })
     });
+  }
+  if (ciAdmission) {
+    throw selectionError("CI_ADMISSION_SELECTION_INVALID", "An admitted run requires a compiled shard from a saved suite revision.");
   }
   return executeHostedSelection(selection, options, dependencies, { cwd, env, report });
 }
@@ -288,10 +312,11 @@ async function executeHostedSelection(
     readonly cwd: string;
     readonly env: NodeJS.ProcessEnv;
     readonly report: DoctorReport;
+    readonly ciAdmission?: CiAdmission;
     readonly pinnedSession?: Awaited<ReturnType<typeof authenticateHostedSession>>;
   }
 ): Promise<TestResult> {
-  const { cwd, env, report } = context;
+  const { cwd, env, report, ciAdmission } = context;
   if (report.resolvedConfig === undefined) {
     throw new AwError({
       code: "DOCTOR_FAILED",
@@ -336,19 +361,14 @@ async function executeHostedSelection(
   const target = hostedTargetBinding(report.resolvedConfig, admittedScope);
   const stderr = dependencies.stderr ?? process.stderr;
   const stateDirectory = options.stateDirectory ?? getStateDirectory(env);
-  const intentStore =
-    dependencies.intentStore?.({
-      apiOrigin: session.apiOrigin,
-      tenant: session.tenant,
-      stateDirectory,
-      env
-    }) ??
-    new RunIntentStore({
-      apiOrigin: session.apiOrigin,
-      tenant: session.tenant,
-      stateDirectory,
-      env
-    });
+  const storeOptions = {
+    apiOrigin: session.apiOrigin,
+    tenant: session.tenant,
+    stateDirectory,
+    env,
+    ...(ciAdmission === undefined ? {} : { linkedCreateRequestId: ciAdmission.createRequestId })
+  };
+  const intentStore = dependencies.intentStore?.(storeOptions) ?? new RunIntentStore(storeOptions);
   await intentStore.open();
   try {
     await intentStore.migrateLegacyTenantBinding(async (legacyBinding) => {
@@ -368,6 +388,7 @@ async function executeHostedSelection(
       configSha256: report.resolvedConfig.configDigest,
       target,
       existing: intentStore.intent,
+      ...(ciAdmission === undefined ? {} : { ciAdmission }),
       ...(admittedScope === undefined ? {} : { admittedScope }),
       maxCredits,
       yes: options.yes === true,
@@ -397,19 +418,11 @@ async function executeHostedSelection(
         quotedUnits: 0
       });
     }
-    let prepared;
-    let binding: CreateRunResponse;
+    let started;
     try {
-      prepared = await prepareCreateAttempt(recovery, request);
-      if (prepared.kind === "resume_bound") {
-        binding = prepared.binding;
-      } else {
-        const loaded =
-          prepared.kind === "replay_pending"
-            ? { intent: prepared.intent, resumed: true }
-            : await intentStore.loadOrCreate(request);
-        binding = await createOrRecover(recovery, loaded.intent, options.signal);
-      }
+      started = ciAdmission === undefined
+        ? await startHostedRun(recovery, request)
+        : await startAdmittedRun(recovery, request, ciAdmission);
     } catch (error) {
       throw annotateHostedAdmissionError(error, {
         apiOrigin: session.apiOrigin,
@@ -417,6 +430,7 @@ async function executeHostedSelection(
         ...(resolved.quote === undefined ? {} : { quote: resolved.quote })
       });
     }
+    const { binding, resumed, currentStatus } = started;
     assertRunBinding(binding, intentStore.intent?.request ?? { ...request, create_request_id: binding.create_request_id });
     if (intentStore.intent?.phase !== "bound") {
       await intentStore.bind(binding);
@@ -431,7 +445,7 @@ async function executeHostedSelection(
     const dashboard = dashboardUrl(binding.dashboard_url, session.apiOrigin);
     writeLine(
       stderr,
-      `${prepared.kind === "resume_bound" || prepared.kind === "replay_pending" ? "Resuming" : "Run"} ${sanitizeTerminal(binding.run_id)}: ${sanitizeTerminal(dashboard.toString())}`
+      `${resumed ? "Resuming" : "Run"} ${sanitizeTerminal(binding.run_id)}: ${sanitizeTerminal(dashboard.toString())}`
     );
     writeLine(stderr, HOSTED_TEST_KEEP_TERMINAL);
     if (options.open === true && isHeadlessEnvironment(env, options)) {
@@ -447,13 +461,13 @@ async function executeHostedSelection(
       }
     }
 
-    if (isTerminal(binding.status)) {
+    if (isTerminal(currentStatus?.status ?? binding.status)) {
       let run: RunStatusResponse;
       let judgeJobs: JudgeJobProgress | undefined;
       try {
         ({ run, judgeJobs } = await settleGradedRun(
           session,
-          await session.cloud.getRunStatus(binding.run_id, options.signal),
+          currentStatus ?? await session.cloud.getRunStatus(binding.run_id, options.signal),
           dependencies,
           stderr,
           options.signal
@@ -484,6 +498,7 @@ async function executeHostedSelection(
         : (event: RelayProgressEvent) => writeProgress(stderr, event));
     const livePolicy =
       selection.kind === "suite" ? liveExecutionPolicyFromSuite(selection.suite.document) : undefined;
+    const dispatchQuoteId = ciAdmission?.quoteId ?? resolved.quote?.quoteId;
     const dispatchPolicy = await resolveHostedDispatchPolicy({
       selection,
       cloud: session.cloud,
@@ -492,7 +507,7 @@ async function executeHostedSelection(
       binding,
       stateDirectory,
       env,
-      ...(resolved.quote?.quoteId === undefined ? {} : { quoteId: resolved.quote.quoteId }),
+      ...(dispatchQuoteId === undefined ? {} : { quoteId: dispatchQuoteId }),
       ...(options.signal === undefined ? {} : { signal: options.signal })
     });
     const runnerOptions: ConstructorParameters<typeof RelayRunner>[0] = {
@@ -760,6 +775,15 @@ async function runCompiledSelectionEstimate(
   return {
     quote,
     localPlanHash: prepared.localPlanHash,
+    ...(prepared.assessment.suite_revision_id === undefined ? {} : {
+      executionPlanDigest: ciExecutionPlanDigest({
+        protocol_version: "aw-relay/0.3",
+        packet: hosted.packet,
+        config_sha256: context.report.resolvedConfig.configDigest,
+        target,
+        assessment: prepared.assessment
+      })
+    }),
     workspaceLabel: formatWorkspaceLabel(session.identity),
     advertisedCapabilities: target.capabilities,
     apiOrigin: session.apiOrigin
@@ -774,6 +798,7 @@ async function runCompiledSelectionTest(
     readonly env: NodeJS.ProcessEnv;
     readonly report: DoctorReport;
     readonly selection: HostedSelection;
+    readonly ciAdmission?: CiAdmission;
   }
 ): Promise<TestResult> {
   if (context.report.resolvedConfig === undefined) {
@@ -796,6 +821,13 @@ async function runCompiledSelectionTest(
   }
 
   const session = await authenticateHostedSession(options, dependencies);
+  if (context.ciAdmission && session.identity.principalKind !== "machine") {
+    throw new AwError({
+      code: "CI_MACHINE_KEY_REQUIRED",
+      category: "auth",
+      message: "An admitted CI run requires a workspace execution key."
+    });
+  }
   assertMachineHostedAdmission(session.identity, { suite: true });
   const manifest = await resolveCompiledManifest(options, { ...context, session });
   admitManifestWorkspace(manifest, session.tenant);
@@ -1259,6 +1291,19 @@ async function persistCoverageArtifact(
   return coverage;
 }
 
+async function startHostedRun(
+  recovery: RecoveryContext,
+  request: CreateRunIntentRequest
+): Promise<{ binding: CreateRunResponse; resumed: boolean; currentStatus?: RunStatusResponse }> {
+  const prepared = await prepareCreateAttempt(recovery, request);
+  if (prepared.kind === "resume_bound") return { binding: prepared.binding, resumed: true };
+  const loaded = prepared.kind === "replay_pending"
+    ? { intent: prepared.intent, resumed: true }
+    : await recovery.intentStore.loadOrCreate(request);
+  const binding = await createOrRecover(recovery, loaded.intent, recovery.signal);
+  return { binding, resumed: loaded.resumed };
+}
+
 async function createOrRecover(
   recovery: RecoveryContext,
   intent: RunIntent,
@@ -1275,6 +1320,7 @@ export async function runEstimate(
   options: TestOptions,
   dependencies: TestDependencies = {}
 ): Promise<EstimateResult> {
+  assertCiInvocation({ ...options, estimate: true });
   if (
     options.assessment === undefined &&
     options.suite === undefined &&
@@ -1666,6 +1712,7 @@ async function resolveHostedCreateRequest(options: {
   readonly configSha256: string;
   readonly target: CreateRunRequest["target"];
   readonly existing: RunIntent | undefined;
+  readonly ciAdmission?: CiAdmission;
   readonly admittedScope?: ExecutionScopeResponse;
   readonly maxCredits: number | undefined;
   readonly yes: boolean;
@@ -1695,6 +1742,24 @@ async function resolveHostedCreateRequest(options: {
       : options.selection.kind === "shard"
         ? options.selection.shardAssessment
         : undefined;
+  if (options.ciAdmission) {
+    if (options.selection.kind !== "shard") {
+      throw selectionError("CI_ADMISSION_SELECTION_INVALID", "An admitted run requires one saved suite shard.");
+    }
+    const request = {
+      ...quotedCreateIntent({
+        packet: options.selection.packet,
+        configSha256: options.configSha256,
+        target: options.target,
+        assessment: options.selection.shardAssessment,
+        quoteId: options.ciAdmission.quoteId,
+        maxCredits: options.ciAdmission.maxCredits
+      }),
+      ci_admission_id: options.ciAdmission.admissionId
+    };
+    assertCiExecutionPlan(options.ciAdmission, request);
+    return { request };
+  }
   const existing = options.existing?.request;
   if (assessmentFields !== undefined && existing?.protocol_version === "aw-relay/0.3") {
     const replayCeiling = options.maxCredits ?? existing.max_credits;
@@ -2050,6 +2115,7 @@ export function createTestCommand(dependencies: TestDependencies = {}): Command 
         "--artifact-out <path>",
         "write manifestHash and per-shard run IDs for gate --manifest-file"
       )
+      .option("--ci-admission <path>", "use a platform-issued linked CI admission for one saved suite shard and reuse its original quote on retries")
       .option("--estimate", "compile and quote the hosted assessment without creating a run")
       .option("--max-credits <n>", "explicit maximum customer credits for this hosted run")
       .option("--yes", "skip the interactive spending prompt; still requires --max-credits")
@@ -2068,6 +2134,7 @@ export function createTestCommand(dependencies: TestDependencies = {}): Command 
   ).action(
       async (values: {
         config: string;
+        ciAdmission?: string;
         packet?: string;
         assessment?: string;
         suite?: string;
@@ -2164,6 +2231,7 @@ export function createTestCommand(dependencies: TestDependencies = {}): Command 
                 })
               ) as Record<string, unknown>;
               payload["advertisedCapabilities"] = estimate.advertisedCapabilities;
+              if (estimate.executionPlanDigest !== undefined) payload["execution_plan_digest"] = estimate.executionPlanDigest;
               stdout.write(`${JSON.stringify(payload)}\n`);
             } else {
               stdout.write(
@@ -2201,6 +2269,7 @@ export function createTestCommand(dependencies: TestDependencies = {}): Command 
             {
               config: values.config,
               ...(values.packet === undefined ? {} : { packet: values.packet }),
+              ...(values.ciAdmission === undefined ? {} : { ciAdmission: values.ciAdmission }),
               ...(values.assessment === undefined ? {} : { assessment: values.assessment }),
               ...(values.suite === undefined ? {} : { suite: values.suite }),
               ...(values.investigation === undefined ? {} : { investigation: values.investigation }),
@@ -2317,7 +2386,22 @@ export function hostedExitCode(run: RunStatusResponse, judgeJobs?: JudgeJobProgr
   }).exitCode;
 }
 
+function assertCiInvocation(values: TestOptions & { readonly local?: boolean }): void {
+  if (values.ciAdmission === undefined) return;
+  if (
+    values.local || values.estimate || values.allShards || values.executionId !== undefined ||
+    values.packet !== undefined || values.suite !== undefined || values.investigation !== undefined ||
+    (values.assessment === undefined && values.manifest === undefined)
+  ) {
+    throw selectionError("CI_ADMISSION_SELECTION_INVALID", "Use --ci-admission with one saved suite shard selected by --manifest or --assessment.");
+  }
+  if (values.yes !== true || values.maxCredits === undefined) {
+    throw selectionError("CI_ADMISSION_CONSENT_REQUIRED", "Pass --yes and the exact --max-credits approved for this CI admission.");
+  }
+}
+
 function assertTestSelection(values: {
+  ciAdmission?: string;
   packet?: string;
   assessment?: string;
   suite?: string;
@@ -2335,6 +2419,7 @@ function assertTestSelection(values: {
   headless?: boolean;
   workspace?: string;
 }): void {
+  assertCiInvocation(values);
   const hostedSelection =
     values.manifest !== undefined || values.shard !== undefined || values.allShards === true;
   if (hostedSelection && values.local === true) {

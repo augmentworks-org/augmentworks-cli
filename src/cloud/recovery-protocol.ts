@@ -34,6 +34,37 @@ const errorCode = z
   .regex(/^[A-Z][A-Z0-9_]{0,79}$/);
 const errorMessage = z.string().min(1).max(500);
 
+// The deployed relay lookup returns a run reference. A create replay supplies the
+// complete binding needed to start or resume a connector session.
+const lookupIdentity = {
+  protocol_version: z.literal("aw-relay-recovery/0.1"),
+  create_request_id: createRequestId,
+  create_request_sha256: sha256
+};
+export const CreateIntentLookupSchema = z.discriminatedUnion("outcome", [
+  z.object({
+    ...lookupIdentity,
+    outcome: z.literal("bound"),
+    run_id: z.string().uuid(),
+    next_action: z.literal("inspect_or_resume_existing_run"),
+    dashboard_url: z.string().url()
+  }).strict(),
+  z.object({
+    ...lookupIdentity,
+    outcome: z.literal("unknown"),
+    run_id: z.null(),
+    next_action: z.literal("preserve_local_intent_and_retry"),
+    dashboard_url: z.null()
+  }).strict(),
+  z.object({
+    ...lookupIdentity,
+    outcome: z.literal("retired_uncreated"),
+    run_id: z.null(),
+    next_action: z.literal("retire_local_pending_intent"),
+    dashboard_url: z.null()
+  }).strict()
+]);
+
 export const ReconcileRunIntentRequestSchema = z
   .object({
     protocol_version: z.literal(RUN_INTENT_RECONCILE_PROTOCOL_VERSION),

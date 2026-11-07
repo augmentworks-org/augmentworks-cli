@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Linked CI runners can pass a platform-issued admission to `test --ci-admission`
+  and recover the original hosted run after a lost response on a clean runner.
+  This requires the matching platform admission and linked relay create support.
+  The CLI checks the approved target, saved suite revision, execution-plan digest
+  and credit cap before attempting a create.
+
 ## [0.4.2] - 2026-10-30
 
 Patch release. Requires Node.js 22.12 or newer, like 0.4.1. A verbatim data

@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import {
   CreateRunRequestSchema,
+  CreateRunRequestV3Schema,
   CreateRunResponseSchema,
   type CreateRunRequest,
   type CreateRunResponse,
@@ -25,6 +26,8 @@ const MAX_INTENT_BYTES = 256 * 1024;
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 const RUN_INTENT_ARCHIVE_VERSION = "aw-run-intent-archive/0.1" as const;
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
+const linkedRequestSchema = CreateRunRequestV3Schema.required({ ci_admission_id: true, max_credits: true });
+const createRequestIdSchema = CreateRunRequestV3Schema.shape.create_request_id;
 const tenantIdentifier = z
   .string()
   .min(1)
@@ -39,11 +42,7 @@ const tenantSchema = z
 const archiveSchema = z
   .object({
     archive_version: z.literal(RUN_INTENT_ARCHIVE_VERSION),
-    create_request_id: z
-      .string()
-      .min(24)
-      .max(100)
-      .regex(/^crq_[A-Za-z0-9_-]+$/),
+    create_request_id: createRequestIdSchema,
     request_sha256: digest,
     api_origin: z.string().url(),
     tenant: tenantSchema,
@@ -124,12 +123,15 @@ export interface RunIntentStoreOptions {
   readonly env?: NodeJS.ProcessEnv;
   readonly now?: () => Date;
   readonly createRequestId?: () => string;
+  readonly linkedCreateRequestId?: string;
   readonly platform?: NodeJS.Platform;
 }
 
 export interface LoadedRunIntent {
   readonly intent: RunIntent;
   readonly resumed: boolean;
+  /** A successful terminal archive permits recovery of this run only. */
+  readonly archivedRunId?: string;
 }
 
 export class RunIntentStore {
@@ -142,6 +144,7 @@ export class RunIntentStore {
   readonly #archiveDirectory: string;
   readonly #now: () => Date;
   readonly #createRequestId: () => string;
+  readonly #linkedCreateRequestId: string | undefined;
   readonly #platform: NodeJS.Platform;
   #lock: SecureLockHandle | undefined;
   #intent: RunIntent | undefined;
@@ -154,7 +157,18 @@ export class RunIntentStore {
     this.#runsDirectory = join(this.#stateDirectory, "runs");
     this.#archiveDirectory = join(this.#runsDirectory, "archive");
     const originHash = sha256(this.#apiOrigin).slice(0, 32);
-    this.path = join(this.#runsDirectory, `active-${originHash}.json`);
+    this.#linkedCreateRequestId = options.linkedCreateRequestId;
+    if (
+      this.#linkedCreateRequestId !== undefined &&
+      !createRequestIdSchema.safeParse(this.#linkedCreateRequestId).success
+    ) {
+      throw intentError("INVALID_LINKED_CREATE_REQUEST_ID", "The linked create request ID is invalid.");
+    }
+    // Each CI request has its own lock and intent file. Interactive recovery uses its original slot.
+    const activeName = this.#linkedCreateRequestId === undefined
+      ? `active-${originHash}`
+      : `linked-${originHash}-${sha256(this.#linkedCreateRequestId)}`;
+    this.path = join(this.#runsDirectory, `${activeName}.json`);
     this.lockPath = `${this.path}.lock`;
     this.#now = options.now ?? (() => new Date());
     this.#createRequestId =
@@ -198,6 +212,17 @@ export class RunIntentStore {
         throw intentError(
           "RUN_INTENT_ORIGIN_MISMATCH",
           "The active assessment belongs to a different AugmentWorks API origin."
+        );
+      }
+      if (
+        persisted !== undefined &&
+        this.#linkedCreateRequestId !== undefined &&
+        (persisted.request.create_request_id !== this.#linkedCreateRequestId ||
+          persisted.intent_version === LEGACY_RUN_INTENT_VERSION)
+      ) {
+        throw intentError(
+          "LINKED_RUN_INTENT_CONFLICT",
+          "The local intent does not match this linked CI run."
         );
       }
       if (
@@ -267,7 +292,11 @@ export class RunIntentStore {
         "The active legacy run intent must be tenant-verified before it can be resumed. No create request was sent."
       );
     }
-    if (this.#intent !== undefined) {
+    const linkedId = this.#linkedCreateRequestId;
+    if (linkedId === undefined && "ci_admission_id" in request) {
+      throw intentError("LINKED_RUN_INTENT_CONFLICT", "A CI admission requires its original platform-issued create request ID.");
+    }
+    if (linkedId === undefined && this.#intent !== undefined) {
       if (!intentRequestMatches(this.#intent, request)) {
         throw intentError(
           "ACTIVE_RUN_EXISTS",
@@ -277,15 +306,31 @@ export class RunIntentStore {
       return { intent: structuredClone(this.#intent), resumed: true };
     }
 
-    const parsed = CreateRunRequestSchema.safeParse({
+    const schema = linkedId === undefined ? CreateRunRequestSchema : linkedRequestSchema;
+    const parsed = schema.safeParse({
       ...request,
-      create_request_id: this.#createRequestId()
+      create_request_id: linkedId ?? this.#createRequestId()
     });
     if (!parsed.success) {
       throw intentError(
         "INVALID_RUN_REQUEST",
         "The assessment request cannot be persisted safely."
       );
+    }
+    const requestDigest = sha256(canonicalize(parsed.data));
+    const archivedRunId = linkedId === undefined
+      ? undefined
+      : await this.#archivedLinkedRunId(linkedId, requestDigest);
+    const archive = archivedRunId === undefined ? {} : { archivedRunId };
+    if (this.#intent !== undefined) {
+      // CI admission pins every field including the original quote.
+      if (this.#intent.request_sha256 !== requestDigest) {
+        throw intentError(
+          "LINKED_RUN_INTENT_CONFLICT",
+          "This linked CI run was already used with different inputs."
+        );
+      }
+      return { intent: structuredClone(this.#intent), resumed: true, ...archive };
     }
     const timestamp = this.#now().toISOString();
     const next = parseIntent({
@@ -294,13 +339,37 @@ export class RunIntentStore {
       api_origin: this.#apiOrigin,
       tenant: this.#tenant,
       request: parsed.data,
-      request_sha256: sha256(canonicalize(parsed.data)),
+      request_sha256: requestDigest,
       created_at: timestamp,
       updated_at: timestamp
     });
     await writeIntentAtomic(this.path, this.#runsDirectory, next, this.#platform);
     this.#intent = next;
-    return { intent: structuredClone(next), resumed: false };
+    return { intent: structuredClone(next), resumed: archivedRunId !== undefined, ...archive };
+  }
+
+  async #archivedLinkedRunId(id: string, requestDigest: string): Promise<string | undefined> {
+    const archived = await this.readArchive(id);
+    if (archived === undefined) return undefined;
+    assertTenantMatches(archived.tenant, this.#tenant);
+    if (
+      archived.create_request_id !== id ||
+      archived.api_origin !== this.#apiOrigin ||
+      archived.request_sha256 !== requestDigest
+    ) {
+      throw intentError(
+        "LINKED_RUN_INTENT_CONFLICT",
+        "The archived CI run does not match the supplied request."
+      );
+    }
+    if (
+      archived.reason !== "terminal_bound" ||
+      archived.phase !== "bound" ||
+      archived.run_id === undefined
+    ) {
+      throw intentError("LINKED_RUN_INTENT_RETIRED", "The platform-issued request was retired without a run.");
+    }
+    return archived.run_id;
   }
 
   async bind(binding: CreateRunResponse): Promise<RunIntent> {

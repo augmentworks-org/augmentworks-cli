@@ -479,6 +479,9 @@ export const CreateRunRequestV2Schema = z
   })
   .strict();
 
+// UUID wire shape used by the platform's GitHub CI admission contract.
+export const CiAdmissionUuidSchema = z.string().regex(/^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/);
+
 export const CreateRunRequestV3Schema = z
   .object({
     protocol_version: z.literal(RELAY_PROTOCOL_VERSION_V3),
@@ -490,6 +493,7 @@ export const CreateRunRequestV3Schema = z
     target: TargetBindingSchema,
     assessment: CreateRunAssessmentSchema,
     quote_id: quoteId,
+    ci_admission_id: CiAdmissionUuidSchema.optional(),
     max_credits: maxCredits.optional()
   })
   .strict();
