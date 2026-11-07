@@ -443,11 +443,8 @@ async function executeHostedSelection(
     });
 
     const dashboard = dashboardUrl(binding.dashboard_url, session.apiOrigin);
-    writeLine(
-      stderr,
-      `${resumed ? "Resuming" : "Run"} ${sanitizeTerminal(binding.run_id)}: ${sanitizeTerminal(dashboard.toString())}`
-    );
-    writeLine(stderr, HOSTED_TEST_KEEP_TERMINAL);
+    const label = currentStatus ? "Recovered run" : resumed ? "Resuming" : "Run";
+    writeLine(stderr, `${label} ${sanitizeTerminal(binding.run_id)}: ${sanitizeTerminal(dashboard.toString())}`);
     if (options.open === true && isHeadlessEnvironment(env, options)) {
       writeLine(stderr, "Headless mode does not open a browser.");
     } else if (options.open === true) {
@@ -461,6 +458,13 @@ async function executeHostedSelection(
       }
     }
 
+    if (currentStatus && !isTerminal(currentStatus.status)) {
+      // Only the runner that created this CI run can dispatch target operations.
+      // Leave its reservation, relay lease, and execution journal with that owner.
+      writeLine(stderr, `Follow the original CI run with: augmentworks run wait ${sanitizeTerminal(binding.run_id)}`);
+      return { binding, run: currentStatus };
+    }
+    writeLine(stderr, HOSTED_TEST_KEEP_TERMINAL);
     if (isTerminal(currentStatus?.status ?? binding.status)) {
       let run: RunStatusResponse;
       let judgeJobs: JudgeJobProgress | undefined;
@@ -840,6 +844,9 @@ async function runCompiledSelectionTest(
     dependencies,
     { ...context, pinnedSession: session }
   );
+  const shardProgress = isTerminal(result.run.status)
+    ? { status: "completed" as const, runId: result.run.run_id }
+    : { status: "running" as const };
   const progress: SelectionProgress = {
     ...initialProgress(manifest, maxCredits ?? 0),
     shards: manifest.shards.map((entry) =>
@@ -847,8 +854,7 @@ async function runCompiledSelectionTest(
         ? {
             shardId: entry.shardId,
             shardIdentityHash: entry.shardIdentityHash,
-            status: "completed" as const,
-            runId: result.run.run_id
+            ...shardProgress
           }
         : {
             shardId: entry.shardId,

@@ -40,6 +40,8 @@ test("a fresh CI job recovers its admitted run after the server commits and drop
   let storedHash: string | undefined;
   let quoteUsable = true;
   let legacyRelay = true;
+  let runFinished = false;
+  let lookupBarrier: (() => Promise<void>) | undefined;
   let reservations = 0;
   const createHashes: string[] = [];
   const relayEvents: string[] = [];
@@ -104,6 +106,7 @@ test("a fresh CI job recovers its admitted run after the server commits and drop
             });
           }
           const found = storedHash !== undefined;
+          if (lookupBarrier) await lookupBarrier();
           relayEvents.push(found ? "lookup:bound" : "lookup:unknown");
           return sendJson(response, 200, {
             protocol_version: "aw-relay-recovery/0.1",
@@ -171,10 +174,10 @@ test("a fresh CI job recovers its admitted run after the server commits and drop
           return sendJson(response, 200, {
             protocol_version: "aw-relay/0.1",
             run_id: runId,
-            status: "completed",
-            outcome: "passed",
-            credit_state: "released",
-            evaluation_status: "complete",
+            status: runFinished ? "completed" : "running",
+            outcome: runFinished ? "passed" : null,
+            credit_state: runFinished ? "released" : "reserved",
+            ...(runFinished ? { evaluation_status: "complete" } : {}),
             dashboard_url: `${relayOrigin}/portal/runs/${runId}`
           });
         }
@@ -258,22 +261,59 @@ test("a fresh CI job recovers its admitted run after the server commits and drop
     legacyRelay = false;
     relayEvents.length = 0;
 
-    const interrupted = await runSourceCli([...linked, String(cap)], {
-      cwd: dir,
-      env: env("first")
+    const retry = (state: string) =>
+      runSourceCli([...linked, String(cap)], { cwd: dir, env: env(state) });
+    // Force both clean processes to observe "unknown" before either can create.
+    // The winner's HTTP response is dropped; the racing loser receives an exact replay.
+    let releaseLookups!: () => void;
+    const bothLookedUp = new Promise<void>((resolve) => {
+      releaseLookups = resolve;
     });
+    let arrivals = 0;
+    lookupBarrier = async () => {
+      if (++arrivals === 2) releaseLookups();
+      await bothLookedUp;
+    };
+    const racing = await Promise.all([retry("race-a"), retry("race-b")]);
+    lookupBarrier = undefined;
     expect(fixtureErrors).toEqual([]);
-    expect(interrupted.exitCode, interrupted.stderr + interrupted.stdout).not.toBe(0);
-    expect(relayEvents).toEqual(["lookup:unknown", "commit"]);
+    expect(racing.every((result) => result.exitCode !== 0)).toBe(true);
+    const racingObservers = racing.filter((result) => result.exitCode === 11);
+    expect(racingObservers).toHaveLength(1);
+    expect(relayEvents).toEqual(["lookup:unknown", "lookup:unknown", "commit", "replay"]);
     expect(reservations).toBe(1);
 
-    const resumed = await runSourceCli([...linked, String(cap)], { cwd: dir, env: env("clean") });
+    // Concurrent observers find the existing active run. None may take over its target operations.
+    const observers = await Promise.all([retry("active-a"), retry("active-b")]);
+    for (const result of [...racingObservers, ...observers]) {
+      expect(result.exitCode, result.stderr + result.stdout).toBe(11);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        run_id: runId,
+        status: "running",
+        outcome: null,
+        credit_state: "reserved",
+        coverage: { declaredShards: [], missingShardIds: ["shard-000"] }
+      });
+    }
+    expect(targetConnections).toBe(0);
+    expect(requests.some((path) => path.includes("commands:poll"))).toBe(false);
+    expect(relayEvents.filter((event) => event === "lookup:bound")).toHaveLength(2);
+    expect(reservations).toBe(1);
+
+    runFinished = true;
+    const resumed = await retry("terminal");
     expect(fixtureErrors).toEqual([]);
     expect(resumed.exitCode, resumed.stderr + resumed.stdout).toBe(0);
-    expect(JSON.parse(resumed.stdout)).toMatchObject({ run_id: runId, outcome: "passed" });
-    expect(relayEvents).toEqual(["lookup:unknown", "commit", "lookup:bound", "replay"]);
-    expect(createHashes).toHaveLength(2);
+    expect(JSON.parse(resumed.stdout)).toMatchObject({
+      run_id: runId,
+      outcome: "passed",
+      coverage: { declaredShards: [{ shardId: "shard-000", runId }], missingShardIds: [] }
+    });
+    expect(relayEvents.slice(-2)).toEqual(["lookup:bound", "replay"]);
+    const acceptedAttempts = createHashes.length;
+    expect(acceptedAttempts).toBe(5);
     expect(new Set(createHashes).size).toBe(1);
+    const beforeInvalidInputs = relayEvents.length;
 
     const changedTarget = await runSourceCli([...linked, String(cap)], {
       cwd: dir,
@@ -285,14 +325,14 @@ test("a fresh CI job recovers its admitted run after the server commits and drop
       env: env("different-cap")
     });
     expect(changedCap.exitCode).not.toBe(0);
-    expect(relayEvents).toHaveLength(4);
+    expect(relayEvents).toHaveLength(beforeInvalidInputs);
 
     // A run UUID from the handoff is only a hint. The relay must confirm that exact binding.
     await writeFile(join(dir, "admission.json"), JSON.stringify({ ...admission, runId: WORKSPACE }));
     const substitute = await runSourceCli([...linked, String(cap)], { cwd: dir, env: env("wrong-run") });
     expect(substitute.exitCode).not.toBe(0);
     expect(relayEvents.at(-1)).toBe("lookup:bound");
-    expect(createHashes).toHaveLength(2);
+    expect(createHashes).toHaveLength(acceptedAttempts);
 
     // Even a newly supplied admission with the same key cannot change the relay body.
     await writeFile(join(dir, "admission.json"), JSON.stringify({ ...admission, maxCredits: cap + 1 }));
@@ -302,7 +342,7 @@ test("a fresh CI job recovers its admitted run after the server commits and drop
     });
     expect(collision.exitCode).not.toBe(0);
     expect(relayEvents.at(-1)).toBe("conflict");
-    expect(createHashes).toHaveLength(2);
+    expect(createHashes).toHaveLength(acceptedAttempts);
     expect(reservations).toBe(1);
     expect(requests.filter((path) => path === "POST /v1/billing/quote")).toHaveLength(1);
     expect(targetConnections).toBe(0);

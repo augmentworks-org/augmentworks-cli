@@ -271,7 +271,8 @@ node dist/index.js test -c augmentworks.yaml \
 Use the actual shard ID and the exact approved credit ceiling. If a runner loses
 the response, repeat the same command on a clean runner using the same machine
 identity, admission and inputs. The CLI looks up the original request and
-recovers its run ID. Reuse that ID for status and reports. A conflict or a
+recovers its run ID. If the original run is active, a retry exits 11. Use
+`run wait <run-id>` to follow the worker that owns target execution. A conflict or a
 relay that cannot verify the request stops the job. Keep the ordinary hosted
 workflow separate so a retry cannot fall back to a new paid assessment.
 [Linked CI protocol and platform requirements](docs/protocol.md#linked-github-ci-creation)

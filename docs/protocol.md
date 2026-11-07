@@ -236,9 +236,12 @@ pinned suite revision. A different job slot or additional shard needs its own ad
    runner posts the exact v0.3 body with `ci_admission_id`, the original
    `create_request_id`, `quote_id` and `max_credits`. The `Idempotency-Key`
    header matches the create ID. A retry reuses this body, performs the lookup
-   first, and checks the recovered run's current status before contacting the
-   target. If the relay's recovery window has closed, the job surfaces the error.
-   To inspect an already known result, use `run status` or `run report` with its ID.
+   first, and reads the recovered run's current status. Only the worker that
+   receives the first successful create can execute target commands. A retry
+   returns an active run's ID and exits 11 so a second worker cannot repeat a
+   target operation. Follow it with `run wait` or `run status`. If the original
+   worker died, taking over its target work requires a server-verified transfer
+   of execution ownership. A closed recovery window surfaces as an error.
 
 **Deployment dependency.** The receiving platform must support the linked-only
 `ci_admission_id` field. Before creating or replaying, it must authenticate

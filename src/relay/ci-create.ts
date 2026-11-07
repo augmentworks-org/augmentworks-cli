@@ -13,11 +13,15 @@ function bindingConflict(): AwError {
   });
 }
 
+type AdmittedStart =
+  | { binding: CreateRunResponse; resumed: false; currentStatus?: never }
+  | { binding: CreateRunResponse; resumed: true; currentStatus: RunStatusResponse };
+
 export async function startAdmittedRun(
   { cloud, intentStore, signal, onNotice }: RecoveryContext,
   request: CreateRunIntentRequest,
   admission: CiAdmission
-): Promise<{ binding: CreateRunResponse; resumed: boolean; currentStatus?: RunStatusResponse }> {
+): Promise<AdmittedStart> {
   const { intent, archivedRunId } = await intentStore.loadOrCreate(request);
   const lookup = await cloud.lookupCreateIntent(intent.request, signal);
   if (lookup.outcome === "retired_uncreated") {
@@ -53,8 +57,8 @@ export async function startAdmittedRun(
   const resumed = lookup.outcome === "bound" || binding.create_disposition === "replayed";
   if (!resumed) return { binding, resumed };
 
-  // The create acknowledgement can describe the original queued state. A replay
-  // of a terminal run must not reconnect to the target.
+  // Recoveries only observe the original run, even if it is still active.
+  // A fresh runner cannot prove which non-idempotent operations the owner sent.
   const currentStatus = await cloud.getRunStatus(binding.run_id, signal);
   if (currentStatus.run_id !== binding.run_id || (archivedRunId && !isTargetExecutionTerminal(currentStatus.status))) {
     throw bindingConflict();
