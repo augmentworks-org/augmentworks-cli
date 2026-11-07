@@ -341,3 +341,53 @@ describe("CloudClient", () => {
     });
   });
 });
+
+describe("lookup of a linked create request", () => {
+  const request = {
+    protocol_version: RELAY_PROTOCOL_VERSION,
+    create_request_id: "crq_ci_request_fixture_20261107",
+    packet: { key: packet.key, version: packet.version },
+    config_sha256: "b".repeat(64),
+    target: {
+      name: "refunds", boundary_sha256: "c".repeat(64),
+      capabilities: { prepare: false, observation: false, cleanup: false, tool_events: false, observation_keys: [] }
+    }
+  };
+  const runId = "10000000-0000-4000-8000-000000000001";
+  const lookup = {
+    create_request_id: request.create_request_id,
+    create_request_sha256: sha256(canonicalize(request))
+  };
+  const bound = {
+    protocol_version: "aw-relay-recovery/0.1", ...lookup, outcome: "bound",
+    run_id: runId, dashboard_url: "https://portal.example.test/portal/runs/" + runId,
+    next_action: "inspect_or_resume_existing_run"
+  };
+
+  function clientReturning(response: object) {
+    return new CloudClient({
+      apiUrl: "http://127.0.0.1:8787",
+      accessToken: "fixture",
+      fetch: async (input, init) => {
+        expect(new URL(String(input)).pathname).toBe("/v1/relay/run-intents:reconcile");
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(String(init?.body))).toEqual(lookup);
+        return Response.json(response);
+      }
+    });
+  }
+
+  it("uses the deployed read-only lookup contract", async () => {
+    await expect(clientReturning(bound).lookupCreateIntent(request))
+      .resolves.toEqual({ outcome: "bound", runId });
+  });
+
+  it.each([
+    [{ ...bound, create_request_sha256: "d".repeat(64) }, "RUN_BINDING_MISMATCH"],
+    [{ ...bound, create_request_id: "crq_different_request_fixture" }, "RUN_BINDING_MISMATCH"],
+    [{ ...bound, run_id: null }, "INVALID_CLOUD_RESPONSE"],
+    [{ ...bound, outcome: "unknown" }, "INVALID_CLOUD_RESPONSE"]
+  ] as const)("refuses a mismatched or ambiguous lookup", async (response, code) => {
+    await expect(clientReturning(response).lookupCreateIntent(request)).rejects.toMatchObject({ code });
+  });
+});

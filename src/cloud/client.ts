@@ -29,6 +29,7 @@ import {
   type SessionPollResponse
 } from "./protocol.js";
 import {
+  CreateIntentLookupSchema,
   ReconcileRunIntentRequestSchema,
   ReconcileRunIntentResponseSchema,
   readTypedCreateRejection,
@@ -192,31 +193,47 @@ export class CloudClient {
     this.requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
   }
 
-  async createRun(request: CreateRunRequest, signal?: AbortSignal): Promise<CreateRunResponse> {
-    const validated = CreateRunRequestSchema.safeParse(request);
-    if (!validated.success) {
+  async lookupCreateIntent(request: CreateRunRequest, signal?: AbortSignal) {
+    const body = validateCreateRequest(request);
+    const digest = sha256(canonicalize(body));
+    const value = await this.#request("POST", "/v1/relay/run-intents:reconcile", {
+      create_request_id: body.create_request_id,
+      create_request_sha256: digest
+    }, signal);
+    const result = parseResponse(CreateIntentLookupSchema, value, "relay create lookup");
+    if (result.create_request_id !== body.create_request_id || result.create_request_sha256 !== digest) {
       throw new AwError({
-        code: "INVALID_RUN_REQUEST",
+        code: "RUN_BINDING_MISMATCH",
         category: "protocol",
-        message: "The assessment request does not match the aw-relay create-run contract."
+        message: "The relay lookup returned a different create request."
       });
     }
-    const requestSha256 = sha256(canonicalize(validated.data));
+    return { outcome: result.outcome, runId: result.run_id };
+  }
+
+  async createRun(
+    request: CreateRunRequest,
+    signal?: AbortSignal,
+    options: { readonly retry?: boolean } = {}
+  ): Promise<CreateRunResponse> {
+    const body = validateCreateRequest(request);
+    const requestSha256 = sha256(canonicalize(body));
+    const attempts = options.retry === false ? 1 : 3;
     let lastError: unknown;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
         const value = await this.#request(
           "POST",
           "/v1/relay/runs",
-          validated.data,
+          body,
           signal,
           this.requestTimeoutMs,
           false,
-          { "Idempotency-Key": validated.data.create_request_id }
+          { "Idempotency-Key": body.create_request_id }
         );
         const response = parseResponse(CreateRunResponseSchema, value, "create-run response");
         if (
-          response.create_request_id !== validated.data.create_request_id ||
+          response.create_request_id !== body.create_request_id ||
           response.create_request_sha256 !== requestSha256
         ) {
           throw new AwError({
@@ -227,11 +244,11 @@ export class CloudClient {
         }
         return response;
       } catch (error) {
-        lastError = annotateCreateRunError(error, validated.data, requestSha256);
+        lastError = annotateCreateRunError(error, body, requestSha256);
         if (
           !(lastError instanceof AwError) ||
           !lastError.retryable ||
-          attempt === 2 ||
+          attempt + 1 === attempts ||
           signal?.aborted ||
           isTypedRejectedUncreated(lastError)
         ) {
@@ -1551,6 +1568,18 @@ function parseRetryAfterHeaderMs(header: string | null): number | undefined {
   const date = Date.parse(header);
   if (!Number.isFinite(date)) return undefined;
   return Math.max(0, date - Date.now());
+}
+
+function validateCreateRequest(request: CreateRunRequest): CreateRunRequest {
+  const parsed = CreateRunRequestSchema.safeParse(request);
+  if (!parsed.success) {
+    throw new AwError({
+      code: "INVALID_RUN_REQUEST",
+      category: "protocol",
+      message: "The assessment request does not match the aw-relay create-run contract."
+    });
+  }
+  return parsed.data;
 }
 
 function parseResponse<T>(schema: { safeParse(value: unknown): { success: true; data: T } | { success: false } }, value: unknown, label: string): T {

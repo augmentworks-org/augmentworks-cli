@@ -254,6 +254,29 @@ complete GitHub Actions recipe is
 [docs/examples/github-actions-hosted.yml](docs/examples/github-actions-hosted.yml).
 Don't run `logout` as CI cleanup; it revokes reusable keys.
 
+### Retry a linked GitHub CI run (unreleased)
+
+The linked workflow needs a compatible platform and a machine key for its workspace.
+It saves the platform's admission response in the runner's private temp directory.
+That response identifies one saved suite revision, target, credit ceiling and quote.
+For a compiled manifest, an invocation from this checkout looks like:
+
+```bash
+node dist/index.js test -c augmentworks.yaml \
+  --manifest suite-manifest.json --shard shard-000 \
+  --ci-admission "$RUNNER_TEMP/aw-admission.json" \
+  --max-credits 8 --yes --json
+```
+
+Use the actual shard ID and the exact approved credit ceiling. If a runner loses
+the response, repeat the same command on a clean runner using the same machine
+identity, admission and inputs. The CLI looks up the original request and
+recovers its run ID. If the original run is active, a retry exits 11. Use
+`run wait <run-id>` to follow the worker that owns target execution. A conflict or a
+relay that cannot verify the request stops the job. Keep the ordinary hosted
+workflow separate so a retry cannot fall back to a new paid assessment.
+[Linked CI protocol and platform requirements](docs/protocol.md#linked-github-ci-creation)
+
 Interactive credentials are stored in the macOS Keychain, Windows DPAPI, or
 the Linux Secret Service. On POSIX systems without one,
 `login --allow-file-credentials` stores a warned mode-`0600` file. Never put an

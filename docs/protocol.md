@@ -207,6 +207,56 @@ of the run status:
 The CLI does not meter credits locally. The hosted response and dashboard are
 authoritative, and replaying a create request never charges again.
 
+## Linked GitHub CI creation
+
+The opt-in `test --ci-admission <file>` path consumes the platform's
+`aw-github-integration/1` response from an authenticated CI admission. Use a
+machine execution key for the same workspace and connector, an explicitly approved
+`--max-credits` equal to the response's `maxCredits`, and `--yes`. Supply a
+single saved-suite shard through a compiled manifest or an assessment selecting a
+pinned suite revision. A different job slot or additional shard needs its own admission.
+
+1. Estimate the selected shard with `--estimate --json`. For a saved-suite
+   revision the output includes `execution_plan_digest`. This is the lowercase
+   SHA-256 of the UTF-8 canonical JSON object containing `protocol_version`,
+   `packet`, `config_sha256`, `target` and `assessment` from its v0.3 create
+   request. Canonicalization recursively sorts object keys and preserves array order.
+   The quote, cap and identifiers for this admission and create are bound separately.
+2. The trusted workflow obtains an admission and saves its response as a regular
+   JSON file. Keep that file outside the PR checkout. The CLI checks the approved
+   origin against the locally resolved target, the suite revision and plan digest
+   against the selected shard, and the cap against the caller's numeric ceiling.
+   Target credentials stay on the runner. The admission file grants no authority.
+3. The runner submits a read-only `POST /v1/relay/run-intents:reconcile` with the
+   original `create_request_id` and SHA-256 of the **complete** canonical create
+   body. The platform returns `aw-relay-recovery/0.1`. A known bound ID must
+   match any ID in the admission and journal. A retired request, conflicting
+   hash, unexpected ID or failed lookup stops execution.
+4. On a first create or when a clean runner needs the full relay binding, the
+   runner posts the exact v0.3 body with `ci_admission_id`, the original
+   `create_request_id`, `quote_id` and `max_credits`. The `Idempotency-Key`
+   header matches the create ID. A retry reuses this body, performs the lookup
+   first, and reads the recovered run's current status. Only the worker that
+   receives the first successful create can execute target commands. A retry
+   returns an active run's ID and exits 11 so a second worker cannot repeat a
+   target operation. Follow it with `run wait` or `run status`. If the original
+   worker died, taking over its target work requires a server-verified transfer
+   of execution ownership. A closed recovery window surfaces as an error.
+
+**Deployment dependency.** The receiving platform must support the linked-only
+`ci_admission_id` field. Before creating or replaying, it must authenticate
+the machine key, check its permission for that admission, and verify that its
+workspace, connector, create ID, target, digest, quote and cap match the
+persisted approval. Reserve credits only for the first accepted create. The
+existing strict v0.3 server rejects this new field until it gains that support.
+A runner must never drop the field or request another quote to get past that rejection.
+
+Retry with the same admission file even if the runner has lost its state
+directory. The local journal is keyed by API origin and the supplied create ID.
+The ordinary `recover` command inspects the interactive journal. For an example
+and the wire shape see the [admission fixture](../examples/github-ci/admission.json)
+and [JSON Schema](../schemas/v1/github-ci-admission.schema.json).
+
 ## Run creation and restart recovery
 
 Before the create POST, `test` resolves the authenticated workspace and
