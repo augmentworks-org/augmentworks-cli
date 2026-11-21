@@ -68,6 +68,12 @@ describe("assessment CLI flags", () => {
     expect(hostedExitCode(runStatus({ evaluation_status: "pending" }))).toBe(EXIT.EVALUATION_INCOMPLETE);
     expect(hostedExitCode(runStatus({ evaluation_status: "partial" }))).toBe(EXIT.EVALUATION_INCOMPLETE);
     expect(hostedExitCode(runStatus({ evaluation_status: "error" }))).toBe(EXIT.EVALUATION_ERROR);
+    expect(hostedExitCode(runStatus({ evaluation_status: "error", outcome: "failed" }))).toBe(
+      EXIT.ASSESSMENT_FAILED
+    );
+    expect(hostedExitCode(runStatus({ evaluation_status: "error", outcome: null }))).toBe(
+      EXIT.EVALUATION_ERROR
+    );
     expect(hostedExitCode(runStatus({ evaluation_status: "complete", outcome: "failed" }))).toBe(
       EXIT.ASSESSMENT_FAILED
     );

@@ -444,9 +444,9 @@ production behaves the same.
 | `4` | Hosted relay or protocol failure |
 | `5` | Target, evidence, or indeterminate execution error |
 | `6` | Cleanup failure; takes precedence over the assessment result |
-| `10` | Checks failed, the assessment was inconclusive, or the release gate blocked |
+| `10` | A required check failed (even if judging also errored), the assessment was inconclusive, or the release gate blocked |
 | `11` | Hosted grading is pending or incomplete; wait on the same run |
-| `12` | Hosted judging failed operationally |
+| `12` | Hosted judging failed operationally, with no known required-check failure |
 | `13` | Hosted billing rejection, such as too few credits |
 | `130` | Interrupted after cleanup finished |
 

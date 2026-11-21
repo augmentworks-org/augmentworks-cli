@@ -43,15 +43,19 @@ export type BillingRunAssessment = HostedRunAssessment;
  * | completed | complete | passed | terminal | passed | 0 |
  * | completed | complete | failed/inconclusive/error | terminal | failed | 10 |
  * | completed | complete | null/unknown | terminal | incomplete/unknown | 11 |
- * | completed | error | any | terminal | evaluator_error | 12 |
+ * | completed | error | failed | terminal | failed | 10 |
+ * | completed | error | not failed | terminal | evaluator_error | 12 |
  * | completed | unsupported | any | terminal | unsupported | 11 |
- * | failed | not pending/partial | any | terminal | failed | 10 |
- * | cancelled | not pending/partial | any | terminal | interrupted | 130 |
- * | failed/cancelled | error | any | terminal | evaluator_error | 12 |
- * | unknown | not pending/partial | any | terminal | unknown | 11 |
+ * | failed | not pending/partial/error | any | terminal | failed | 10 |
+ * | cancelled | not pending/partial/error | any | terminal | interrupted | 130 |
+ * | failed/cancelled/unknown | error | failed | terminal | failed | 10 |
+ * | failed/cancelled/unknown | error | not failed | terminal | evaluator_error | 12 |
+ * | unknown | not pending/partial/error | any | terminal | unknown | 11 |
  *
- * Ambiguous contract combinations never silently pass. Evaluation `error`
- * takes precedence over execution failure so exit 12 stays distinct from 10.
+ * Ambiguous contract combinations never silently pass. A required-check
+ * failure (`outcome` `failed`) is exit 10 even when evaluation is `error`.
+ * Exit 12 stays for evaluator errors with no known required failure, and
+ * that error still takes precedence over execution failure and cancellation.
  * Exit 0 additionally requires known reconciled coverage when progress is present.
  */
 export type BillingRunClassification = {

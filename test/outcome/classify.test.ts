@@ -71,6 +71,37 @@ describe("shared hosted outcome classification", () => {
     ).toBe(EXIT.EVALUATION_INCOMPLETE);
   });
 
+  it("keeps a required failure at exit 10 when the evaluator also errored", () => {
+    for (const executionStatus of ["completed", "failed", "cancelled", "exploded"]) {
+      const classified = classifyHostedOutcome({
+        executionStatus,
+        evaluationStatus: "error",
+        outcome: "failed",
+        coverageKnown: false
+      });
+      expect(classified.assessment, executionStatus).toBe("failed");
+      expect(classified.exitCode, executionStatus).toBe(EXIT.ASSESSMENT_FAILED);
+      expect(classified.waitTerminal, executionStatus).toBe(true);
+    }
+    for (const outcome of [null, "passed", "inconclusive", "error", "mystery"]) {
+      const classified = classifyHostedOutcome({
+        executionStatus: "completed",
+        evaluationStatus: "error",
+        outcome
+      });
+      expect(classified.assessment, String(outcome)).toBe("evaluator_error");
+      expect(classified.exitCode, String(outcome)).toBe(EXIT.EVALUATION_ERROR);
+    }
+    const stillRunning = classifyHostedOutcome({
+      executionStatus: "running",
+      evaluationStatus: "error",
+      outcome: "failed"
+    });
+    expect(stillRunning.assessment).toBe("incomplete");
+    expect(stillRunning.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(stillRunning.waitTerminal).toBe(false);
+  });
+
   it("keeps assessed failure at exit 10 even when coverage is incomplete", () => {
     expect(
       classifyHostedOutcome({
@@ -120,6 +151,24 @@ describe("shared hosted outcome classification", () => {
         assessment: "evaluator_error"
       },
       {
+        name: "completed error with a required failure",
+        input: { executionStatus: "completed", evaluationStatus: "error", outcome: "failed" },
+        exitCode: EXIT.ASSESSMENT_FAILED,
+        assessment: "failed"
+      },
+      {
+        name: "completed error with an inconclusive outcome",
+        input: { executionStatus: "completed", evaluationStatus: "error", outcome: "inconclusive" },
+        exitCode: EXIT.EVALUATION_ERROR,
+        assessment: "evaluator_error"
+      },
+      {
+        name: "completed error with an error outcome",
+        input: { executionStatus: "completed", evaluationStatus: "error", outcome: "error" },
+        exitCode: EXIT.EVALUATION_ERROR,
+        assessment: "evaluator_error"
+      },
+      {
         name: "completed unsupported",
         input: { executionStatus: "completed", evaluationStatus: "unsupported", outcome: "passed" },
         exitCode: EXIT.EVALUATION_INCOMPLETE,
@@ -160,6 +209,24 @@ describe("shared hosted outcome classification", () => {
         input: { executionStatus: "cancelled", evaluationStatus: "error", outcome: null },
         exitCode: EXIT.EVALUATION_ERROR,
         assessment: "evaluator_error"
+      },
+      {
+        name: "cancelled evaluator error with a required failure",
+        input: { executionStatus: "cancelled", evaluationStatus: "error", outcome: "failed" },
+        exitCode: EXIT.ASSESSMENT_FAILED,
+        assessment: "failed"
+      },
+      {
+        name: "failed execution plus evaluator error without a required failure",
+        input: { executionStatus: "failed", evaluationStatus: "error", outcome: null },
+        exitCode: EXIT.EVALUATION_ERROR,
+        assessment: "evaluator_error"
+      },
+      {
+        name: "failed execution plus evaluator error with a required failure",
+        input: { executionStatus: "failed", evaluationStatus: "error", outcome: "failed" },
+        exitCode: EXIT.ASSESSMENT_FAILED,
+        assessment: "failed"
       },
       {
         name: "unknown execution",
