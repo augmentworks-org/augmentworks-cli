@@ -14,6 +14,13 @@ All notable changes to this project are documented here. The format follows
   The CLI checks the approved target, saved suite revision, execution-plan digest
   and credit cap before attempting a create.
 
+### Fixed
+
+- A hosted result whose required check failed now exits `10` even when
+  judging also errored. Exit `12` stays for an evaluator error with no known
+  required failure. `test`, `run wait`, `run status`, and `run report` share
+  this classification. (AUG-432)
+
 ## [0.4.2] - 2026-10-30
 
 Patch release. Requires Node.js 22.12 or newer, like 0.4.1. A verbatim data

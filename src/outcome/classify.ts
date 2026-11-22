@@ -12,7 +12,9 @@ import {
  *
  * Exit `0` is only a fully passed, graded, known-coverage result. A completed
  * run with a null outcome or an unrecognized evaluation status never passes.
- * Observation/retrieval success is not grading success.
+ * Observation/retrieval success is not grading success. A required-check
+ * failure (`outcome` `failed`) is exit 10 even when evaluation is `error`.
+ * Exit 12 stays for an evaluator error with no known required failure.
  */
 
 export const HOSTED_RESOLVED_OUTCOMES = ["passed", "failed", "inconclusive", "error"] as const;
@@ -196,8 +198,15 @@ export function classifyHostedOutcome(input: HostedOutcomeInput): HostedOutcomeC
     assessment = "incomplete";
     exitCode = EXIT.EVALUATION_INCOMPLETE;
   } else if (evaluationStatus === "error") {
-    assessment = "evaluator_error";
-    exitCode = EXIT.EVALUATION_ERROR;
+    // A known required failure stays a failed assessment. Exit 12 is only
+    // an evaluator error when no required check is known to have failed.
+    if (outcome === "failed") {
+      assessment = "failed";
+      exitCode = EXIT.ASSESSMENT_FAILED;
+    } else {
+      assessment = "evaluator_error";
+      exitCode = EXIT.EVALUATION_ERROR;
+    }
   } else if (input.executionStatus === "cancelled") {
     assessment = "interrupted";
     exitCode = EXIT.INTERRUPTED;

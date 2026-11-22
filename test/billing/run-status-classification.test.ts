@@ -277,6 +277,30 @@ const cases: readonly Case[] = [
     exitCode: EXIT.EVALUATION_ERROR
   },
   {
+    name: "required failure stays exit 10 when evaluation errored",
+    status: status({
+      executionStatus: "completed",
+      evaluationStatus: "error",
+      outcome: "failed"
+    }),
+    waitTerminal: true,
+    work: "terminal",
+    assessment: "failed",
+    exitCode: EXIT.ASSESSMENT_FAILED
+  },
+  {
+    name: "evaluator error without a required failure stays exit 12",
+    status: status({
+      executionStatus: "completed",
+      evaluationStatus: "error",
+      outcome: "inconclusive"
+    }),
+    waitTerminal: true,
+    work: "terminal",
+    assessment: "evaluator_error",
+    exitCode: EXIT.EVALUATION_ERROR
+  },
+  {
     name: "unsupported evaluation is never a pass",
     status: status({
       executionStatus: "completed",
@@ -322,6 +346,30 @@ const cases: readonly Case[] = [
     work: "terminal",
     assessment: "evaluator_error",
     exitCode: EXIT.EVALUATION_ERROR
+  },
+  {
+    name: "required failure with an evaluator error is exit 10 on a failed execution",
+    status: status({
+      executionStatus: "failed",
+      evaluationStatus: "error",
+      outcome: "failed"
+    }),
+    waitTerminal: true,
+    work: "terminal",
+    assessment: "failed",
+    exitCode: EXIT.ASSESSMENT_FAILED
+  },
+  {
+    name: "required failure with an evaluator error is exit 10 on an unknown execution",
+    status: status({
+      executionStatus: "time_travel",
+      evaluationStatus: "error",
+      outcome: "failed"
+    }),
+    waitTerminal: true,
+    work: "terminal",
+    assessment: "failed",
+    exitCode: EXIT.ASSESSMENT_FAILED
   },
   {
     name: "unknown execution status is observable but not a pass",
