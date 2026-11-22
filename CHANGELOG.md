@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-22
+
+Patch release. Requires Node.js 22.12 or newer, like 0.4.2. A hosted run whose
+required check failed now exits `10` even when grading another check errored,
+and linked CI runners can recover their original hosted run on a fresh runner.
+`@augmentworks/cli@0.4.2` is not overwritten.
+
 ### Added
 
 - Linked CI runners can pass a platform-issued admission to `test --ci-admission`
@@ -20,6 +27,13 @@ All notable changes to this project are documented here. The format follows
   judging also errored. Exit `12` stays for an evaluator error with no known
   required failure. `test`, `run wait`, `run status`, and `run report` share
   this classification. (AUG-432)
+
+### Changed
+
+- Recorded the independent inspection of npm `@augmentworks/cli@0.4.2`,
+  published by the `v0.4.2` release workflow with SLSA provenance from
+  `augmentworks-org/augmentworks-cli`. The published tarball is unchanged and
+  still embeds the prior 0.4.1 `LAST_VERIFIED` snapshot.
 
 ## [0.4.2] - 2026-10-30
 
@@ -824,6 +838,7 @@ This repository does not overwrite or relabel 0.3.3.
 - Refund-agent mock target, public documentation, schema, tests, packed-package
   smoke test, CI, and npm trusted-publishing workflow.
 
+[0.4.3]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.3
 [0.4.2]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.2
 [0.4.1]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.1
 [0.4.0]: https://www.npmjs.com/package/%40augmentworks%2Fcli/v/0.4.0
