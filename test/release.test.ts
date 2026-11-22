@@ -22,6 +22,7 @@ import {
   REGISTRY_0_3_9_GIT_HEAD,
   REGISTRY_0_4_0_GIT_HEAD,
   REGISTRY_0_4_1_GIT_HEAD,
+  REGISTRY_0_4_2_GIT_HEAD,
   SOURCE_PACKAGE_VERSION,
   allowedDocumentedNpxPins,
   CUSTOMER_CLI_PLACEHOLDER,
@@ -47,8 +48,8 @@ describe("CLI release metadata", () => {
   });
 
   it("pins hosted npx commands to this package version, not 0.3.2 or 0.3.3", () => {
-    expect(SOURCE_PACKAGE_VERSION).toBe("0.4.2");
-    expect(PUBLISHED_PACKAGE_VERSION).toBe("0.4.2");
+    expect(SOURCE_PACKAGE_VERSION).toBe("0.4.3");
+    expect(PUBLISHED_PACKAGE_VERSION).toBe("0.4.3");
     expect(HOSTED_COMMAND_PIN).toBe(SOURCE_PACKAGE_VERSION);
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.2");
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.3");
@@ -60,7 +61,8 @@ describe("CLI release metadata", () => {
     expect(HOSTED_COMMAND_PIN).not.toBe("0.3.9");
     expect(HOSTED_COMMAND_PIN).not.toBe("0.4.0");
     expect(HOSTED_COMMAND_PIN).not.toBe("0.4.1");
-    expect(allowedDocumentedNpxPins()).toEqual(["0.4.2"]);
+    expect(HOSTED_COMMAND_PIN).not.toBe("0.4.2");
+    expect(allowedDocumentedNpxPins()).toEqual(["0.4.3"]);
     expect(HOSTED_COMMANDS.login).toBe(formatNpx(HOSTED_COMMAND_PIN, ["login"]));
     expect(HOSTED_COMMANDS.initAgent).toBe(formatNpx(HOSTED_COMMAND_PIN, ["init", "--agent"]));
     expect(HOSTED_COMMANDS.recover).toBe(formatNpx(HOSTED_COMMAND_PIN, ["recover"]));
@@ -73,11 +75,11 @@ describe("CLI release metadata", () => {
   it("exposes published-line identity without baking a stale last-verified 0.3.2 result", () => {
     expect(PUBLISHED_PACKAGE_VERIFIED).toBe(true);
     expect(CLI_RELEASE.published_package_verified).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.4.1");
-    expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe("043fccc59174a8d334c2cc53a7e42d8dd7523878");
-    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-29T19:04:18.067Z");
+    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.4.2");
+    expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe("28c6edfa6773d95e673d202fc2897a94c04427ff");
+    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-30T14:23:12.800Z");
     expect(LAST_VERIFIED_PUBLISHED_INTEGRITY).toBe(
-      "sha512-bDDEBzFMSPGrxQmfioFfva4iQmI2d4MgWnZhXRbayhtvMhHGKmLTL32ypdTJZ8ErbV6ngR1YhSrcw52DF9eJMQ=="
+      "sha512-jyXZSnW8L1AcET3fjMLm9++Izjeu061Za/3Iis3gy+foWUqW0OhScjU8Vr9bm3yDiP+ExRuAYvMac/cZrWZ6tA=="
     );
     expect(REGISTRY_0_3_3_GIT_HEAD).toBe("4a08ea0d352f2515e725cb9ca946807112422436");
     expect(REGISTRY_0_3_6_GIT_HEAD).toBe("a9b927a2413305003f817c20e9c5df277512f83e");
@@ -86,8 +88,10 @@ describe("CLI release metadata", () => {
     expect(REGISTRY_0_3_9_GIT_HEAD).toBe("9e7919cbfe583cc15701904580be9d36da3bcaf4");
     expect(REGISTRY_0_4_0_GIT_HEAD).toBe("afb23c37ffe99289c75b3769b50447c3e403c50f");
     expect(REGISTRY_0_4_1_GIT_HEAD).toBe("043fccc59174a8d334c2cc53a7e42d8dd7523878");
-    expect(REGISTRY_0_4_1_GIT_HEAD).toBe(LAST_VERIFIED_PUBLISHED_GIT_HEAD);
-    expect(CLI_RELEASE.notes).toContain("Published-line 0.4.2");
+    expect(REGISTRY_0_4_2_GIT_HEAD).toBe("28c6edfa6773d95e673d202fc2897a94c04427ff");
+    expect(REGISTRY_0_4_2_GIT_HEAD).toBe(LAST_VERIFIED_PUBLISHED_GIT_HEAD);
+    expect(CLI_RELEASE.notes).toContain("Published-line 0.4.3");
+    expect(CLI_RELEASE.notes).toContain("28c6edfa6773d95e673d202fc2897a94c04427ff");
     expect(CLI_RELEASE.notes).toContain("043fccc59174a8d334c2cc53a7e42d8dd7523878");
     expect(CLI_RELEASE.notes).toContain("afb23c37ffe99289c75b3769b50447c3e403c50f");
     expect(CLI_RELEASE.notes).not.toMatch(/Candidate 0\.3\.4/u);
