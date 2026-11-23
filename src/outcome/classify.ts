@@ -34,42 +34,17 @@ export type HostedRunAssessment =
 export type HostedCoverageKnowledge = boolean | null | undefined;
 
 /**
- * Judge-job progress from billing status (`progress.plannedJudgeJobs` and
- * `progress.completedJudgeJobs`). AUG-403: older servers leave a finished
- * evaluation at `partial` when a required check is inconclusive, so the CLI
- * needs these counts to tell "still grading" from "grading ended".
+ * Grading can still change while the server says `pending` or `partial`.
+ *
+ * AUG-434: the server reports `partial` only while grading is open, which
+ * includes the moment after the last judge job succeeds and before the
+ * evaluation snapshot is republished. A finished evaluation whose required
+ * checks were inconclusive or not run is reported `complete` with that
+ * outcome (AUG-403), so the CLI does not infer an end to grading from
+ * judge-job counts.
  */
-export type JudgeJobProgress = {
-  readonly planned: number;
-  readonly completed: number;
-};
-
-export function judgeJobsFromProgress(
-  progress: { readonly plannedJudgeJobs: number; readonly completedJudgeJobs: number } | undefined
-): JudgeJobProgress | undefined {
-  if (progress === undefined) return undefined;
-  return { planned: progress.plannedJudgeJobs, completed: progress.completedJudgeJobs };
-}
-
-/** Every planned judge job finished. Unknown or malformed counts are not done. */
-export function judgeJobsDone(judgeJobs: JudgeJobProgress | null | undefined): boolean {
-  if (judgeJobs === undefined || judgeJobs === null) return false;
-  const { planned, completed } = judgeJobs;
-  if (!Number.isInteger(planned) || !Number.isInteger(completed)) return false;
-  if (planned < 0 || completed < 0) return false;
-  return completed >= planned;
-}
-
-/**
- * Grading can still change: `pending`, or `partial` while judge jobs remain.
- * A `partial` evaluation whose judge jobs are all done has finished grading.
- */
-export function gradingStillPending(
-  evaluationStatus: string | null | undefined,
-  judgeJobs?: JudgeJobProgress | null
-): boolean {
-  if (evaluationStatus === "pending") return true;
-  return evaluationStatus === "partial" && !judgeJobsDone(judgeJobs);
+export function gradingStillPending(evaluationStatus: string | null | undefined): boolean {
+  return evaluationStatus === "pending" || evaluationStatus === "partial";
 }
 
 export type HostedOutcomeInput = {
@@ -83,12 +58,6 @@ export type HostedOutcomeInput = {
    * `undefined` — the surface does not carry coverage (hosted `test` status).
    */
   readonly coverageKnown?: HostedCoverageKnowledge;
-  /**
-   * Judge-job progress when the surface has it. Only consulted for a
-   * `partial` evaluation: with every judge job done it is finished, and never
-   * a pass (exit 10).
-   */
-  readonly judgeJobs?: JudgeJobProgress | null | undefined;
 };
 
 export type HostedOutcomeClassification = {
@@ -182,10 +151,7 @@ export function classifyHostedOutcome(input: HostedOutcomeInput): HostedOutcomeC
       deterministicOnly: false
     };
   }
-  const gradingInProgress = gradingStillPending(evaluationStatus, input.judgeJobs);
-  // AUG-403: partial with nothing left to grade. Coverage stayed incomplete
-  // or inconclusive, so it is a finished, non-passing assessment.
-  const finishedPartial = evaluationStatus === "partial" && !gradingInProgress;
+  const gradingInProgress = gradingStillPending(evaluationStatus);
   const waitTerminal = work === "terminal" && !gradingInProgress;
   const outcome = resolvedOutcome(input.outcome);
   const deterministicOnly =
@@ -220,8 +186,7 @@ export function classifyHostedOutcome(input: HostedOutcomeInput): HostedOutcomeC
     input.executionStatus === "failed" ||
     outcome === "failed" ||
     outcome === "inconclusive" ||
-    outcome === "error" ||
-    finishedPartial
+    outcome === "error"
   ) {
     assessment = "failed";
     exitCode = EXIT.ASSESSMENT_FAILED;

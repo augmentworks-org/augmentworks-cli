@@ -2,7 +2,6 @@ import {
   billingCoverageKnowledge,
   classifyHostedOutcome,
   isResolvedHostedOutcome,
-  judgeJobsFromProgress,
   type HostedRunAssessment,
   type HostedRunWork
 } from "../outcome/classify.js";
@@ -80,8 +79,7 @@ export function classifyBillingRunStatus(status: BillingRunStatus): BillingRunCl
     executionStatus: status.executionStatus,
     evaluationStatus: status.evaluationStatus,
     outcome: status.outcome ?? null,
-    coverageKnown: billingCoverageKnowledge(status.progress, status.evaluationStatus),
-    judgeJobs: judgeJobsFromProgress(status.progress)
+    coverageKnown: billingCoverageKnowledge(status.progress, status.evaluationStatus)
   });
   return {
     observation: "succeeded",
