@@ -10,13 +10,13 @@ constants. Packaged identity versus post-publication inspection is defined in
 
 | Field | Value |
 | --- | --- |
-| Package | `@augmentworks/cli@0.4.3` |
+| Package | `@augmentworks/cli@0.4.4` |
 | `releaseStatus` | `development` (this git checkout; not a live registry probe) |
 | `capabilities.localDemo` | `true` |
 | Demo invocation | `node dist/index.js demo` |
 | Provenance | `sourceCommit: null`, `verifiedAt: null` |
-| Last independently inspected npm | `@augmentworks/cli@0.4.2` (tag `v0.4.2` commit `28c6edfa6773d95e673d202fc2897a94c04427ff`, published 2026-10-30T14:23:12.800Z, integrity `sha512-jyXZSnW8L1AcET3fjMLm9++Izjeu061Za/3Iis3gy+foWUqW0OhScjU8Vr9bm3yDiP+ExRuAYvMac/cZrWZ6tA==`, tarball SHA-256 `2899613ae2a87a99ded035e96d2ae0369a6740be849d4f8fca38950d9e240146`, 74 files, SLSA provenance from `augmentworks-org/augmentworks-cli` `.github/workflows/release.yml`). The registry document omitted `gitHead`. That artifact is `lastIndependentlyInspected`. `thisPackageIdentity` for this 0.4.3 checkout is `pending-protected-publish`. The published 0.4.2 tarball still embeds the prior `LAST_VERIFIED` 0.4.1 snapshot; that inspection commit is not inside that artifact. |
-| Immutable prior npm | `@augmentworks/cli@0.4.2`, `@augmentworks/cli@0.4.1`, `@augmentworks/cli@0.4.0`, `@augmentworks/cli@0.3.9`, `@augmentworks/cli@0.3.8`, `@augmentworks/cli@0.3.7`, `@augmentworks/cli@0.3.6`, `@augmentworks/cli@0.3.5`, `@augmentworks/cli@0.3.4`, and `@augmentworks/cli@0.3.3` (gitHead `4a08ea0d352f2515e725cb9ca946807112422436`). Do not overwrite or relabel. |
+| Last independently inspected npm | `@augmentworks/cli@0.4.3` (tag `v0.4.3` commit `d3f5bd36be4cdd269ec6e9db6009edba16573452`, published 2026-11-22T03:57:22.866Z, integrity `sha512-6pGiEs7lQvLfiXKPu2sxLc9K4UodtI1LCsKX5CKBqGqp23u3cv53ylkPdbZBJc1XFaDLs944H0eEE30AuFlX3A==`, tarball SHA-256 `679f094032da748de0c88e1e171e3fa31a603c5e240902ffa80a1cbd51d40d26`, 75 files, SLSA provenance from `augmentworks-org/augmentworks-cli` `.github/workflows/release.yml`). The registry document omitted `gitHead`. That artifact is `lastIndependentlyInspected`. `thisPackageIdentity` for this 0.4.4 checkout is `pending-protected-publish`. The published 0.4.3 tarball still embeds the prior `LAST_VERIFIED` 0.4.2 snapshot; that inspection commit is not inside that artifact. |
+| Immutable prior npm | `@augmentworks/cli@0.4.3`, `@augmentworks/cli@0.4.2`, `@augmentworks/cli@0.4.1`, `@augmentworks/cli@0.4.0`, `@augmentworks/cli@0.3.9`, `@augmentworks/cli@0.3.8`, `@augmentworks/cli@0.3.7`, `@augmentworks/cli@0.3.6`, `@augmentworks/cli@0.3.5`, `@augmentworks/cli@0.3.4`, and `@augmentworks/cli@0.3.3` (gitHead `4a08ea0d352f2515e725cb9ca946807112422436`). Do not overwrite or relabel. |
 
 The committed discovery manifest stays `development` for a source checkout. A
 locally packed tarball may carry this development-status manifest. That is QA,
@@ -31,9 +31,9 @@ node scripts/verify-published-discovery.mjs --version 0.3.7
 ```
 
 `verify-published-discovery` emits metadata and does not replace executable
-inspection. Independently inspected 0.4.2 registry evidence is
+inspection. Independently inspected 0.4.3 registry evidence is
 `lastIndependentlyInspected`. `thisPackageIdentity` for this checkout is
-`0.4.3` / `pending-protected-publish` in
+`0.4.4` / `pending-protected-publish` in
 `docs/feature-readiness/published-registry-evidence.json`. Independently
 inspected 0.3.6 remains historical (capabilities, no saved-suite `/2`).
 Independently inspected 0.3.5 remains historical (it omits suite-selection
@@ -57,10 +57,10 @@ node dist/index.js demo --json
 `0` only when the faulty run fails as expected, the corrected run passes, and
 cleanup succeeds.
 
-This package's executable npx pin is `0.4.3`:
+This package's executable npx pin is `0.4.4`:
 
 ```bash
-npx --yes @augmentworks/cli@0.4.3 demo
+npx --yes @augmentworks/cli@0.4.4 demo
 ```
 
 ## Website adoption
@@ -91,9 +91,9 @@ npm test
 
 ## Changed resources in this source revision
 
-- `lastIndependentlyInspected` records independently inspected `@augmentworks/cli@0.4.2`
-- `thisPackageIdentity` is `@augmentworks/cli@0.4.3` with status `pending-protected-publish`
-- Immutable 0.4.2, 0.4.1, 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, and 0.3.3 records stay unchanged
+- `lastIndependentlyInspected` records independently inspected `@augmentworks/cli@0.4.3`
+- `thisPackageIdentity` is `@augmentworks/cli@0.4.4` with status `pending-protected-publish`
+- Immutable 0.4.3, 0.4.2, 0.4.1, 0.4.0, 0.3.9, 0.3.8, 0.3.7, 0.3.6, 0.3.5, 0.3.4, and 0.3.3 records stay unchanged
 - Source discovery stays `development`
 
 ## Published 0.3.7 receipt

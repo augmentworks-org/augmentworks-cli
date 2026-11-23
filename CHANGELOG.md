@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-23
+
+Patch release. Requires Node.js 22.12 or newer, like 0.4.3. A passing hosted
+run is no longer reported as failed while its grading result is still being
+saved. `@augmentworks/cli@0.4.3` is not overwritten.
+
+### Fixed
+
+- `run wait`, `test`, `run status`, and `run report` now treat a `partial`
+  evaluation as grading still in progress, as the server reports it. They no
+  longer decide from judge-job counts that grading has ended. In the few
+  seconds after the last judge job finishes and before the result is saved,
+  the server still says `partial`, and 0.4.1 to 0.4.3 could stop there and
+  exit `10` on a run that passed. Wait now keeps polling, and a deadline still
+  exits `11`. A finished evaluation with an inconclusive or not-run required
+  check still exits `10`, because the server reports it `complete`.
+  `run report` and `test` no longer read billing status for judge-job
+  progress. (AUG-434)
+
+### Changed
+
+- Recorded the independent inspection of npm `@augmentworks/cli@0.4.3`,
+  published by the `v0.4.3` release workflow with SLSA provenance from
+  `augmentworks-org/augmentworks-cli`. The published tarball is unchanged and
+  still embeds the prior 0.4.2 `LAST_VERIFIED` snapshot.
+
 ## [0.4.3] - 2026-11-22
 
 Patch release. Requires Node.js 22.12 or newer, like 0.4.2. A hosted run whose

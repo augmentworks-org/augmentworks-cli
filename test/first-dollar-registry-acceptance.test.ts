@@ -99,21 +99,21 @@ describe("first-dollar registry acceptance handoff", () => {
     expect(JSON.stringify(evidence)).not.toMatch(/npx --yes @augmentworks\/cli@0\.3\.2\b/u);
   });
 
-  it("does not treat packaged identity as a live 0.4.3 registry probe", async () => {
+  it("does not treat packaged identity as a live 0.4.4 registry probe", async () => {
     const evidence = JSON.parse(await readFile(firstDollarUrl, "utf8")) as FirstDollarEvidence;
     const registryIdentity = evidence.checks.find(
       (check) => check.name === "registry-tarball-gitHead-integrity"
     );
 
     expect(PUBLISHED_PACKAGE_VERIFIED).toBe(true);
-    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.4.2");
+    expect(LAST_VERIFIED_PUBLISHED_PACKAGE_VERSION).toBe("0.4.3");
     expect(LAST_VERIFIED_PUBLISHED_GIT_HEAD).toBe(
-      "28c6edfa6773d95e673d202fc2897a94c04427ff"
+      "d3f5bd36be4cdd269ec6e9db6009edba16573452"
     );
     expect(LAST_VERIFIED_PUBLISHED_INTEGRITY).toBe(
-      "sha512-jyXZSnW8L1AcET3fjMLm9++Izjeu061Za/3Iis3gy+foWUqW0OhScjU8Vr9bm3yDiP+ExRuAYvMac/cZrWZ6tA=="
+      "sha512-6pGiEs7lQvLfiXKPu2sxLc9K4UodtI1LCsKX5CKBqGqp23u3cv53ylkPdbZBJc1XFaDLs944H0eEE30AuFlX3A=="
     );
-    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-10-30T14:23:12.800Z");
+    expect(LAST_VERIFIED_PUBLISHED_AT).toBe("2026-11-22T03:57:22.866Z");
     expect(REGISTRY_0_3_3_GIT_HEAD).toBe("4a08ea0d352f2515e725cb9ca946807112422436");
     expect(registryIdentity?.status).toBe("pass");
     expect(evidence.cli.gitHead).not.toBeNull();
@@ -127,36 +127,36 @@ describe("first-dollar registry acceptance handoff", () => {
 });
 
 describe("published registry evidence record", () => {
-  it("keeps this package identity separate from last independently inspected 0.4.2", async () => {
+  it("keeps this package identity separate from last independently inspected 0.4.3", async () => {
     const record = JSON.parse(await readFile(registryEvidenceUrl, "utf8")) as PublishedRegistryEvidence & {
       immutableArtifacts: Array<{ version: string; gitHead: string }>;
     };
 
     expect(record.schemaVersion).toBe("aw-cli-registry-evidence/1");
-    expect(record.lastIndependentlyInspected.version).toBe("0.4.2");
+    expect(record.lastIndependentlyInspected.version).toBe("0.4.3");
     expect(record.lastIndependentlyInspected.gitHead).toBe(
-      "28c6edfa6773d95e673d202fc2897a94c04427ff"
+      "d3f5bd36be4cdd269ec6e9db6009edba16573452"
     );
     expect(record.lastIndependentlyInspected.integrity).toBe(
-      "sha512-jyXZSnW8L1AcET3fjMLm9++Izjeu061Za/3Iis3gy+foWUqW0OhScjU8Vr9bm3yDiP+ExRuAYvMac/cZrWZ6tA=="
+      "sha512-6pGiEs7lQvLfiXKPu2sxLc9K4UodtI1LCsKX5CKBqGqp23u3cv53ylkPdbZBJc1XFaDLs944H0eEE30AuFlX3A=="
     );
-    expect(record.lastIndependentlyInspected.verifiedAt).toBe("2026-10-30T14:23:12.800Z");
+    expect(record.lastIndependentlyInspected.verifiedAt).toBe("2026-11-22T03:57:22.866Z");
     expect(record.lastIndependentlyInspected.provenance).toMatchObject({
       predicateType: "https://slsa.dev/provenance/v1",
       repository: "https://github.com/augmentworks-org/augmentworks-cli",
       workflow: ".github/workflows/release.yml",
-      ref: "refs/tags/v0.4.2",
-      gitCommit: "28c6edfa6773d95e673d202fc2897a94c04427ff"
+      ref: "refs/tags/v0.4.3",
+      gitCommit: "d3f5bd36be4cdd269ec6e9db6009edba16573452"
     });
     expect(record.thisPackageIdentity.version).toBe(SOURCE_PACKAGE_VERSION);
-    expect(record.thisPackageIdentity.version).toBe("0.4.3");
+    expect(record.thisPackageIdentity.version).toBe("0.4.4");
     expect(record.thisPackageIdentity.gitHead).toBeNull();
     expect(record.thisPackageIdentity.integrity).toBeNull();
     expect(record.thisPackageIdentity.verifiedAt).toBeNull();
     expect(record.thisPackageIdentity.status).toBe("pending-protected-publish");
     expect(record.thisPackageIdentity.version).not.toBe(record.lastIndependentlyInspected.version);
-    expect(record.immutableArtifacts.find((artifact) => artifact.version === "0.4.2")?.gitHead).toBe(
-      "28c6edfa6773d95e673d202fc2897a94c04427ff"
+    expect(record.immutableArtifacts.find((artifact) => artifact.version === "0.4.3")?.gitHead).toBe(
+      "d3f5bd36be4cdd269ec6e9db6009edba16573452"
     );
     expect(record.immutableArtifacts.find((artifact) => artifact.version === "0.4.1")?.gitHead).toBe(
       "043fccc59174a8d334c2cc53a7e42d8dd7523878"
