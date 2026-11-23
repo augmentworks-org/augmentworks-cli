@@ -1,0 +1,26 @@
+name: Verify native n8n refund demo
+on:
+  push:
+    branches:
+      - verify/n8n-refund-approval
+permissions:
+  contents: read
+jobs:
+  local-refund-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install pinned published packages into the runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/n8n-runtime" --no-fund --no-audit n8n@2.48.7 @augmentworks/cli@0.4.4
+          echo "N8N_EXE=$RUNNER_TEMP/n8n-runtime/node_modules/.bin/n8n" >> "$GITHUB_ENV"
+          echo "AUGMENTWORKS_EXE=$RUNNER_TEMP/n8n-runtime/node_modules/.bin/augmentworks" >> "$GITHUB_ENV"
+      - name: Import, publish locally, check both decisions, and reimport the native export
+        run: python3 .github/verify-n8n-refund.py
