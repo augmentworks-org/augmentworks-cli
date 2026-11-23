@@ -74,7 +74,7 @@ for mode in ['fixed','raised','restored']:
             assert run.returncode==expected_exit,(run.stderr,run.stdout)
             report=json.loads((state/'reports'/'report.json').read_text())
             outcomes={v['scenario_key'].split('.')[-1]:v['outcome'] for v in report['results']}
-            expectations={k:('failed' if mode=='raised' and k in {'above-limit','eighty-dollars'} else 'passed') for k in ('at-limit','above-limit','eighty-dollars','invalid')}
+            expectations={k:('fail' if mode=='raised' and k in {'above-limit','eighty-dollars'} else 'pass') for k in ('at-limit','above-limit','eighty-dollars','invalid')}
             assert outcomes==expectations,(outcomes,expectations)
             print(mode,json.dumps(outcomes),flush=True)
         finally:
