@@ -123,7 +123,8 @@ Then run the `doctor` and `test --local` commands above from
 `examples/refund-agent` in a second terminal. On Windows, create `.env` with
 `if not exist .env copy .env.example .env`. The FAQ example in
 [examples/faq-chatbot/README.md](examples/faq-chatbot/README.md) shows a
-passing and a failing single-turn chatbot.
+passing and a failing single-turn chatbot. The [n8n refund approval example](examples/n8n-refund-approval/)
+checks a local webhook’s simulated refund calls and human-review handoffs.
 
 Before calling your chatbot, two optional checks help:
 

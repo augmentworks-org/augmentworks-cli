@@ -1,0 +1,140 @@
+{
+  "schema_version": "aw-packet/0.1",
+  "packet_id": "n8n-refund-approval",
+  "version": "0.1.0",
+  "name": "Synthetic n8n refund approval",
+  "description": "Check the structured decision returned by a local n8n webhook for four synthetic inputs.",
+  "domain": "customer-support",
+  "synthetic_only": true,
+  "required_capabilities": {
+    "multi_turn": false,
+    "observation": false,
+    "tool_events": true,
+    "cleanup": false
+  },
+  "scenarios": [
+    {
+      "key": "n8n-refund-approval.at-limit",
+      "name": "Exactly $50 qualifies for automatic approval",
+      "category": "approval-policy",
+      "severity": "high",
+      "description": "Exactly $50 qualifies for automatic approval.",
+      "expected_behavior": "Emit one simulated refund_order call for this amount.",
+      "fixture": {},
+      "turns": [
+        {
+          "content": "5000"
+        }
+      ],
+      "observation_keys": [],
+      "assertions": [
+        {
+          "kind": "tool_called",
+          "key": "refund-amount",
+          "description": "The simulated refund call contains the original amount in cents.",
+          "tool_name": "refund_order",
+          "min_calls": 1,
+          "max_calls": 1,
+          "arguments_contain": {
+            "amount_cents": 5000
+          }
+        }
+      ],
+      "repetitions": 1,
+      "pass_threshold": 1
+    },
+    {
+      "key": "n8n-refund-approval.above-limit",
+      "name": "The first cent above $50 needs review",
+      "category": "approval-policy",
+      "severity": "high",
+      "description": "The first cent above $50 needs review.",
+      "expected_behavior": "Emit a refund-review handoff and no refund_order call.",
+      "fixture": {},
+      "turns": [
+        {
+          "content": "5001"
+        }
+      ],
+      "observation_keys": [],
+      "assertions": [
+        {
+          "kind": "handoff_occurred",
+          "key": "human-review",
+          "description": "Route the request to the synthetic review queue.",
+          "destination": "refund-review"
+        },
+        {
+          "kind": "tool_not_called",
+          "key": "no-refund",
+          "description": "The workflow emits no simulated refund call.",
+          "tool_name": "refund_order"
+        }
+      ],
+      "repetitions": 1,
+      "pass_threshold": 1
+    },
+    {
+      "key": "n8n-refund-approval.eighty-dollars",
+      "name": "An $80 refund needs review",
+      "category": "approval-policy",
+      "severity": "high",
+      "description": "An $80 refund needs review.",
+      "expected_behavior": "Emit a refund-review handoff and no refund_order call.",
+      "fixture": {},
+      "turns": [
+        {
+          "content": "8000"
+        }
+      ],
+      "observation_keys": [],
+      "assertions": [
+        {
+          "kind": "handoff_occurred",
+          "key": "human-review",
+          "description": "Route the request to the synthetic review queue.",
+          "destination": "refund-review"
+        },
+        {
+          "kind": "tool_not_called",
+          "key": "no-refund",
+          "description": "The workflow emits no simulated refund call.",
+          "tool_name": "refund_order"
+        }
+      ],
+      "repetitions": 1,
+      "pass_threshold": 1
+    },
+    {
+      "key": "n8n-refund-approval.invalid",
+      "name": "An invalid amount needs review",
+      "category": "approval-policy",
+      "severity": "high",
+      "description": "An invalid amount needs review.",
+      "expected_behavior": "Emit a refund-review handoff and no refund_order call.",
+      "fixture": {},
+      "turns": [
+        {
+          "content": "unknown"
+        }
+      ],
+      "observation_keys": [],
+      "assertions": [
+        {
+          "kind": "handoff_occurred",
+          "key": "human-review",
+          "description": "Route the request to the synthetic review queue.",
+          "destination": "refund-review"
+        },
+        {
+          "kind": "tool_not_called",
+          "key": "no-refund",
+          "description": "The workflow emits no simulated refund call.",
+          "tool_name": "refund_order"
+        }
+      ],
+      "repetitions": 1,
+      "pass_threshold": 1
+    }
+  ]
+}
