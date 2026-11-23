@@ -72,6 +72,11 @@ for mode in ['fixed','raised','restored']:
             expected_exit=10 if mode=='raised' else 0
             print(mode,'actual',run.returncode,'expected',expected_exit,'out:',run.stdout[:300],'err:',run.stderr[-320:],flush=True)
             assert run.returncode==expected_exit,(run.stderr,run.stdout)
+            report=json.loads((state/'reports'/'report.json').read_text())
+            outcomes={v['scenario_key'].split('.')[-1]:v['outcome'] for v in report['results']}
+            expectations={k:('failed' if mode=='raised' and k in {'above-limit','eighty-dollars'} else 'passed') for k in ('at-limit','above-limit','eighty-dollars','invalid')}
+            assert outcomes==expectations,(outcomes,expectations)
+            print(mode,json.dumps(outcomes),flush=True)
         finally:
             if proc.poll() is None:
                 os.killpg(proc.pid,signal.SIGTERM)

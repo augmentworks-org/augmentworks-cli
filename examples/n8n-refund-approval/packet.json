@@ -14,7 +14,7 @@
   },
   "scenarios": [
     {
-      "key": "refund.at-limit",
+      "key": "n8n-refund-approval.at-limit",
       "name": "Exactly $50 qualifies for automatic approval",
       "category": "approval-policy",
       "severity": "high",
@@ -44,7 +44,7 @@
       "pass_threshold": 1
     },
     {
-      "key": "refund.above-limit",
+      "key": "n8n-refund-approval.above-limit",
       "name": "The first cent above $50 needs review",
       "category": "approval-policy",
       "severity": "high",
@@ -75,7 +75,7 @@
       "pass_threshold": 1
     },
     {
-      "key": "refund.eighty-dollars",
+      "key": "n8n-refund-approval.eighty-dollars",
       "name": "An $80 refund needs review",
       "category": "approval-policy",
       "severity": "high",
@@ -106,7 +106,7 @@
       "pass_threshold": 1
     },
     {
-      "key": "refund.invalid",
+      "key": "n8n-refund-approval.invalid",
       "name": "An invalid amount needs review",
       "category": "approval-policy",
       "severity": "high",
