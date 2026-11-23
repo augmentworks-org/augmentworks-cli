@@ -378,21 +378,25 @@ describe("packed augmentworks run wait/status", () => {
     });
   });
 
-  // AUG-403: a timed-out attempt left the evaluation inconclusive. A fixed
-  // server reports it complete; an older one keeps it partial with no judge
-  // job left. Either way the run is finished and exits 10, not 11.
-  describe("finished grading with a timed-out attempt (AUG-403)", () => {
+  // AUG-403: a timed-out attempt left the evaluation inconclusive. The server
+  // reports the finished evaluation complete, so the run exits 10, not 11.
+  // AUG-434: `partial` means grading is still open, even with every judge job
+  // done, because the evaluation snapshot can lag the last judge job.
+  describe("finished grading with a timed-out attempt (AUG-403, AUG-434)", () => {
     function statusWith(
       evaluationStatus: "complete" | "partial",
       completedJudgeJobs: number
     ): Record<string, unknown> {
+      const open = evaluationStatus === "partial";
       return {
         ...pendingGrading,
         executionStatus: "completed",
         evaluationStatus,
-        nextActions: completedJudgeJobs < 1 ? ["wait", "inspect", "open_dashboard"] : ["inspect", "open_dashboard"],
-        retryEligible: false,
-        retryReason: null,
+        nextActions: open
+          ? ["wait", "inspect", "open_dashboard", "retry_evaluation"]
+          : ["inspect", "open_dashboard"],
+        retryEligible: open,
+        retryReason: open ? "Incomplete hosted grading can be retried without another target run." : null,
         progress: { completedAttempts: 2, plannedAttempts: 2, completedJudgeJobs, plannedJudgeJobs: 1 }
       };
     }
@@ -444,58 +448,137 @@ describe("packed augmentworks run wait/status", () => {
       return started;
     }
 
-    for (const evaluationStatus of ["complete", "partial"] as const) {
-      it(`run wait returns at once with exit 10 (${evaluationStatus})`, async () => {
+    it("run wait returns at once with exit 10 once grading is complete", async () => {
+      const cwd = await emptyCwd();
+      const { server, paths } = await serve("complete", 1);
+      const started = Date.now();
+      const result = await runPackedCli(["run", "wait", RUN_ID, "--json", "--timeout-ms", "600000"], {
+        cwd,
+        env: runEnv(server.baseUrl),
+        timeoutMs: 30_000
+      });
+      expect(Date.now() - started).toBeLessThan(30_000);
+      expect(result.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+      const payload = JSON.parse(result.stdout) as Record<string, unknown>;
+      expect(payload).toMatchObject({
+        ok: true,
+        assessment: "failed",
+        exit_code: EXIT.ASSESSMENT_FAILED,
+        evaluationStatus: "complete"
+      });
+      expect(payload["outcome"]).toBe("failed");
+      expect(paths).toContain(`GET ${reportPathFor(RUN_ID)}`);
+      expect(paths.some((path) => path.startsWith("POST "))).toBe(false);
+    });
+
+    for (const completedJudgeJobs of [0, 1]) {
+      it(`run wait keeps waiting on partial with ${completedJudgeJobs} of 1 judge jobs done`, async () => {
         const cwd = await emptyCwd();
-        const { server, paths } = await serve(evaluationStatus, 1);
-        const started = Date.now();
-        const result = await runPackedCli(["run", "wait", RUN_ID, "--json", "--timeout-ms", "600000"], {
+        const { server, paths } = await serve("partial", completedJudgeJobs);
+        const result = await runPackedCli(["run", "wait", RUN_ID, "--json", "--timeout-ms", "1"], {
           cwd,
-          env: runEnv(server.baseUrl),
-          timeoutMs: 30_000
+          env: runEnv(server.baseUrl)
         });
-        expect(Date.now() - started).toBeLessThan(30_000);
-        expect(result.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
-        const payload = JSON.parse(result.stdout) as Record<string, unknown>;
-        expect(payload).toMatchObject({
-          ok: true,
-          assessment: "failed",
-          exit_code: EXIT.ASSESSMENT_FAILED,
-          evaluationStatus
-        });
-        expect(payload["outcome"]).toBe("failed");
-        expect(paths).toContain(`GET ${reportPathFor(RUN_ID)}`);
+        expect(result.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+        expect((JSON.parse(result.stdout) as { safe_message: string }).safe_message).toContain(
+          "Grading is still pending"
+        );
         expect(paths.some((path) => path.startsWith("POST "))).toBe(false);
       });
     }
 
-    it("run wait keeps waiting on partial while a judge job remains", async () => {
+    it("run report exits 10, not 11, once grading is complete", async () => {
       const cwd = await emptyCwd();
-      const { server } = await serve("partial", 0);
-      const result = await runPackedCli(["run", "wait", RUN_ID, "--json", "--timeout-ms", "1"], {
+      const { server, paths } = await serve("complete", 1);
+      const result = await runPackedCli(["run", "report", RUN_ID, "--json"], {
+        cwd,
+        env: runEnv(server.baseUrl)
+      });
+      const document = JSON.parse(result.stdout) as { retrieved: boolean; complete: boolean };
+      expect(document.retrieved).toBe(true);
+      expect(document.complete).toBe(true);
+      expect(result.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
+      expect(paths).not.toContain("GET /v1/billing/status");
+    });
+
+    it("run report exits 11 on partial without reading billing status", async () => {
+      const cwd = await emptyCwd();
+      const { server, paths } = await serve("partial", 1);
+      const result = await runPackedCli(["run", "report", RUN_ID, "--json"], {
         cwd,
         env: runEnv(server.baseUrl)
       });
       expect(result.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
-      expect((JSON.parse(result.stdout) as { safe_message: string }).safe_message).toContain(
-        "Grading is still pending"
-      );
+      expect(paths).not.toContain("GET /v1/billing/status");
     });
+  });
 
-    for (const evaluationStatus of ["complete", "partial"] as const) {
-      it(`run report exits 10, not 11 (${evaluationStatus})`, async () => {
-        const cwd = await emptyCwd();
-        const { server, paths } = await serve(evaluationStatus, 1);
-        const result = await runPackedCli(["run", "report", RUN_ID, "--json"], {
-          cwd,
-          env: runEnv(server.baseUrl)
-        });
-        const document = JSON.parse(result.stdout) as { retrieved: boolean; complete: boolean };
-        expect(document.retrieved).toBe(true);
-        expect(document.complete).toBe(true);
-        expect(result.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
-        expect(paths.includes("GET /v1/billing/status")).toBe(evaluationStatus === "partial");
+  // AUG-434: production hosted QA saw billing status say partial with 4 of 4
+  // judge jobs done while the evaluation snapshot caught up. The report a few
+  // seconds later was a complete pass. run wait must keep waiting and exit 0.
+  describe("a passing run whose snapshot settles after the last judge job (AUG-434)", () => {
+    it("keeps waiting through partial and exits 0 on the complete pass", async () => {
+      const cwd = await emptyCwd();
+      let statusReads = 0;
+      const settling = {
+        ...pendingGrading,
+        executionStatus: "completed",
+        evaluationStatus: "partial",
+        nextActions: ["wait", "inspect", "open_dashboard", "retry_evaluation"],
+        retryEligible: true,
+        retryReason: "Incomplete hosted grading can be retried without another target run.",
+        progress: { completedAttempts: 4, plannedAttempts: 4, completedJudgeJobs: 4, plannedJudgeJobs: 4 },
+        runId: RUN_ID,
+        originalRunId: RUN_ID,
+        workspaceId: WORKSPACE
+      };
+      const settled = {
+        ...settling,
+        evaluationStatus: "complete",
+        nextActions: ["inspect", "open_dashboard"],
+        retryEligible: false,
+        retryReason: null
+      };
+      const { server, paths } = await startMock((request, response, url) => {
+        if (request.method !== "GET") return false;
+        if (url.pathname === "/api/v1/cli/auth/me") {
+          send(response, 200, identity());
+          return true;
+        }
+        if (url.pathname === "/v1/billing/capabilities") {
+          send(response, 200, fixtures.fixtures["absent_capability"]?.response);
+          return true;
+        }
+        if (url.pathname === "/v1/billing/status") {
+          statusReads += 1;
+          send(response, 200, statusReads === 1 ? settling : settled);
+          return true;
+        }
+        if (url.pathname === reportPathFor(RUN_ID)) {
+          send(
+            response,
+            200,
+            statusReads <= 1
+              ? gradedReport(RUN_ID, WORKSPACE, { evaluationStatus: "partial", reportReady: false })
+              : gradedReport(RUN_ID, WORKSPACE)
+          );
+          return true;
+        }
+        return false;
       });
-    }
+      const result = await runPackedCli(["run", "wait", RUN_ID, "--json", "--timeout-ms", "60000"], {
+        cwd,
+        env: runEnv(server.baseUrl),
+        timeoutMs: 30_000
+      });
+      expect(result.exitCode).toBe(EXIT.OK);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        assessment: "passed",
+        outcome: "passed",
+        evaluationStatus: "complete"
+      });
+      expect(statusReads).toBeGreaterThanOrEqual(2);
+      expect(paths.some((path) => path.startsWith("POST "))).toBe(false);
+    });
   });
 });

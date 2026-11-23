@@ -5,8 +5,7 @@ import { CLI_VERSION } from "../version.js";
 import {
   classifyHostedOutcome,
   coverageKnowledge,
-  type HostedOutcomeClassification,
-  type JudgeJobProgress
+  type HostedOutcomeClassification
 } from "../outcome/classify.js";
 import type { AccessTokenProvider } from "../auth/types.js";
 import { remapAuthError } from "../auth/client.js";
@@ -207,8 +206,7 @@ function attemptHasNoReply(report: RunReport, attempt: RunReport["attempts"][num
 }
 
 export function classifyRunReportExport(
-  document: RunReportExport,
-  judgeJobs?: JudgeJobProgress | null
+  document: RunReportExport
 ): HostedOutcomeClassification & {
   readonly retrieved: boolean;
   readonly complete: boolean;
@@ -252,8 +250,7 @@ export function classifyRunReportExport(
     executionStatus: document.report.executionStatus,
     evaluationStatus: document.report.evaluationStatus,
     outcome: document.report.outcome,
-    coverageKnown: coverageKnowledge(document.report.coverage),
-    judgeJobs
+    coverageKnown: coverageKnowledge(document.report.coverage)
   });
   if (classified.exitCode === EXIT.OK && document.report.reportReady !== true) {
     return {

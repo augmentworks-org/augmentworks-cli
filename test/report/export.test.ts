@@ -973,17 +973,12 @@ describe("finished grading with a timed-out attempt (AUG-403)", () => {
     expect(classified.waitTerminal).toBe(true);
   });
 
-  it("treats an older server's partial with every judge job done as finished", async () => {
+  it("keeps a partial evaluation pending even when the export is complete (AUG-434)", async () => {
     const document = await exportTimedOut("partial");
     expect(document.complete).toBe(true);
-    // Without judge-job progress, partial still reads as grading pending.
-    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
-    expect(classifyRunReportExport(document, { planned: 1, completed: 0 }).exitCode).toBe(
-      EXIT.EVALUATION_INCOMPLETE
-    );
-    const finished = classifyRunReportExport(document, { planned: 1, completed: 1 });
-    expect(finished.exitCode).toBe(EXIT.ASSESSMENT_FAILED);
-    expect(finished.waitTerminal).toBe(true);
+    const classified = classifyRunReportExport(document);
+    expect(classified.exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
+    expect(classified.waitTerminal).toBe(false);
   });
 
   it("still treats a missing reply on a passing attempt as an evidence gap", async () => {
@@ -1089,7 +1084,7 @@ describe("truncated evidence on a finished run (AUG-418)", () => {
     expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
   });
 
-  it("still exits 11 while judge jobs remain on a partial evaluation", async () => {
+  it("still exits 11 on a partial evaluation", async () => {
     const document = await exportTruncated({
       report: (origin) =>
         mutatedFixtureResponse("report_all_pass_one_page", origin, (body) => {
@@ -1098,9 +1093,7 @@ describe("truncated evidence on a finished run (AUG-418)", () => {
           body["evaluationStatus"] = "partial";
         }).body as Record<string, unknown>
     });
-    expect(classifyRunReportExport(document, { planned: 2, completed: 1 }).exitCode).toBe(
-      EXIT.EVALUATION_INCOMPLETE
-    );
+    expect(classifyRunReportExport(document).exitCode).toBe(EXIT.EVALUATION_INCOMPLETE);
   });
 
   it("keeps purged evidence incomplete even when it is flagged truncated", async () => {

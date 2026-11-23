@@ -24,8 +24,8 @@ import {
   type RunReportClientOptions
 } from "../report/client.js";
 import { reportConsistencyRecoveryText } from "../report/consistency.js";
-import { gradingStillPending, judgeJobsFromProgress } from "../outcome/classify.js";
-import { readJudgeJobProgress, reportSettled, waitForGradedReport } from "../outcome/graded.js";
+import { gradingStillPending } from "../outcome/classify.js";
+import { reportSettled, waitForGradedReport } from "../outcome/graded.js";
 import {
   AUTHORIZED_REPORT_SCOPE,
   LIVE_INFORMATIONAL_REPORT_SCOPE,
@@ -324,18 +324,7 @@ async function executeRunReport(
   const exporter = dependencies.exportReport ?? exportHostedRunReport;
   const document = await exporter(runId, shared);
   stdout.write(`${JSON.stringify(document)}\n`);
-  // AUG-403: an older server can leave a finished, inconclusive evaluation at
-  // partial. Judge-job progress from billing status tells the two apart.
-  const judgeJobs =
-    document.retrieved && document.report?.evaluationStatus === "partial"
-      ? await readJudgeJobProgress({
-          cloud: session.cloud,
-          runId,
-          workspaceId: session.identity.workspaceId,
-          ...(values.signal === undefined ? {} : { signal: values.signal })
-        })
-      : undefined;
-  const classified = classifyRunReportExport(document, judgeJobs);
+  const classified = classifyRunReportExport(document);
   writeReportRecoveryGuidance(stderr, runId, document, classified.exitCode);
   if (classified.exitCode !== EXIT.OK) setExitCode(classified.exitCode);
 }
@@ -441,9 +430,6 @@ async function withGradedOutcome(
 ): Promise<BillingRunStatus> {
   if (status.outcome !== undefined || status.executionStatus !== "completed") return status;
   if (!classifyBillingRunStatus(status).waitTerminal) return status;
-  // AUG-403: billing status carries judge-job progress; the run report does
-  // not. A partial report with every judge job done has finished grading.
-  const judgeJobs = judgeJobsFromProgress(status.progress);
   const report = await waitForGradedReport({
     cloud: session.cloud,
     runId: status.runId,
@@ -451,10 +437,9 @@ async function withGradedOutcome(
     deadline,
     now: dependencies.now ?? Date.now,
     sleep: dependencies.sleep ?? sleepWithSignal,
-    judgeJobs: () => Promise.resolve(judgeJobs),
     ...(values.signal === undefined ? {} : { signal: values.signal })
   });
-  if (report === undefined || !reportSettled(report, judgeJobs)) return status;
+  if (report === undefined || !reportSettled(report)) return status;
   const outcome = report.outcome === "passed" && !report.reportReady ? null : report.outcome;
   return { ...status, outcome };
 }
@@ -462,7 +447,7 @@ async function withGradedOutcome(
 function waitIncompleteError(runId: string, status: BillingRunStatus | undefined): AwError {
   const gradingPending =
     status !== undefined &&
-    gradingStillPending(status.evaluationStatus, judgeJobsFromProgress(status.progress));
+    gradingStillPending(status.evaluationStatus);
   const reason = gradingPending
     ? "Grading is still pending"
     : "The original run is still in progress";
