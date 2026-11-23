@@ -1,0 +1,212 @@
+{
+  "name": "Test a refund approval limit with synthetic webhook requests",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "### How it works\nThis workflow decides whether a fictional refund request can proceed automatically. Send the amount in USD cents to the webhook. Positive whole amounts up to and including 5000 cents produce a simulated refund event. Larger or invalid amounts produce a handoff event for a fictional reviewer. Both responses are JSON, so you can inspect the decision in n8n or check it from your terminal. The demo never contacts a payment provider or creates a review ticket.\n\n### Setup\nImport this file into a local n8n instance and publish the workflow. POST a JSON object containing `amount_cents` to the production webhook at `/webhook/aw-demo-refund-approval`. Start with 8000 for a handoff, then try 5000 for a simulated approval. The accompanying AugmentWorks packet checks these outcomes and the first cent above the limit.\n\n### Customization\nOpen **Within automatic approval limit?** to change the cap in cents. To see a regression, raise 5000 to 10000, publish, and rerun the same packet. Restore the cap to 5000 and rerun to see the checks pass.",
+        "width": 460,
+        "height": 555,
+        "color": 1
+      },
+      "id": "6365d19d-96fc-534a-abf3-e842d25b6ba2",
+      "name": "Read this first",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 1. Receive a synthetic request\nUse a positive whole number of cents. Invalid input gets a zero sentinel, which always takes the review branch.",
+        "width": 500,
+        "height": 420,
+        "color": 4
+      },
+      "id": "44e9bb2b-8f21-5201-9dcc-efc9314846b0",
+      "name": "Receive and validate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -252,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 2. Apply the approval rule\nThe true branch emits a simulated refund call. The false branch emits a handoff. Either branch returns its first JSON item to the webhook.",
+        "width": 650,
+        "height": 600,
+        "color": 3
+      },
+      "id": "a2b36c68-7620-51fb-8568-e53d83fa64b6",
+      "name": "Decide and return evidence",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        288,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aw-demo-refund-approval",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "id": "fd5c5960-17d0-5668-84a0-098b4ca22843",
+      "name": "Receive refund request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -215,
+        -24
+      ],
+      "webhookId": "f5f885ce-0cc1-599f-89c8-806cb1b70759"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "31c0df27-dc9d-5e21-a4cf-0137ddff0c42",
+              "name": "amount_cents",
+              "value": "={{ ['string', 'number'].includes(typeof $json.body?.amount_cents) && /^[1-9][0-9]{0,8}$/.test(String($json.body.amount_cents)) ? Number($json.body.amount_cents) : 0 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "da3be70b-af7c-5f0f-b8bb-e7a26f2c10c1",
+      "name": "Read amount in cents",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        24,
+        -24
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "06928077-46fb-5a5d-8c7c-ede0c43f643c",
+              "leftValue": "={{ $json.amount_cents }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "3d540c2f-f15e-5d01-bdea-e8702fddf97c",
+              "leftValue": "={{ $json.amount_cents }}",
+              "rightValue": 5000,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "be81321b-811b-5a29-bba7-e1371b13dc36",
+      "name": "Within automatic approval limit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        328,
+        -24
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"answer\": \"Synthetic refund approved.\",\n  \"events\": [\n    {\n      \"type\": \"tool_call\",\n      \"event_id\": \"demo-refund-call\",\n      \"call_id\": \"demo-refund\",\n      \"tool_name\": \"refund_order\",\n      \"arguments\": {\n        \"amount_cents\": {{ $json.amount_cents }}\n      }\n    }\n  ],\n  \"finished\": true\n}",
+        "options": {}
+      },
+      "id": "ac4b7c28-c3be-5d15-9b0c-698a6ff16c4c",
+      "name": "Return simulated refund call",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"answer\": \"Human review required.\",\n  \"events\": [\n    {\n      \"type\": \"handoff\",\n      \"event_id\": \"demo-review\",\n      \"destination\": \"refund-review\"\n    }\n  ],\n  \"finished\": true\n}",
+        "options": {}
+      },
+      "id": "d0af1482-075c-5c5d-9d57-8586b5f7f5c8",
+      "name": "Return simulated handoff",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        96
+      ]
+    }
+  ],
+  "connections": {
+    "Receive refund request": {
+      "main": [
+        [
+          {
+            "node": "Read amount in cents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read amount in cents": {
+      "main": [
+        [
+          {
+            "node": "Within automatic approval limit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Within automatic approval limit?": {
+      "main": [
+        [
+          {
+            "node": "Return simulated refund call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return simulated handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

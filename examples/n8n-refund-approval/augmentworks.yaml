@@ -1,0 +1,19 @@
+version: 1
+target:
+  name: local-n8n-refund-approval
+  connector: http
+  base_url: http://127.0.0.1:5678
+  operations:
+    send:
+      method: POST
+      path: /webhook/aw-demo-refund-approval
+      idempotent: true
+      request:
+        amount_cents: $input.message.content
+      response:
+        content: $.answer
+        tool_events: $.events
+        finished: $.finished
+telemetry:
+  allow_tool_events: true
+  allow_observations: []
